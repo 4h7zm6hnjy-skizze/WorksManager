@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#062f4f" />
+  <title>WorksManager</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/png" href="favicon.png" />
+  <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div id="unlock" class="unlock-screen">
+    <div class="unlock-card">
+      <img class="unlock-logo" src="worksmanager-logo.png" alt="WorksManager" />
+      <h1 class="sr-only">WorksManager</h1>
+      <p class="muted">Private Arbeitsverwaltung · lokale, verschlüsselte Datenspeicherung</p>
+      <label>Passwort / PIN</label>
+      <input id="unlockPassword" type="password" autocomplete="current-password" placeholder="Passwort eingeben" />
+      <button id="unlockBtn" class="primary">Öffnen</button>
+      <p id="unlockHint" class="hint"></p>
+    </div>
+  </div>
+
+  <div id="app" class="app hidden">
+    <header class="topbar">
+      <div class="top-brand">
+        <img class="top-logo" src="worksmanager-logo.png" alt="WorksManager" />
+        <div class="subtitle">Copyright Marcel Hentschel</div>
+      </div>
+      <div class="top-actions">
+        <button id="lockBtn" class="ghost">Sperren</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="dashboard" class="page active">
+        <div class="hero">
+          <div>
+            <h2>Meine Arbeitsübersicht</h2>
+            <p id="welcomeText" class="muted">Noch kein Mitarbeitername hinterlegt.</p>
+          </div>
+          <span class="privacy-badge">🔒 Lokal & verschlüsselt</span>
+        </div>
+        <div class="stats-grid">
+          <div class="stat"><span>AU-Tage</span><strong id="statAuDays">0</strong></div>
+          <div class="stat"><span>AU-Fälle</span><strong id="statAuCases">0</strong></div>
+          <div class="stat"><span>Schichten</span><strong id="statShifts">0</strong></div>
+          <div class="stat"><span>Dokumente</span><strong id="statDocs">0</strong></div>
+        </div>
+        <div class="quick-grid">
+          <button data-go="shift" class="quick">📷 Schichtplan einlesen</button>
+          <button data-go="sickness" class="quick">🩺 AU einscannen</button>
+          <button data-go="payroll" class="quick">🧾 Abrechnung scannen</button>
+          <button data-go="meetings" class="quick">🗣 Gespräch eintragen</button>
+          <button data-go="health" class="quick">❤ Gesundheit</button>
+        </div>
+        <div class="card warning-card">
+          <h3>Datenschutz</h3>
+          <p>Scans, ICD‑10-Codes und Arbeitsdaten werden nicht an einen eigenen Server der App übertragen. Sie liegen verschlüsselt auf diesem Gerät. Die optionale OCR-Bibliothek wird aus dem Internet geladen, die Bildauswertung selbst erfolgt im Browser.</p>
+        </div>
+      </section>
+
+      <section id="company" class="page">
+        <h2>Firma & Vertrag</h2>
+        <div class="card form-grid">
+          <label>Firma<input id="companyName" placeholder="Firma" /></label>
+          <label>Mitarbeitername<input id="employeeName" placeholder="Vor- und Nachname" /></label>
+          <label>Vertragsbeginn<input id="contractStart" type="date" /></label>
+          <label>Personalnummer<input id="employeeNo" placeholder="optional" /></label>
+          <label class="wide">Notiz<textarea id="companyNotes" rows="3"></textarea></label>
+          <div class="wide"><button id="saveCompany" class="primary">Speichern</button></div>
+        </div>
+        <div class="card">
+          <h3>Arbeitsvertrag</h3>
+          <div class="upload-row">
+            <input id="contractFile" type="file" accept="image/*,.pdf" />
+            <button id="saveContractFile">Dokument speichern</button>
+          </div>
+          <div id="contractList" class="list"></div>
+        </div>
+      </section>
+
+      <section id="shift" class="page">
+        <div class="section-head"><h2>Schichtplan</h2><button id="addShiftManual">+ Schicht</button></div>
+        <div class="card scanner-card">
+          <h3>Plan einlesen</h3>
+          <p class="muted">Foto aufnehmen oder hochladen. WorksManager sucht nach deinem hinterlegten Namen und versucht Datum, Schichtkürzel und Uhrzeiten zu erkennen.</p>
+          <input id="shiftImage" type="file" accept="image/*" capture="environment" />
+          <button id="scanShift" class="primary">Foto lokal auswerten</button>
+          <div id="shiftOcrStatus" class="hint"></div>
+          <textarea id="shiftOcrText" rows="7" placeholder="Erkannter Text erscheint hier"></textarea>
+          <button id="parseShift" class="secondary">Erkannten Text prüfen</button>
+        </div>
+        <div id="shiftReview" class="card hidden"></div>
+        <div class="card"><h3>Meine Schichten</h3><div id="shiftList" class="list"></div></div>
+      </section>
+
+      <section id="meetings" class="page">
+        <h2>BEM · AMZ · Gespräche</h2>
+        <div class="card form-grid">
+          <label>Art<select id="meetingType"><option>BEM</option><option>AMZ</option><option>Gespräch</option></select></label>
+          <label>Datum<input id="meetingDate" type="date" /></label>
+          <label>Uhrzeit<input id="meetingTime" type="time" /></label>
+          <label>Gesprächspartner<input id="meetingPartner" /></label>
+          <label>Ort<input id="meetingPlace" /></label>
+          <label class="wide">Notiz<textarea id="meetingNote" rows="3"></textarea></label>
+          <div class="wide"><button id="saveMeeting" class="primary">Eintrag speichern</button></div>
+        </div>
+        <div id="meetingList" class="list"></div>
+      </section>
+
+      <section id="notices" class="page">
+        <h2>Aushänge</h2>
+        <div class="card form-grid">
+          <label>Art<select id="noticeType"><option>Kurzarbeit</option><option>Sonstige</option></select></label>
+          <label>Datum<input id="noticeDate" type="date" /></label>
+          <label class="wide">Titel<input id="noticeTitle" /></label>
+          <label class="wide">Notiz<textarea id="noticeNote" rows="3"></textarea></label>
+          <label class="wide">Foto / Dokument<input id="noticeFile" type="file" accept="image/*,.pdf" /></label>
+          <div class="wide"><button id="saveNotice" class="primary">Speichern</button></div>
+        </div>
+        <div id="noticeList" class="list"></div>
+      </section>
+
+      <section id="payroll" class="page">
+        <h2>Abrechnung & Stempelübersicht</h2>
+        <div class="two-col">
+          <div class="card scanner-card">
+            <h3>Lohnabrechnung</h3>
+            <label>Monat<input id="payrollMonth" type="month" /></label>
+            <input id="payrollImage" type="file" accept="image/*,.pdf" capture="environment" />
+            <button data-docscan="payroll" class="primary">Scannen & speichern</button>
+          </div>
+          <div class="card scanner-card">
+            <h3>Stempelübersicht</h3>
+            <label>Monat<input id="stampMonth" type="month" /></label>
+            <input id="stampImage" type="file" accept="image/*,.pdf" capture="environment" />
+            <button data-docscan="stamp" class="primary">Scannen & speichern</button>
+          </div>
+        </div>
+        <div class="card"><h3>Gespeicherte Unterlagen</h3><div id="payrollList" class="list"></div></div>
+      </section>
+
+      <section id="sickness" class="page">
+        <div class="section-head"><h2>Krankheit & AU</h2><button id="addAuManual">+ AU manuell</button></div>
+        <div class="card scanner-card">
+          <h3>AU-Scanner</h3>
+          <p class="muted">Foto aufnehmen. WorksManager erkennt nach Möglichkeit Zeitraum, Erst-/Folgebescheinigung und ICD‑10-Code(s). Bitte vor dem Speichern prüfen.</p>
+          <input id="auImage" type="file" accept="image/*" capture="environment" />
+          <button id="scanAu" class="primary">AU lokal erkennen</button>
+          <div id="auOcrStatus" class="hint"></div>
+          <textarea id="auOcrText" rows="7" placeholder="Erkannter Text erscheint hier"></textarea>
+          <button id="parseAu" class="secondary">Daten aus Text übernehmen</button>
+        </div>
+        <div id="auReview" class="card hidden"></div>
+        <div class="stats-grid compact">
+          <div class="stat"><span>AU-Fälle</span><strong id="auCases">0</strong></div>
+          <div class="stat"><span>Kalendertage</span><strong id="auDays">0</strong></div>
+          <div class="stat"><span>Folge-AU</span><strong id="auFollow">0</strong></div>
+        </div>
+        <div class="card"><h3>ICD‑10-Auswertung</h3><div id="icdStats" class="list"></div></div>
+        <div class="card"><h3>Krankschreibungen</h3><div id="auList" class="list"></div></div>
+      </section>
+
+      <section id="health" class="page">
+        <h2>Gesundheit</h2>
+        <p class="muted">Gesundheitsunterlagen werden wie die übrigen WorksManager-Daten lokal verschlüsselt gespeichert.</p>
+
+        <div class="card">
+          <div class="section-head"><h3>Lungenfunktionstest</h3><button id="addLungTest">+ Eintrag</button></div>
+          <p class="muted">Messwerte und Originalbefund gemeinsam ablegen.</p>
+          <div id="lungTestList" class="list"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-head"><h3>Laborwerte</h3><button id="addLabResult">+ Eintrag</button></div>
+          <p class="muted">Laborwerte frei erfassen und den Laborbefund als Foto oder PDF speichern.</p>
+          <div id="labResultList" class="list"></div>
+        </div>
+
+        <div class="card">
+          <div class="section-head"><h3>Arztbriefe</h3><button id="addDoctorLetter">+ Arztbrief</button></div>
+          <p class="muted">Arzt, Fachrichtung, Betreff, Notiz und Originaldokument zusammen speichern.</p>
+          <div id="doctorLetterList" class="list"></div>
+        </div>
+      </section>
+
+      <section id="family" class="page">
+        <h2>Kind krank</h2>
+        <div class="card form-grid">
+          <label>Kind / Name<input id="childName" /></label>
+          <label>Von<input id="childFrom" type="date" /></label>
+          <label>Bis<input id="childTo" type="date" /></label>
+          <label class="wide">Notiz<textarea id="childNote" rows="2"></textarea></label>
+          <div class="wide"><button id="saveChild" class="primary">Speichern</button></div>
+        </div>
+        <div id="childList" class="list"></div>
+      </section>
+
+      <section id="rehab" class="page">
+        <h2>Reha</h2>
+        <div class="card form-grid">
+          <label>Status<select id="rehabStatus"><option>Geplant</option><option>Beantragt</option><option>Bewilligt</option><option>Laufend</option><option>Abgeschlossen</option></select></label>
+          <label>Einrichtung<input id="rehabClinic" /></label>
+          <label>Von<input id="rehabFrom" type="date" /></label>
+          <label>Bis<input id="rehabTo" type="date" /></label>
+          <label class="wide">Notiz<textarea id="rehabNote" rows="3"></textarea></label>
+          <div class="wide"><button id="saveRehab" class="primary">Speichern</button></div>
+        </div>
+        <div id="rehabList" class="list"></div>
+      </section>
+
+      <section id="backup" class="page">
+        <h2>Sicherheit & Backup</h2>
+        <div class="card">
+          <h3>Verschlüsseltes Backup</h3>
+          <p class="muted">Exportiert die verschlüsselten WorksManager-Daten. Das Passwort wird nicht mit exportiert.</p>
+          <div class="button-row">
+            <button id="exportBackup" class="primary">Backup exportieren</button>
+            <label class="file-button">Backup importieren<input id="importBackup" type="file" accept="application/json,.json" /></label>
+          </div>
+        </div>
+        <div class="card danger-zone">
+          <h3>Lokale Daten löschen</h3>
+          <p>Entfernt alle WorksManager-Daten auf diesem Gerät.</p>
+          <button id="wipeData" class="danger">Alle Daten löschen</button>
+        </div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav">
+      <button data-go="dashboard" class="nav-btn active">⌂<span>Start</span></button>
+      <button data-go="shift" class="nav-btn">◷<span>Schicht</span></button>
+      <button data-go="sickness" class="nav-btn">✚<span>AU</span></button>
+      <button data-go="payroll" class="nav-btn">▤<span>Abrechnung</span></button>
+      <button id="moreBtn" class="nav-btn">☰<span>Mehr</span></button>
+    </nav>
+  </div>
+
+  <div id="moreMenu" class="sheet hidden">
+    <div class="sheet-card">
+      <div class="sheet-head"><strong>Weitere Bereiche</strong><button id="closeMore">✕</button></div>
+      <button data-go="company">Firma & Vertrag</button>
+      <button data-go="meetings">BEM · AMZ · Gespräche</button>
+      <button data-go="notices">Aushänge</button>
+      <button data-go="health">Gesundheit</button>
+      <button data-go="family">Kind krank</button>
+      <button data-go="rehab">Reha</button>
+      <button data-go="backup">Sicherheit & Backup</button>
+    </div>
+  </div>
+
+  <div id="modal" class="sheet hidden"><div id="modalCard" class="sheet-card"></div></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
