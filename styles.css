@@ -70,3 +70,10 @@ main{width:100%}
   .brand-row,.top-brand,.top-actions{min-width:0}
 }
 @media(max-width:390px){.dashboard-stats,.stats-grid.compact{--wm-cols:2}}
+
+/* v1.4.4 – sichtbarer AU-Speicherstatus */
+.save-status{min-height:1.3em;margin-top:10px;font-size:.92rem;color:var(--muted,#6f8299)}
+.save-status.success{color:#087f74;font-weight:700}
+.save-status.error{color:#a12a2a;font-weight:700}
+.save-status.working{color:#5c7088}
+button:disabled{opacity:.65;cursor:wait}

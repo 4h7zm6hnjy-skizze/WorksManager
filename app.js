@@ -43,6 +43,18 @@ async function imageForStorage(file){
   if(!file.type.startsWith('image/'))return await fileToDataURL(file);
   try{return await compressImage(file,2400,.88);}catch(e){console.warn('Bildkomprimierung nicht möglich, Original wird verwendet.',e);return await fileToDataURL(file);}
 }
+async function imageForAuStorage(file){
+  if(!file)return '';
+  if(!String(file.type||'').startsWith('image/'))return await fileToDataURL(file);
+  try{
+    // AU-Fotos werden bewusst kompakter gespeichert. Das reduziert den verschlüsselten
+    // IndexedDB-Datensatz deutlich und verhindert Speicherprobleme auf iOS/PWA.
+    return await compressImage(file,1400,.68);
+  }catch(e){
+    console.warn('AU-Bildkomprimierung fehlgeschlagen, kleinere Fallback-Komprimierung wird versucht.',e);
+    try{return await compressImage(file,1000,.58);}catch(e2){console.warn('AU-Fallback fehlgeschlagen.',e2);return await fileToDataURL(file);}
+  }
+}
 function unb64(s){const x=atob(s);const a=new Uint8Array(x.length);for(let i=0;i<x.length;i++)a[i]=x.charCodeAt(i);return a.buffer;}
 async function deriveKey(password,salt){const base=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:210000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
 async function encryptState(){const iv=crypto.getRandomValues(new Uint8Array(12));const plain=enc.encode(JSON.stringify(state));const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},cryptoKey,plain);return {iv:b64(iv),cipher:b64(cipher),updatedAt:now()};}
@@ -278,15 +290,31 @@ async function addManualShift(){modal(`<div class="sheet-head"><strong>Schicht h
 window.commitManualShift=async()=>{state.shifts.push({id:id(),date:$('#mShiftDate').value,shift:$('#mShiftName').value,start:$('#mShiftStart').value,end:$('#mShiftEnd').value,note:$('#mShiftNote').value,createdAt:now()});await save();closeModal();};
 async function saveSimpleDoc(type){const map={payroll:['payrollImage','payrollMonth'],stamp:['stampImage','stampMonth'],workplan:['workplanImage','workplanMonth']};const cfg=map[type];if(!cfg)return;const fileEl=$('#'+cfg[0]),monthEl=$('#'+cfg[1]);const f=fileEl?.files?.[0];if(!f){alert('Bitte zuerst ein Foto oder eine Datei auswählen.');return;}const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);state.documents.push({id:id(),type,month:monthEl?.value||'',name:f.name||'Dokument',mime:f.type||'',data,createdAt:now()});fileEl.value='';await save('Dokument gespeichert');}
 async function saveAuPhoto(){
+  const btn=$('#saveAuPhoto');
   const f=$('#auImage')?.files?.[0],from=$('#auFrom')?.value||'',to=$('#auTo')?.value||from;
   if(!from){alert('Bitte den ersten Krankheitstag im Kalender auswählen.');return;}
   if(to<from){alert('Das Bis-Datum darf nicht vor dem Von-Datum liegen.');return;}
   if(!f){alert('Bitte zuerst ein Foto der Krankschreibung auswählen.');return;}
   if(!String(f.type||'').startsWith('image/')){alert('Bitte ein Foto auswählen.');return;}
-  const data=await imageForStorage(f);
-  state.aus.push({id:id(),from,to,name:f.name||'Krankschreibung',mime:f.type||'image/jpeg',data,createdAt:now()});
-  $('#auImage').value='';$('#auFrom').value='';$('#auTo').value='';
-  await save('Krankschreibung gespeichert');
+
+  const oldText=btn?.textContent||'Krankschreibung speichern';
+  if(btn){btn.disabled=true;btn.textContent='Wird gespeichert …';}
+  const status=$('#auSaveStatus');
+  if(status){status.textContent='Foto wird vorbereitet und gespeichert …';status.className='save-status working';}
+  try{
+    const data=await imageForAuStorage(f);
+    if(!data)throw new Error('Das Foto konnte nicht verarbeitet werden.');
+    const record={id:id(),from,to,name:f.name||'Krankschreibung',mime:'image/jpeg',data,createdAt:now()};
+    state.aus.push(record);
+    await save('Krankschreibung gespeichert');
+    $('#auImage').value='';$('#auFrom').value='';$('#auTo').value='';
+    if(status){status.textContent='Krankschreibung wurde gespeichert.';status.className='save-status success';}
+  }catch(e){
+    console.error('AU speichern fehlgeschlagen:',e);
+    if(status){status.textContent='Speichern fehlgeschlagen – die Eingaben wurden nicht gelöscht.';status.className='save-status error';}
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent=oldText;}
+  }
 }
 function reportEntryYear(item,fields=[]){
   for(const f of fields){const y=reportYearFromValue(item?.[f]);if(y)return y;}
@@ -575,7 +603,7 @@ function bind(){
   if('serviceWorker' in navigator){
     try{sessionStorage.removeItem('wm-sw-reload');}catch{}
     navigator.serviceWorker.addEventListener('controllerchange',()=>{try{if(!sessionStorage.getItem('wm-sw-reload')){sessionStorage.setItem('wm-sw-reload','1');location.reload();}}catch{}});
-    navigator.serviceWorker.register('./sw.js?v=1.4.3',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+    navigator.serviceWorker.register('./sw.js?v=1.4.4',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
   }
   window.addEventListener('pageshow',()=>setTimeout(resetViewportPosition,0));
   window.addEventListener('orientationchange',()=>setTimeout(resetViewportPosition,120));

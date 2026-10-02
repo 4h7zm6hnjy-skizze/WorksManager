@@ -44,3 +44,10 @@ Copyright Marcel Hentschel.
 - Alte Krankschreibungen ohne Datum oder frühere ID können ebenfalls gelöscht werden.
 - iPhone/PWA-Startansicht korrigiert: kein horizontales Überlaufen, Startposition links oben, responsive Statistik-Kacheln und fester 1:1-Viewport.
 - PWA-Cache auf v1.4.3 aktualisiert.
+
+
+## Version 1.4.4
+- AU-Speichern auf iPhone/PWA robuster gemacht.
+- AU-Fotos werden speicherschonend komprimiert.
+- Eingaben werden erst nach erfolgreichem Speichern geleert.
+- Sichtbarer Speicherstatus am AU-Button.

@@ -6,21 +6,21 @@
   <meta name="theme-color" content="#062f4f" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <title>WorksManager v1.4.3</title>
-  <link rel="manifest" href="manifest.json?v=1.4.3" />
+  <title>WorksManager v1.4.4</title>
+  <link rel="manifest" href="manifest.json?v=1.4.4" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <link rel="stylesheet" href="styles.css?v=1.4.3" />
+  <link rel="stylesheet" href="styles.css?v=1.4.4" />
 </head>
 <body>
   <div id="unlock" class="unlock-screen">
     <div class="unlock-card">
       <div class="unlock-brand">
         <img class="unlock-logo" src="worksmanager-logo.png" alt="WorksManager" />
-        <span class="version-badge unlock-version" aria-label="Version 1.4.3">v1.4.3</span>
+        <span class="version-badge unlock-version" aria-label="Version 1.4.4">v1.4.4</span>
       </div>
-      <h1 class="sr-only">WorksManager v1.4.3</h1>
-      <div class="unlock-version-text">Version 1.4.3</div>
+      <h1 class="sr-only">WorksManager v1.4.4</h1>
+      <div class="unlock-version-text">Version 1.4.4</div>
       <p class="muted">Private Arbeitsverwaltung · lokale, verschlüsselte Datenspeicherung</p>
       <label>Passwort / PIN</label>
       <input id="unlockPassword" type="password" autocomplete="current-password" placeholder="Passwort eingeben" />
@@ -34,9 +34,9 @@
       <div class="top-brand">
         <div class="brand-row">
           <img class="top-logo" src="worksmanager-logo.png" alt="WorksManager" />
-          <span class="version-badge" aria-label="Version 1.4.3">v1.4.3</span>
+          <span class="version-badge" aria-label="Version 1.4.4">v1.4.4</span>
         </div>
-        <div class="app-version">Version 1.4.3</div>
+        <div class="app-version">Version 1.4.4</div>
         <div class="subtitle">Copyright Marcel Hentschel</div>
       </div>
       <div class="top-actions">
@@ -211,7 +211,7 @@
           <label>Bis<input id="auTo" type="date" /></label>
           <label class="wide">Foto der Krankschreibung<input id="auImage" type="file" accept="image/*" /></label>
           <div class="media-source-hint wide">📷 Kamera · 🖼 Fotomediathek</div>
-          <div class="wide"><button id="saveAuPhoto" class="primary">Krankschreibung speichern</button></div>
+          <div class="wide"><button id="saveAuPhoto" class="primary" type="button">Krankschreibung speichern</button><div id="auSaveStatus" class="save-status" aria-live="polite"></div></div>
         </div>
 
         <div class="card">
@@ -375,6 +375,6 @@
 
   <div id="modal" class="sheet hidden"><div id="modalCard" class="sheet-card"></div></div>
 
-  <script src="app.js?v=1.4.3"></script>
+  <script src="app.js?v=1.4.4"></script>
 </body>
 </html>
