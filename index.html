@@ -4,20 +4,21 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#062f4f" />
-  <title>WorksManager v1.0.4</title>
-  <link rel="manifest" href="manifest.json?v=1.0.3" />
+  <title>WorksManager v1.3.0</title>
+  <link rel="manifest" href="manifest.json?v=1.3.0" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <link rel="stylesheet" href="styles.css?v=1.0.3" />
+  <link rel="stylesheet" href="styles.css?v=1.3.0" />
 </head>
 <body>
   <div id="unlock" class="unlock-screen">
     <div class="unlock-card">
       <div class="unlock-brand">
         <img class="unlock-logo" src="worksmanager-logo.png" alt="WorksManager" />
-        <span class="version-badge unlock-version" aria-label="Version 1.0.4">v1.0.4</span>
+        <span class="version-badge unlock-version" aria-label="Version 1.3.0">v1.3.0</span>
       </div>
-      <h1 class="sr-only">WorksManager v1.0.4</h1>
+      <h1 class="sr-only">WorksManager v1.3.0</h1>
+      <div class="unlock-version-text">Version 1.3.0</div>
       <p class="muted">Private Arbeitsverwaltung · lokale, verschlüsselte Datenspeicherung</p>
       <label>Passwort / PIN</label>
       <input id="unlockPassword" type="password" autocomplete="current-password" placeholder="Passwort eingeben" />
@@ -31,8 +32,9 @@
       <div class="top-brand">
         <div class="brand-row">
           <img class="top-logo" src="worksmanager-logo.png" alt="WorksManager" />
-          <span class="version-badge" aria-label="Version 1.0.4">v1.0.4</span>
+          <span class="version-badge" aria-label="Version 1.3.0">v1.3.0</span>
         </div>
+        <div class="app-version">Version 1.3.0</div>
         <div class="subtitle">Copyright Marcel Hentschel</div>
       </div>
       <div class="top-actions">
@@ -58,6 +60,7 @@
           <button data-go="shift" class="stat stat-button"><span>Schichten</span><strong id="statShifts">0</strong><small>Gespeichert</small></button>
           <button data-go="payroll" class="stat stat-button"><span>Dokumente</span><strong id="statDocs">0</strong><small>Arbeitsunterlagen</small></button>
           <button data-go="health" class="stat stat-button"><span>Gesundheit</span><strong id="statHealthEntries">0</strong><small>Befunde</small></button>
+          <button data-go="stairs" class="stat stat-button"><span>Treppen heute</span><strong id="statStairsToday">0</strong><small>Treppen</small></button>
         </div>
 
         <div class="dashboard-section-head">
@@ -67,21 +70,23 @@
           </div>
         </div>
         <div class="module-grid">
-          <button data-go="shift" class="module-card"><span class="module-icon">◷</span><span><strong>Schichtplan</strong><small>Plan fotografieren & Schichten verwalten</small></span><b>›</b></button>
-          <button data-go="sickness" class="module-card"><span class="module-icon">✚</span><span><strong>Krankheit & AU</strong><small>AU-Scanner, ICD‑10 & Zähler</small></span><b>›</b></button>
+          <button data-go="shift" class="module-card"><span class="module-icon">◷</span><span><strong>Schichtplan</strong><small>Fotos/Dokumente & Schichten verwalten</small></span><b>›</b></button>
+          <button data-go="sickness" class="module-card"><span class="module-icon">✚</span><span><strong>Krankheit & AU</strong><small>AU-Fotos speichern & optionale Daten</small></span><b>›</b></button>
           <button data-go="payroll" class="module-card"><span class="module-icon">▤</span><span><strong>Abrechnung</strong><small>Lohnabrechnung, Stempelübersicht & Arbeitsplan</small></span><b>›</b></button>
           <button data-go="health" class="module-card"><span class="module-icon">♥</span><span><strong>Gesundheit</strong><small>Lungenfunktion, Labor & Arztbriefe</small></span><b>›</b></button>
+          <button data-go="stairs" class="module-card"><span class="module-icon">⇅</span><span><strong>Treppenzähler</strong><small>Tägliche Einträge sowie Monats- & Jahresstatistik</small></span><b>›</b></button>
           <button data-go="meetings" class="module-card"><span class="module-icon">☷</span><span><strong>BEM · AMZ · Gespräche</strong><small>Termine, Gesprächspartner & Notizen</small></span><b>›</b></button>
           <button data-go="notices" class="module-card"><span class="module-icon">▱</span><span><strong>Aushänge</strong><small>Kurzarbeit & sonstige Mitteilungen</small></span><b>›</b></button>
           <button data-go="company" class="module-card"><span class="module-icon">⌂</span><span><strong>Firma & Vertrag</strong><small>Firmendaten & Arbeitsvertrag</small></span><b>›</b></button>
           <button data-go="family" class="module-card"><span class="module-icon">♙</span><span><strong>Kind krank</strong><small>Zeiträume & Einträge verwalten</small></span><b>›</b></button>
           <button data-go="rehab" class="module-card"><span class="module-icon">↗</span><span><strong>Reha</strong><small>Status, Einrichtung & Zeitraum</small></span><b>›</b></button>
+          <button data-go="annual" class="module-card"><span class="module-icon">PDF</span><span><strong>Jahresstatistik</strong><small>Jahresbericht mit allen gespeicherten Angaben als PDF</small></span><b>›</b></button>
           <button data-go="backup" class="module-card"><span class="module-icon">⌁</span><span><strong>Sicherheit & Backup</strong><small>Verschlüsselte Sicherung verwalten</small></span><b>›</b></button>
         </div>
 
         <div class="card privacy-card">
           <div class="privacy-card-icon">🔒</div>
-          <div><h3>Private Daten</h3><p>Scans, ICD‑10-Codes und Arbeitsdaten liegen verschlüsselt auf diesem Gerät. OCR-Auswertungen werden vor dem Speichern zur Prüfung angezeigt.</p></div>
+          <div><h3>Private Daten</h3><p>Fotos, Dokumente und Arbeitsdaten liegen verschlüsselt auf diesem Gerät. Es findet keine automatische Fotoanalyse oder Texterkennung statt.</p></div>
         </div>
       </section>
 
@@ -97,29 +102,34 @@
         </div>
         <div class="card">
           <h3>Arbeitsvertrag</h3>
+          <p class="muted">Foto, PDF oder Datei auswählen und unverändert in WorksManager ablegen.</p>
           <div class="upload-row">
             <input id="contractFile" type="file" accept="image/*,.pdf" />
             <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
-            <button id="saveContractFile">Dokument speichern</button>
+            <button id="saveContractFile" class="primary">Dokument speichern</button>
           </div>
           <div id="contractList" class="list"></div>
+        </div>
+        <div class="card">
+          <h3>Weitere Fotos / Dokumente</h3>
+          <input id="companyPhoto" type="file" accept="image/*,.pdf" />
+          <div class="media-source-hint">Keine Analyse – Datei wird nur gespeichert.</div>
+          <button class="primary" data-attachment-section="company" data-attachment-input="companyPhoto">Foto / Datei speichern</button>
+          <div id="companyPhotoList" class="list"></div>
         </div>
       </section>
 
       <section id="shift" class="page">
-        <div class="section-head"><h2>Schichtplan</h2><button id="addShiftManual">+ Schicht</button></div>
-        <div class="card scanner-card">
-          <h3>Plan einlesen</h3>
-          <p class="muted">Foto aufnehmen oder aus der Mediathek bzw. dem Fotoordner auswählen. WorksManager sucht nach deinem hinterlegten Namen und versucht Datum, Schichtkürzel und Uhrzeiten zu erkennen.</p>
-          <input id="shiftImage" type="file" accept="image/*" />
-          <div class="media-source-hint">📷 Neues Foto aufnehmen oder 🖼 aus der Fotomediathek auswählen</div>
-          <button id="scanShift" class="primary">Foto lokal auswerten</button>
-          <div id="shiftOcrStatus" class="hint"></div>
-          <textarea id="shiftOcrText" rows="7" placeholder="Erkannter Text erscheint hier"></textarea>
-          <button id="parseShift" class="secondary">Erkannten Text prüfen</button>
+        <div class="section-head"><h2>Schichtplan</h2><button id="addShiftManual">+ Schicht manuell</button></div>
+        <div class="card">
+          <h3>Schichtplan als Foto / Dokument</h3>
+          <p class="muted">Foto aufnehmen oder aus Fotomediathek/Dateien auswählen. Das Bild wird nur gespeichert und nicht analysiert.</p>
+          <input id="shiftPhoto" type="file" accept="image/*,.pdf" />
+          <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
+          <button class="primary" data-attachment-section="shift" data-attachment-input="shiftPhoto">Schichtplan speichern</button>
+          <div id="shiftPhotoList" class="list"></div>
         </div>
-        <div id="shiftReview" class="card hidden"></div>
-        <div class="card"><h3>Meine Schichten</h3><div id="shiftList" class="list"></div></div>
+        <div class="card"><h3>Meine manuell eingetragenen Schichten</h3><div id="shiftList" class="list"></div></div>
       </section>
 
       <section id="meetings" class="page">
@@ -133,6 +143,13 @@
           <label class="wide">Notiz<textarea id="meetingNote" rows="3"></textarea></label>
           <div class="wide"><button id="saveMeeting" class="primary">Eintrag speichern</button></div>
         </div>
+        <div class="card">
+          <h3>Foto / Dokument hinzufügen</h3>
+          <input id="meetingPhoto" type="file" accept="image/*,.pdf" />
+          <div class="media-source-hint">Keine Analyse – Datei wird nur gespeichert.</div>
+          <button class="primary" data-attachment-section="meetings" data-attachment-input="meetingPhoto">Foto / Datei speichern</button>
+          <div id="meetingPhotoList" class="list"></div>
+        </div>
         <div id="meetingList" class="list"></div>
       </section>
 
@@ -144,95 +161,90 @@
           <label class="wide">Titel<input id="noticeTitle" /></label>
           <label class="wide">Notiz<textarea id="noticeNote" rows="3"></textarea></label>
           <label class="wide">Foto / Dokument<input id="noticeFile" type="file" accept="image/*,.pdf" /><span class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</span></label>
-          <div class="wide"><button id="saveNotice" class="primary">Speichern</button></div>
+          <div class="wide"><button id="saveNotice" class="primary">Eintrag speichern</button></div>
+        </div>
+        <div class="card">
+          <h3>Nur Foto / Dokument speichern</h3>
+          <input id="noticePhoto" type="file" accept="image/*,.pdf" />
+          <div class="media-source-hint">Keine Zusatzangaben nötig. Keine Analyse.</div>
+          <button class="primary" data-attachment-section="notices" data-attachment-input="noticePhoto">Foto / Datei speichern</button>
+          <div id="noticePhotoList" class="list"></div>
         </div>
         <div id="noticeList" class="list"></div>
       </section>
 
       <section id="payroll" class="page">
         <h2>Abrechnung, Stempelübersicht & Arbeitsplan</h2>
+        <p class="muted">Alle Dateien werden ausschließlich gespeichert. Es findet keine automatische Auswertung statt.</p>
         <div class="two-col">
-          <div class="card scanner-card">
+          <div class="card">
             <h3>Lohnabrechnung</h3>
-            <label>Monat<input id="payrollMonth" type="month" /></label>
+            <label>Monat <small>(optional)</small><input id="payrollMonth" type="month" /></label>
             <input id="payrollImage" type="file" accept="image/*,.pdf" />
             <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
-            <button data-docscan="payroll" class="primary">Scannen & speichern</button>
+            <button data-docsave="payroll" class="primary">Lohnabrechnung speichern</button>
           </div>
-          <div class="card scanner-card">
+          <div class="card">
             <h3>Stempelübersicht</h3>
-            <label>Monat<input id="stampMonth" type="month" /></label>
+            <label>Monat <small>(optional)</small><input id="stampMonth" type="month" /></label>
             <input id="stampImage" type="file" accept="image/*,.pdf" />
             <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
-            <button data-docscan="stamp" class="primary">Scannen & speichern</button>
+            <button data-docsave="stamp" class="primary">Stempelübersicht speichern</button>
           </div>
-          <div class="card scanner-card workplan-card">
+          <div class="card">
             <h3>Arbeitsplan</h3>
-            <p class="muted">Arbeitsplan neu fotografieren oder aus der Fotomediathek auswählen. WorksManager sucht automatisch nach deinem Namen, Datumsangaben, Schichtkürzeln und Uhrzeiten. Erkannte Schichten kannst du direkt in den Schichtplan übernehmen.</p>
             <label>Monat <small>(optional)</small><input id="workplanMonth" type="month" /></label>
             <input id="workplanImage" type="file" accept="image/*,.pdf" />
-            <div class="media-source-hint">📷 Neues Foto · 🖼 Fotomediathek · 📁 Dateien</div>
-            <button id="scanWorkplan" class="primary">Arbeitsplan scannen & analysieren</button>
-            <div id="workplanOcrStatus" class="hint"></div>
-            <details class="ocr-details"><summary>Erkannten Text anzeigen</summary><textarea id="workplanOcrText" rows="7" placeholder="Erkannter Text erscheint hier"></textarea></details>
+            <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
+            <button data-docsave="workplan" class="primary">Arbeitsplan speichern</button>
           </div>
         </div>
-        <div id="workplanReview" class="card hidden"></div>
         <div class="card"><h3>Gespeicherte Unterlagen</h3><div id="payrollList" class="list"></div></div>
       </section>
 
       <section id="sickness" class="page">
-        <div class="section-head"><h2>Krankheit & AU</h2><button id="addAuManual">+ AU manuell</button></div>
-        <div class="card scanner-card">
-          <h3>AU-Scanner</h3>
-          <p class="muted">Foto neu aufnehmen oder eine vorhandene AU aus der Fotomediathek auswählen. WorksManager liest den AU-Zeitraum nur aus den beschrifteten Feldern „arbeitsunfähig seit“ und „voraussichtlich arbeitsunfähig bis einschließlich“. ICD‑10-Codes werden ausschließlich aus dem Diagnosefeld der AU übernommen – keine geratenen Codes.</p>
-          <input id="auImage" type="file" accept="image/*" />
-          <div class="media-source-hint">📷 Neues Foto aufnehmen oder 🖼 vorhandene AU aus der Fotomediathek auswählen</div>
-          <button id="scanAu" class="primary">AU lokal erkennen</button>
-          <div id="auOcrStatus" class="hint"></div>
-          <textarea id="auOcrText" rows="7" placeholder="Erkannter Text erscheint hier"></textarea>
-          <button id="parseAu" class="secondary">Daten aus Text übernehmen</button>
+        <div class="section-head"><h2>Krankheit & AU</h2><button id="addAuManual">+ Daten manuell</button></div>
+        <div class="card">
+          <h3>AU als Foto / Dokument speichern</h3>
+          <p class="muted">AU fotografieren oder aus der Fotomediathek auswählen. WorksManager liest oder analysiert den Inhalt nicht.</p>
+          <input id="auImage" type="file" accept="image/*,.pdf" />
+          <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
+          <button id="saveAuPhoto" class="primary">AU-Foto / Dokument speichern</button>
         </div>
-        <div id="auReview" class="card hidden"></div>
         <div class="stats-grid compact">
           <div class="stat"><span>AU-Fälle</span><strong id="auCases">0</strong></div>
           <div class="stat"><span>Kalendertage</span><strong id="auDays">0</strong></div>
           <div class="stat"><span>Folge-AU</span><strong id="auFollow">0</strong></div>
         </div>
-        <div class="card"><h3>ICD‑10-Auswertung</h3><div id="icdStats" class="list"></div></div>
-        <div class="card"><h3>Krankschreibungen</h3><div id="auList" class="list"></div></div>
+        <div class="card"><h3>ICD‑10-Auswertung <small>(nur manuell eingetragene Codes)</small></h3><div id="icdStats" class="list"></div></div>
+        <div class="card"><h3>Krankschreibungen / AU-Fotos</h3><div id="auList" class="list"></div></div>
       </section>
 
       <section id="health" class="page">
         <h2>Gesundheit</h2>
-        <p class="muted">Gesundheitsunterlagen werden wie die übrigen WorksManager-Daten lokal verschlüsselt gespeichert.</p>
+        <p class="muted">Befunde und Arztunterlagen werden verschlüsselt gespeichert. Es findet keine automatische Analyse statt.</p>
 
-        <div class="card scanner-card">
-          <div class="section-head"><h3>Lungenfunktionstest</h3><button id="addLungTest">+ Manuell</button></div>
-          <p class="muted">Befund fotografieren oder als Bild auswählen. WorksManager liest Datum, Praxis/Testart sowie FEV1, FVC, FEV1/FVC und weitere gängige Messwerte automatisch aus. Vor dem Speichern kannst du alles prüfen und korrigieren.</p>
-          <input id="lungImage" type="file" accept="image/*" />
-          <div class="media-source-hint">📷 Neues Foto aufnehmen oder 🖼 vorhandenen Befund aus der Fotomediathek auswählen</div>
-          <button id="scanLung" class="primary">Lungenfunktion scannen & analysieren</button>
-          <div id="lungOcrStatus" class="hint"></div>
-          <details>
-            <summary>Erkannten Text anzeigen / korrigieren</summary>
-            <textarea id="lungOcrText" rows="7" placeholder="Erkannter Text erscheint hier"></textarea>
-            <button id="parseLung" class="secondary">Erkannten Text erneut auswerten</button>
-          </details>
-          <div id="lungReview" class="card hidden"></div>
-          <h3>Gespeicherte Lungenfunktionstests</h3>
+        <div class="card">
+          <div class="section-head"><h3>Lungenfunktionstest</h3><button id="addLungTest">+ Details manuell</button></div>
+          <input id="lungImage" type="file" accept="image/*,.pdf" />
+          <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
+          <button id="saveLungPhoto" class="primary">Lungenfunktion speichern</button>
           <div id="lungTestList" class="list"></div>
         </div>
 
         <div class="card">
-          <div class="section-head"><h3>Laborwerte</h3><button id="addLabResult">+ Eintrag</button></div>
-          <p class="muted">Laborwerte frei erfassen und den Laborbefund als Foto oder PDF speichern.</p>
+          <div class="section-head"><h3>Laborwerte</h3><button id="addLabResult">+ Details manuell</button></div>
+          <input id="labPhoto" type="file" accept="image/*,.pdf" />
+          <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
+          <button id="saveLabPhoto" class="primary">Laborbefund speichern</button>
           <div id="labResultList" class="list"></div>
         </div>
 
         <div class="card">
-          <div class="section-head"><h3>Arztbriefe</h3><button id="addDoctorLetter">+ Arztbrief</button></div>
-          <p class="muted">Arzt, Fachrichtung, Betreff, Notiz und Originaldokument zusammen speichern.</p>
+          <div class="section-head"><h3>Arztbriefe</h3><button id="addDoctorLetter">+ Details manuell</button></div>
+          <input id="letterPhoto" type="file" accept="image/*,.pdf" />
+          <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
+          <button id="saveLetterPhoto" class="primary">Arztbrief speichern</button>
           <div id="doctorLetterList" class="list"></div>
         </div>
       </section>
@@ -244,7 +256,14 @@
           <label>Von<input id="childFrom" type="date" /></label>
           <label>Bis<input id="childTo" type="date" /></label>
           <label class="wide">Notiz<textarea id="childNote" rows="2"></textarea></label>
-          <div class="wide"><button id="saveChild" class="primary">Speichern</button></div>
+          <div class="wide"><button id="saveChild" class="primary">Eintrag speichern</button></div>
+        </div>
+        <div class="card">
+          <h3>Foto / Dokument hinzufügen</h3>
+          <input id="familyPhoto" type="file" accept="image/*,.pdf" />
+          <div class="media-source-hint">Keine Analyse – Datei wird nur gespeichert.</div>
+          <button class="primary" data-attachment-section="family" data-attachment-input="familyPhoto">Foto / Datei speichern</button>
+          <div id="familyPhotoList" class="list"></div>
         </div>
         <div id="childList" class="list"></div>
       </section>
@@ -257,9 +276,78 @@
           <label>Von<input id="rehabFrom" type="date" /></label>
           <label>Bis<input id="rehabTo" type="date" /></label>
           <label class="wide">Notiz<textarea id="rehabNote" rows="3"></textarea></label>
-          <div class="wide"><button id="saveRehab" class="primary">Speichern</button></div>
+          <div class="wide"><button id="saveRehab" class="primary">Eintrag speichern</button></div>
+        </div>
+        <div class="card">
+          <h3>Foto / Dokument hinzufügen</h3>
+          <input id="rehabPhoto" type="file" accept="image/*,.pdf" />
+          <div class="media-source-hint">Keine Analyse – Datei wird nur gespeichert.</div>
+          <button class="primary" data-attachment-section="rehab" data-attachment-input="rehabPhoto">Foto / Datei speichern</button>
+          <div id="rehabPhotoList" class="list"></div>
         </div>
         <div id="rehabList" class="list"></div>
+      </section>
+
+      <section id="stairs" class="page">
+        <h2>Treppenzähler</h2>
+        <p class="muted">Tägliche Treppen erfassen und automatisch nach Monat und Jahr auswerten.</p>
+
+        <div class="card form-grid">
+          <label>Datum<input id="stairDate" type="date" /></label>
+          <label>Uhrzeit<input id="stairTime" type="time" /></label>
+          <label>Anzahl Treppen<input id="stairCount" type="number" min="1" step="1" inputmode="numeric" placeholder="z. B. 25" /></label>
+          <label>Grund<input id="stairReason" placeholder="z. B. Arbeit, Training, Alltag" /></label>
+          <div class="wide"><button id="saveStairEntry" class="primary">Treppen speichern</button></div>
+        </div>
+
+        <div class="stats-grid compact stair-summary">
+          <div class="stat"><span>Heute</span><strong id="stairsToday">0</strong><small>Treppen</small></div>
+          <div class="stat"><span>Dieser Monat</span><strong id="stairsMonth">0</strong><small>Treppen</small></div>
+          <div class="stat"><span>Dieses Jahr</span><strong id="stairsYear">0</strong><small>Treppen</small></div>
+        </div>
+
+        <div class="two-col stair-stats-grid">
+          <div class="card">
+            <h3>Monatliche Statistik</h3>
+            <div id="stairsMonthlyStats" class="list"></div>
+          </div>
+          <div class="card">
+            <h3>Jährliche Statistik</h3>
+            <div id="stairsYearlyStats" class="list"></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Einträge</h3>
+          <div id="stairEntryList" class="list"></div>
+        </div>
+      </section>
+
+      <section id="annual" class="page">
+        <h2>Jahresstatistik als PDF</h2>
+        <p class="muted">Erstellt einen Jahresbericht mit den gespeicherten Angaben und Statistiken des gewählten Jahres.</p>
+
+        <div class="card form-grid annual-report-controls">
+          <label>Jahr<select id="annualYear"></select></label>
+          <div class="annual-report-action">
+            <button id="createAnnualPdf" class="primary">PDF erstellen & speichern</button>
+          </div>
+          <div class="wide annual-report-note">Die PDF enthält alle gespeicherten Textangaben und eine Übersicht der zugehörigen Fotos/Dokumente. Originalbilder und Original-PDFs bleiben in WorksManager bzw. im verschlüsselten Backup und werden nicht nochmals in die Statistik-PDF eingebettet.</div>
+        </div>
+
+        <div class="stats-grid compact annual-summary-grid">
+          <div class="stat"><span>Schichten</span><strong id="annualStatShifts">0</strong><small>im Jahr</small></div>
+          <div class="stat"><span>AU-Fälle</span><strong id="annualStatAuCases">0</strong><small id="annualStatAuDays">0 Tage</small></div>
+          <div class="stat"><span>Treppen</span><strong id="annualStatStairs">0</strong><small id="annualStatStairDays">0 aktive Tage</small></div>
+          <div class="stat"><span>Dokumente</span><strong id="annualStatDocs">0</strong><small>gespeichert</small></div>
+          <div class="stat"><span>Gesundheit</span><strong id="annualStatHealth">0</strong><small>Einträge</small></div>
+          <div class="stat"><span>Gespräche</span><strong id="annualStatMeetings">0</strong><small>BEM / AMZ / sonstige</small></div>
+        </div>
+
+        <div class="card">
+          <h3>Inhalt des Jahresberichts</h3>
+          <div id="annualPreview" class="annual-preview"></div>
+        </div>
       </section>
 
       <section id="backup" class="page">
@@ -296,14 +384,16 @@
       <button data-go="meetings">BEM · AMZ · Gespräche</button>
       <button data-go="notices">Aushänge</button>
       <button data-go="health">Gesundheit</button>
+      <button data-go="stairs">Treppenzähler</button>
       <button data-go="family">Kind krank</button>
       <button data-go="rehab">Reha</button>
+      <button data-go="annual">Jahresstatistik PDF</button>
       <button data-go="backup">Sicherheit & Backup</button>
     </div>
   </div>
 
   <div id="modal" class="sheet hidden"><div id="modalCard" class="sheet-card"></div></div>
 
-  <script src="app.js?v=1.0.3"></script>
+  <script src="app.js?v=1.3.0"></script>
 </body>
 </html>

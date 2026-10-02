@@ -7,12 +7,9 @@ const dec = new TextDecoder();
 let state = blankState();
 let cryptoKey = null;
 let db = null;
-let pendingAuOriginal = null;
-let pendingLungOriginal = null;
-let pendingWorkplanOriginal = null;
 
-function blankState(){return {version:2,company:{name:'',employeeName:'',contractStart:'',employeeNo:'',notes:'',contracts:[]},shifts:[],meetings:[],notices:[],documents:[],aus:[],childSick:[],rehabs:[],health:{lungTests:[],labResults:[],doctorLetters:[]}};}
-function normalizeState(v){const base=blankState();const x=v&&typeof v==='object'?v:{};x.company={...base.company,...(x.company||{})};x.company.contracts=Array.isArray(x.company.contracts)?x.company.contracts:[];for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs'])x[k]=Array.isArray(x[k])?x[k]:[];x.health=x.health&&typeof x.health==='object'?x.health:{};x.health.lungTests=Array.isArray(x.health.lungTests)?x.health.lungTests:[];x.health.labResults=Array.isArray(x.health.labResults)?x.health.labResults:[];x.health.doctorLetters=Array.isArray(x.health.doctorLetters)?x.health.doctorLetters:[];x.version=2;return x;}
+function blankState(){return {version:4,company:{name:'',employeeName:'',contractStart:'',employeeNo:'',notes:'',contracts:[]},shifts:[],meetings:[],notices:[],documents:[],aus:[],childSick:[],rehabs:[],stairs:[],health:{lungTests:[],labResults:[],doctorLetters:[]},attachments:{company:[],shift:[],meetings:[],notices:[],family:[],rehab:[]}};}
+function normalizeState(v){const base=blankState();const x=v&&typeof v==='object'?v:{};x.company={...base.company,...(x.company||{})};x.company.contracts=Array.isArray(x.company.contracts)?x.company.contracts:[];for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])x[k]=Array.isArray(x[k])?x[k]:[];x.health=x.health&&typeof x.health==='object'?x.health:{};x.health.lungTests=Array.isArray(x.health.lungTests)?x.health.lungTests:[];x.health.labResults=Array.isArray(x.health.labResults)?x.health.labResults:[];x.health.doctorLetters=Array.isArray(x.health.doctorLetters)?x.health.doctorLetters:[];x.attachments=x.attachments&&typeof x.attachments==='object'?x.attachments:{};for(const k of ['company','shift','meetings','notices','family','rehab'])x.attachments[k]=Array.isArray(x.attachments[k])?x.attachments[k]:[];x.version=4;return x;}
 function id(){return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2);}
 function now(){return new Date().toISOString();}
 function fmtDate(v){if(!v)return '—';const d=new Date(v+'T12:00:00');return d.toLocaleDateString('de-DE');}
@@ -46,24 +43,6 @@ async function imageForStorage(file){
   if(!file.type.startsWith('image/'))return await fileToDataURL(file);
   try{return await compressImage(file,2400,.88);}catch(e){console.warn('Bildkomprimierung nicht möglich, Original wird verwendet.',e);return await fileToDataURL(file);}
 }
-async function ocrImageForText(file,max=2300){
-  const src=await fileToDataURL(file);
-  const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;});
-  const scale=Math.min(1,max/Math.max(img.width,img.height));
-  const c=document.createElement('canvas');
-  c.width=Math.max(1,Math.round(img.width*scale));c.height=Math.max(1,Math.round(img.height*scale));
-  const ctx=c.getContext('2d',{willReadFrequently:true});
-  ctx.drawImage(img,0,0,c.width,c.height);
-  // OCR copy only: grayscale + moderate contrast. The stored original is untouched.
-  const d=ctx.getImageData(0,0,c.width,c.height),a=d.data;
-  for(let i=0;i<a.length;i+=4){
-    const y=.299*a[i]+.587*a[i+1]+.114*a[i+2];
-    const v=Math.max(0,Math.min(255,(y-128)*1.28+128));
-    a[i]=a[i+1]=a[i+2]=v;
-  }
-  ctx.putImageData(d,0,0);
-  return c.toDataURL('image/jpeg',.94);
-}
 function unb64(s){const x=atob(s);const a=new Uint8Array(x.length);for(let i=0;i<x.length;i++)a[i]=x.charCodeAt(i);return a.buffer;}
 async function deriveKey(password,salt){const base=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:210000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
 async function encryptState(){const iv=crypto.getRandomValues(new Uint8Array(12));const plain=enc.encode(JSON.stringify(state));const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},cryptoKey,plain);return {iv:b64(iv),cipher:b64(cipher),updatedAt:now()};}
@@ -87,312 +66,79 @@ async function save(successMessage='Gespeichert'){
 }
 
 async function unlock(){const pass=$('#unlockPassword').value;if(!pass){$('#unlockHint').textContent='Bitte Passwort eingeben.';return;}try{let saltB64=await dbGet('salt');if(!saltB64){const salt=crypto.getRandomValues(new Uint8Array(16));saltB64=b64(salt);await dbPut('salt',saltB64);}cryptoKey=await deriveKey(pass,new Uint8Array(unb64(saltB64)));const payload=await dbGet('payload');if(payload){state=normalizeState(await decryptPayload(payload,cryptoKey));}else{state=blankState();await save('');}$('#unlock').classList.add('hidden');$('#app').classList.remove('hidden');$('#unlockPassword').value='';$('#unlockHint').textContent='';renderAll();}catch(e){cryptoKey=null;$('#unlockHint').textContent='Passwort falsch oder Daten beschädigt.';}}
-function lock(){cryptoKey=null;state=blankState();pendingAuOriginal=null;pendingLungOriginal=null;pendingWorkplanOriginal=null;$('#app').classList.add('hidden');$('#unlock').classList.remove('hidden');}
-
-async function loadTesseract(){if(window.Tesseract)return window.Tesseract;await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});return window.Tesseract;}
-async function ocrFile(file,statusEl){if(!file)throw new Error('Kein Bild ausgewählt.');if(!file.type.startsWith('image/'))throw new Error('OCR unterstützt hier nur Bilddateien. PDFs werden gespeichert, aber nicht automatisch gelesen.');statusEl.textContent='Bild wird für die Texterkennung optimiert …';const T=await loadTesseract();const image=await ocrImageForText(file);statusEl.textContent='Texterkennung läuft lokal auf diesem Gerät …';const result=await T.recognize(image,'deu+eng',{logger:m=>{if(m.progress!=null)statusEl.textContent=`Texterkennung: ${Math.round(m.progress*100)} %`;}});statusEl.textContent='Erkennung abgeschlossen. Bitte Ergebnis prüfen.';return {text:result.data.text,image};}
+function lock(){cryptoKey=null;state=blankState();$('#app').classList.add('hidden');$('#unlock').classList.remove('hidden');}
 
 function go(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id===name));$$('.nav-btn[data-go]').forEach(b=>b.classList.toggle('active',b.dataset.go===name));$('#moreMenu').classList.add('hidden');window.scrollTo({top:0,behavior:'smooth'});}
 
-function renderAll(){renderDashboard();renderCompany();renderShifts();renderMeetings();renderNotices();renderDocs();renderAUs();renderHealth();renderChild();renderRehab();}
-function renderDashboard(){const auDays=state.aus.reduce((s,a)=>s+daysInclusive(a.from,a.to),0);const healthEntries=state.health.lungTests.length+state.health.labResults.length+state.health.doctorLetters.length;const healthDocs=[...state.health.lungTests,...state.health.labResults,...state.health.doctorLetters].filter(x=>x.data).length;$('#statAuDays').textContent=auDays;$('#statAuCases').textContent=state.aus.length;$('#statChildCases').textContent=state.childSick.length;$('#statShifts').textContent=state.shifts.length;$('#statDocs').textContent=state.documents.length+state.company.contracts.length+state.notices.filter(n=>n.file).length+healthDocs;$('#statHealthEntries').textContent=healthEntries;$('#welcomeText').textContent=state.company.employeeName?`${state.company.employeeName}${state.company.name?' · '+state.company.name:''}`:'Noch kein Mitarbeitername hinterlegt.';}
+function renderAll(){renderDashboard();renderCompany();renderShifts();renderMeetings();renderNotices();renderDocs();renderAUs();renderHealth();renderChild();renderRehab();renderStairs();renderAttachments();renderAnnualReport();}
+function renderDashboard(){const auDays=state.aus.reduce((s,a)=>s+daysInclusive(a.from,a.to),0);const healthEntries=state.health.lungTests.length+state.health.labResults.length+state.health.doctorLetters.length;const healthDocs=[...state.health.lungTests,...state.health.labResults,...state.health.doctorLetters].filter(x=>x.data).length;const extraDocs=Object.values(state.attachments||{}).reduce((n,a)=>n+(Array.isArray(a)?a.length:0),0);$('#statAuDays').textContent=auDays;$('#statAuCases').textContent=state.aus.length;$('#statChildCases').textContent=state.childSick.length;$('#statShifts').textContent=state.shifts.length;$('#statDocs').textContent=state.documents.length+state.company.contracts.length+state.notices.filter(n=>n.file).length+healthDocs+extraDocs;$('#statHealthEntries').textContent=healthEntries;$('#welcomeText').textContent=state.company.employeeName?`${state.company.employeeName}${state.company.name?' · '+state.company.name:''}`:'Noch kein Mitarbeitername hinterlegt.';const today=localDateValue();const stairsToday=(state.stairs||[]).filter(x=>x.date===today).reduce((n,x)=>n+(Number(x.count)||0),0);const stairStat=$('#statStairsToday');if(stairStat)stairStat.textContent=stairsToday;}
 function renderCompany(){const c=state.company;$('#companyName').value=c.name||'';$('#employeeName').value=c.employeeName||'';$('#contractStart').value=c.contractStart||'';$('#employeeNo').value=c.employeeNo||'';$('#companyNotes').value=c.notes||'';$('#contractList').innerHTML=(c.contracts||[]).map(x=>itemHtml('Arbeitsvertrag',x.name||'Dokument',x.createdAt,[`<button onclick="viewDoc('${x.id}','contract')">Öffnen</button>`,`<button onclick="delContract('${x.id}')">Löschen</button>`])).join('')||empty('Noch kein Arbeitsvertrag gespeichert.');}
 function renderShifts(){const arr=[...state.shifts].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#shiftList').innerHTML=arr.map(s=>itemHtml(`${fmtDate(s.date)} · ${esc(s.shift||'Schicht')}`,`${esc(s.start||'—')}–${esc(s.end||'—')}${s.note?' · '+esc(s.note):''}`,s.createdAt,[`<button onclick="delShift('${s.id}')">Löschen</button>`])).join('')||empty('Noch keine Schichten gespeichert.');}
 function renderMeetings(){const arr=[...state.meetings].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#meetingList').innerHTML=arr.map(m=>itemHtml(`${esc(m.type)} · ${fmtDate(m.date)}`,`${esc(m.time||'')} ${esc(m.partner||'')}${m.place?' · '+esc(m.place):''}${m.note?' · '+esc(m.note):''}`,m.createdAt,[`<button onclick="delMeeting('${m.id}')">Löschen</button>`])).join('')||empty('Noch keine Einträge.');}
 function renderNotices(){const arr=[...state.notices].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#noticeList').innerHTML=arr.map(n=>itemHtml(`${esc(n.type)} · ${esc(n.title||'Aushang')}`,`${fmtDate(n.date)}${n.note?' · '+esc(n.note):''}`,n.createdAt,[n.file?`<button onclick="viewDoc('${n.id}','notice')">Dokument</button>`:'',`<button onclick="delNotice('${n.id}')">Löschen</button>`])).join('')||empty('Noch keine Aushänge.');}
 function renderDocs(){
-  const arr=[...state.documents].sort((a,b)=>(b.month||'').localeCompare(a.month||''));
-  $('#payrollList').innerHTML=arr.map(d=>{
-    const label=d.type==='payroll'?'Lohnabrechnung':d.type==='stamp'?'Stempelübersicht':'Arbeitsplan';
-    let meta='Dokument gespeichert';
-    if(d.type==='workplan'&&d.analysis){
-      const a=d.analysis;
-      const bits=[];
-      if(a.employee)bits.push('Person: '+esc(a.employee));
-      if(Number.isFinite(a.detectedShiftCount))bits.push(a.detectedShiftCount+' Schicht'+(a.detectedShiftCount===1?'':'en')+' erkannt');
-      if(Number.isFinite(a.importedShiftCount))bits.push(a.importedShiftCount+' übernommen');
-      if(a.statuses?.length)bits.push('Status: '+esc(a.statuses.join(', ')));
-      meta=bits.join(' · ')||'Arbeitsplan analysiert';
-    }else if(d.ocrText){
-      meta=`${esc(d.ocrText.slice(0,120))}${d.ocrText.length>120?'…':''}`;
-    }
-    return itemHtml(`${label} · ${esc(d.month||'ohne Monat')}`,meta,d.createdAt,[`<button onclick="viewDoc('${d.id}','doc')">Original</button>`,`<button onclick="delDoc('${d.id}')">Löschen</button>`]);
-  }).join('')||empty('Noch keine Abrechnungen, Stempelübersichten oder Arbeitspläne.');
+  const arr=[...state.documents].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  $('#payrollList').innerHTML=arr.map(d=>{const label=d.type==='payroll'?'Lohnabrechnung':d.type==='stamp'?'Stempelübersicht':'Arbeitsplan';return itemHtml(`${label}${d.month?' · '+esc(d.month):''}`,esc(d.name||'Dokument gespeichert'),d.createdAt,[`<button onclick="viewDoc('${d.id}','doc')">Öffnen</button>`,`<button onclick="delDoc('${d.id}')">Löschen</button>`]);}).join('')||empty('Noch keine Abrechnungen, Stempelübersichten oder Arbeitspläne gespeichert.');
 }
-function renderAUs(){const arr=[...state.aus].sort((a,b)=>(b.from||'').localeCompare(a.from||''));const days=arr.reduce((s,a)=>s+daysInclusive(a.from,a.to),0),follow=arr.filter(a=>a.kind==='Folgebescheinigung').length;$('#auCases').textContent=arr.length;$('#auDays').textContent=days;$('#auFollow').textContent=follow;$('#statAuDays').textContent=days;$('#statAuCases').textContent=arr.length;$('#auList').innerHTML=arr.map(a=>itemHtml(`${fmtDate(a.from)}–${fmtDate(a.to)} · ${esc(a.kind||'AU')}`,`${a.codes?.length?'ICD‑10: '+esc(a.codes.join(', ')):'Kein ICD‑10 gespeichert'}${a.note?' · '+esc(a.note):''}`,a.createdAt,[(a.data||a.image)?`<button onclick="viewDoc('${a.id}','au')">Original-AU ansehen</button>`:'',`<button onclick="delAu('${a.id}')">Löschen</button>`])).join('')||empty('Noch keine AU gespeichert.');const counts={};arr.forEach(a=>(a.codes||[]).forEach(c=>counts[c]=(counts[c]||0)+1));const rows=Object.entries(counts).sort((a,b)=>b[1]-a[1]);$('#icdStats').innerHTML=rows.map(([c,n])=>`<div class="item"><div class="item-top"><div><div class="item-title">${esc(c)}</div><div class="item-meta">Krankschreibungen mit diesem Code</div></div><strong>${n}×</strong></div></div>`).join('')||empty('Noch keine ICD‑10-Codes gespeichert.');}
+function renderAUs(){const arr=[...state.aus].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));const days=arr.reduce((s,a)=>s+daysInclusive(a.from,a.to),0),follow=arr.filter(a=>a.kind==='Folgebescheinigung').length;$('#auCases').textContent=arr.length;$('#auDays').textContent=days;$('#auFollow').textContent=follow;$('#statAuDays').textContent=days;$('#statAuCases').textContent=arr.length;$('#auList').innerHTML=arr.map(a=>{const hasDates=a.from||a.to;const title=hasDates?`${fmtDate(a.from)}–${fmtDate(a.to)} · ${esc(a.kind||'AU')}`:`AU-Dokument · ${esc(a.name||'Foto')}`;const meta=[a.codes?.length?'ICD‑10: '+esc(a.codes.join(', ')):'',a.note?esc(a.note):'',!hasDates?'Nur Foto/Dokument gespeichert':''].filter(Boolean).join(' · ');return itemHtml(title,meta||'AU gespeichert',a.createdAt,[(a.data||a.image)?`<button onclick="viewDoc('${a.id}','au')">Original ansehen</button>`:'',`<button onclick="delAu('${a.id}')">Löschen</button>`]);}).join('')||empty('Noch keine AU gespeichert.');const counts={};arr.forEach(a=>(a.codes||[]).forEach(c=>counts[c]=(counts[c]||0)+1));const rows=Object.entries(counts).sort((a,b)=>b[1]-a[1]);$('#icdStats').innerHTML=rows.map(([c,n])=>`<div class="item"><div class="item-top"><div><div class="item-title">${esc(c)}</div><div class="item-meta">manuell gespeicherte AU mit diesem Code</div></div><strong>${n}×</strong></div></div>`).join('')||empty('Keine manuell eingetragenen ICD‑10-Codes gespeichert.');}
 function renderHealth(){
-  const lung=[...state.health.lungTests].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  $('#lungTestList').innerHTML=lung.map(x=>{
-    const vals=[];
-    if(x.fev1Percent) vals.push(`FEV1 ${esc(x.fev1Percent)} %`);
-    if(x.fev1Liters) vals.push(`FEV1 ${esc(x.fev1Liters)} L`);
-    if(x.fvcPercent) vals.push(`FVC ${esc(x.fvcPercent)} %`);
-    if(x.fvcLiters) vals.push(`FVC ${esc(x.fvcLiters)} L`);
-    if(x.ratio) vals.push(`FEV1/FVC ${esc(x.ratio)}`);
-    if(x.testType) vals.push(esc(x.testType));
-    const extra=x.otherValues?` · ${esc(x.otherValues).replace(/\n/g,' · ')}`:'';
-    return itemHtml(`Lungenfunktion · ${fmtDate(x.date)}`,`${x.doctor?esc(x.doctor)+' · ':''}${vals.join(' · ')||'Messwerte gespeichert'}${extra}${x.note?' · '+esc(x.note):''}`,x.createdAt,[(x.data||x.image)?`<button onclick="viewDoc('${x.id}','lung')">Originalbefund</button>`:'',`<button onclick="delHealth('${x.id}','lung')">Löschen</button>`]);
-  }).join('')||empty('Noch keine Lungenfunktionstests gespeichert.');
-  const labs=[...state.health.labResults].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  $('#labResultList').innerHTML=labs.map(x=>itemHtml(`Labor · ${fmtDate(x.date)}`,`${x.provider?esc(x.provider)+' · ':''}${x.values?esc(x.values).replace(/\n/g,' · '):'Keine Werte eingetragen'}${x.note?' · '+esc(x.note):''}`,x.createdAt,[x.data?`<button onclick="viewDoc('${x.id}','lab')">Befund</button>`:'',`<button onclick="delHealth('${x.id}','lab')">Löschen</button>`])).join('')||empty('Noch keine Laborwerte gespeichert.');
-  const letters=[...state.health.doctorLetters].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
-  $('#doctorLetterList').innerHTML=letters.map(x=>itemHtml(`${esc(x.subject||'Arztbrief')} · ${fmtDate(x.date)}`,`${x.doctor?esc(x.doctor):'Arzt/Praxis nicht angegeben'}${x.specialty?' · '+esc(x.specialty):''}${x.note?' · '+esc(x.note):''}`,x.createdAt,[x.data?`<button onclick="viewDoc('${x.id}','letter')">Arztbrief</button>`:'',`<button onclick="delHealth('${x.id}','letter')">Löschen</button>`])).join('')||empty('Noch keine Arztbriefe gespeichert.');
+  const lung=[...state.health.lungTests].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  $('#lungTestList').innerHTML=lung.map(x=>{const manual=[x.fev1Percent&&`FEV1 ${esc(x.fev1Percent)} %`,x.fev1Liters&&`FEV1 ${esc(x.fev1Liters)} L`,x.fvcPercent&&`FVC ${esc(x.fvcPercent)} %`,x.ratio&&`FEV1/FVC ${esc(x.ratio)}`].filter(Boolean).join(' · ');return itemHtml(x.date?`Lungenfunktion · ${fmtDate(x.date)}`:`Lungenfunktion · ${esc(x.name||'Befund')}`,manual||x.note||'Originalbefund gespeichert',x.createdAt,[x.data?`<button onclick="viewDoc('${x.id}','lung')">Öffnen</button>`:'',`<button onclick="delHealth('${x.id}','lung')">Löschen</button>`]);}).join('')||empty('Noch keine Lungenfunktion gespeichert.');
+  const labs=[...state.health.labResults].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  $('#labResultList').innerHTML=labs.map(x=>itemHtml(x.date?`Labor · ${fmtDate(x.date)}`:`Laborbefund · ${esc(x.name||'Dokument')}`,x.values?esc(x.values).split('\n').join(' · '):(x.note?esc(x.note):'Originalbefund gespeichert'),x.createdAt,[x.data?`<button onclick="viewDoc('${x.id}','lab')">Öffnen</button>`:'',`<button onclick="delHealth('${x.id}','lab')">Löschen</button>`])).join('')||empty('Noch keine Laborbefunde gespeichert.');
+  const letters=[...state.health.doctorLetters].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
+  $('#doctorLetterList').innerHTML=letters.map(x=>itemHtml(x.subject?`${esc(x.subject)}${x.date?' · '+fmtDate(x.date):''}`:`Arztbrief · ${esc(x.name||'Dokument')}`,x.note?esc(x.note):(x.doctor?esc(x.doctor):'Originaldokument gespeichert'),x.createdAt,[x.data?`<button onclick="viewDoc('${x.id}','letter')">Öffnen</button>`:'',`<button onclick="delHealth('${x.id}','letter')">Löschen</button>`])).join('')||empty('Noch keine Arztbriefe gespeichert.');
 }
+function localDateValue(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
+function localTimeValue(d=new Date()){return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
+function monthLabel(key){if(!/^\d{4}-\d{2}$/.test(key||''))return key||'';const [y,m]=key.split('-');return new Intl.DateTimeFormat('de-DE',{month:'long',year:'numeric'}).format(new Date(Number(y),Number(m)-1,1));}
+function stairStats(items){const total=items.reduce((n,x)=>n+(Number(x.count)||0),0);const days=new Set(items.map(x=>x.date).filter(Boolean)).size;return {total,entries:items.length,days,avg:days?Math.round((total/days)*10)/10:0};}
+function renderStairs(){
+  state.stairs=Array.isArray(state.stairs)?state.stairs:[];
+  const dateEl=$('#stairDate'),timeEl=$('#stairTime');
+  if(dateEl&&!dateEl.value)dateEl.value=localDateValue();
+  if(timeEl&&!timeEl.value)timeEl.value=localTimeValue();
+  const today=localDateValue(),month=today.slice(0,7),year=today.slice(0,4);
+  const dayItems=state.stairs.filter(x=>x.date===today),monthItems=state.stairs.filter(x=>(x.date||'').startsWith(month)),yearItems=state.stairs.filter(x=>(x.date||'').startsWith(year));
+  if($('#stairsToday'))$('#stairsToday').textContent=stairStats(dayItems).total;
+  if($('#stairsMonth'))$('#stairsMonth').textContent=stairStats(monthItems).total;
+  if($('#stairsYear'))$('#stairsYear').textContent=stairStats(yearItems).total;
+
+  const monthly={};for(const x of state.stairs){const k=(x.date||'').slice(0,7);if(/^\d{4}-\d{2}$/.test(k))(monthly[k]??=[]).push(x);}
+  const monthlyRows=Object.keys(monthly).sort().reverse();
+  if($('#stairsMonthlyStats'))$('#stairsMonthlyStats').innerHTML=monthlyRows.map(k=>{const s=stairStats(monthly[k]);return `<div class="item"><div class="item-top"><div><div class="item-title">${esc(monthLabel(k))}</div><div class="item-meta">${s.entries} Einträge · ${s.days} aktive Tage · Ø ${String(s.avg).replace('.',',')} pro Tag</div></div><strong>${s.total}</strong></div></div>`;}).join('')||empty('Noch keine Monatsdaten.');
+
+  const yearly={};for(const x of state.stairs){const k=(x.date||'').slice(0,4);if(/^\d{4}$/.test(k))(yearly[k]??=[]).push(x);}
+  const yearlyRows=Object.keys(yearly).sort().reverse();
+  if($('#stairsYearlyStats'))$('#stairsYearlyStats').innerHTML=yearlyRows.map(k=>{const s=stairStats(yearly[k]);return `<div class="item"><div class="item-top"><div><div class="item-title">${esc(k)}</div><div class="item-meta">${s.entries} Einträge · ${s.days} aktive Tage · Ø ${String(s.avg).replace('.',',')} pro Tag</div></div><strong>${s.total}</strong></div></div>`;}).join('')||empty('Noch keine Jahresdaten.');
+
+  const rows=[...state.stairs].sort((a,b)=>`${b.date||''} ${b.time||''}`.localeCompare(`${a.date||''} ${a.time||''}`));
+  if($('#stairEntryList'))$('#stairEntryList').innerHTML=rows.map(x=>itemHtml(`${fmtDate(x.date)} · ${esc(x.time||'—')} · ${Number(x.count)||0} Treppen`,x.reason?esc(x.reason):'Kein Grund angegeben',x.createdAt,[`<button onclick="delStairEntry('${x.id}')">Löschen</button>`])).join('')||empty('Noch keine Treppen eingetragen.');
+}
+async function saveStairEntry(){
+  const date=$('#stairDate')?.value||'',time=$('#stairTime')?.value||'',count=Math.floor(Number($('#stairCount')?.value||0)),reason=$('#stairReason')?.value.trim()||'';
+  if(!date)return alert('Bitte ein Datum auswählen.');
+  if(!time)return alert('Bitte eine Uhrzeit auswählen.');
+  if(!Number.isFinite(count)||count<1)return alert('Bitte eine Anzahl ab 1 eintragen.');
+  state.stairs.push({id:id(),date,time,count,reason,createdAt:now()});
+  $('#stairCount').value='';$('#stairReason').value='';$('#stairDate').value=localDateValue();$('#stairTime').value=localTimeValue();
+  await save('Treppen gespeichert');
+}
+window.delStairEntry=async ident=>{if(confirm('Treppeneintrag löschen?')){state.stairs=state.stairs.filter(x=>x.id!==ident);await save('Treppeneintrag gelöscht');}};
+
 function renderChild(){const arr=[...state.childSick].sort((a,b)=>(b.from||'').localeCompare(a.from||''));$('#childList').innerHTML=arr.map(x=>itemHtml(`${esc(x.child||'Kind')} · ${fmtDate(x.from)}–${fmtDate(x.to)}`,x.note||'',x.createdAt,[`<button onclick="delChild('${x.id}')">Löschen</button>`])).join('')||empty('Noch keine Einträge.');}
 function renderRehab(){const arr=[...state.rehabs].sort((a,b)=>(b.from||'').localeCompare(a.from||''));$('#rehabList').innerHTML=arr.map(x=>itemHtml(`${esc(x.status)} · ${esc(x.clinic||'Reha')}`,`${fmtDate(x.from)}–${fmtDate(x.to)}${x.note?' · '+esc(x.note):''}`,x.createdAt,[`<button onclick="delRehab('${x.id}')">Löschen</button>`])).join('')||empty('Noch keine Reha-Einträge.');}
+const attachmentUi={company:'companyPhotoList',shift:'shiftPhotoList',meetings:'meetingPhotoList',notices:'noticePhotoList',family:'familyPhotoList',rehab:'rehabPhotoList'};
+function renderAttachments(){for(const [section,listId] of Object.entries(attachmentUi)){const el=$('#'+listId);if(!el)continue;const arr=[...(state.attachments?.[section]||[])].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));el.innerHTML=arr.map(x=>itemHtml(esc(x.name||'Foto / Dokument'),'Nur gespeichert · keine Analyse',x.createdAt,[`<button onclick="viewAttachment('${section}','${x.id}')">Öffnen</button>`,`<button onclick="delAttachment('${section}','${x.id}')">Löschen</button>`])).join('')||empty('Noch keine Fotos oder Dokumente gespeichert.');}}
+async function saveGenericAttachment(section,inputId){const input=$('#'+inputId);const f=input?.files?.[0];if(!f){alert('Bitte zuerst ein Foto oder eine Datei auswählen.');return;}const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);if(!state.attachments[section])state.attachments[section]=[];state.attachments[section].push({id:id(),name:f.name||'Foto',mime:f.type||'',data,createdAt:now()});input.value='';await save('Foto / Dokument gespeichert');}
+window.viewAttachment=(section,ident)=>{const obj=(state.attachments?.[section]||[]).find(x=>x.id===ident);if(!obj?.data)return;const w=window.open();if(!w)return alert('Popup wurde blockiert.');if(obj.data.startsWith('data:application/pdf'))w.location=obj.data;else w.document.write(`<title>WorksManager Dokument</title><img src="${obj.data}" style="max-width:100%;height:auto">`);};
+window.delAttachment=async(section,ident)=>{if(confirm('Foto / Dokument löschen?')){state.attachments[section]=(state.attachments[section]||[]).filter(x=>x.id!==ident);await save();}};
+
 function itemHtml(title,meta,created,actions=[]){return `<div class="item"><div class="item-top"><div><div class="item-title">${title}</div><div class="item-meta">${meta||''}</div></div></div><div class="item-actions">${actions.filter(Boolean).join('')}</div></div>`;}
 function empty(t){return `<div class="muted">${esc(t)}</div>`;}
 
 function modal(html){$('#modalCard').innerHTML=html;$('#modal').classList.remove('hidden');}
 function closeModal(){$('#modal').classList.add('hidden');}
-
-function extractPrintedIcdCodes(text){
-  let t=String(text||'').toUpperCase()
-    .replace(/([A-TV-Z])\s+([0-9O]{2})/g,'$1$2')
-    .replace(/([A-TV-Z][0-9O]{2})\s*[,\.]\s*([0-9O]{1,2})/g,'$1.$2')
-    .replace(/\b([A-TV-Z])([0-9O]{2})([0-9O]{2})\b/g,'$1$2.$3')
-    .replace(/\b([A-TV-Z][0-9O]{2})\s+([0-9O]{1,2})\b/g,'$1.$2');
-  const matches=t.match(/\b[A-TV-Z][0-9O]{2}(?:\.[0-9O]{1,2})?\b/g)||[];
-  return [...new Set(matches.map(raw=>raw[0]+raw.slice(1).replace(/O/g,'0')))];
-}
-function foldOcr(v=''){
-  return String(v).toLowerCase()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
-    .replace(/ß/g,'ss').replace(/[^a-z0-9]+/g,' ').trim();
-}
-function ocrLines(text){return String(text||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);}
-function dateMatches(text){
-  return [...String(text||'').matchAll(/\b\d{1,2}[.\/\-]\d{1,2}[.\/\-]\d{2,4}\b/g)]
-    .map(m=>({raw:m[0],date:normalizeDate(m[0]),index:m.index||0})).filter(x=>x.date);
-}
-function detectAuKind(text){
-  const lines=ocrLines(text);
-  const score=(line,word)=>{
-    const f=foldOcr(line), pos=f.indexOf(word);
-    if(pos<0)return 0;
-    const raw=String(line);
-    const rawPos=raw.toLowerCase().indexOf(word.slice(0,5));
-    const prefix=rawPos>=0?raw.slice(Math.max(0,rawPos-12),rawPos):raw.slice(0,14);
-    let n=1;
-    if(/[☒☑✓✔■●]/.test(prefix))n+=5;
-    if(/(?:^|\s)(?:\[?x\]?|x|1)\s*$/i.test(prefix.trim()))n+=4;
-    if(/^\s*[xX]\s+/.test(raw))n+=4;
-    return n;
-  };
-  let erst=0,folge=0;
-  for(const l of lines){erst=Math.max(erst,score(l,'erstbescheinigung'));folge=Math.max(folge,score(l,'folgebescheinigung'));}
-  if(erst>=4&&erst>folge)return 'Erstbescheinigung';
-  if(folge>=4&&folge>erst)return 'Folgebescheinigung';
-  return '';
-}
-function findAuDateLabels(text, kind=''){
-  const raw=String(text||'');
-  const lines=ocrLines(raw);
-  const labels=[
-    {key:'from',terms:['arbeitsunfahig seit','arbeits unfahig seit']},
-    {key:'to',terms:['voraussichtlich arbeitsunfahig bis einschliesslich','arbeitsunfahig bis einschliesslich','bis einschliesslich']},
-    {key:'established',terms:['festgestellt am','fest gestellt am']}
-  ];
-  const found={from:'',to:'',established:''};
-  const labelLine={};
-  for(let i=0;i<lines.length;i++){
-    const f=foldOcr(lines[i]);
-    for(const lab of labels){
-      if(labelLine[lab.key]!==undefined)continue;
-      if(lab.terms.some(t=>f.includes(t)))labelLine[lab.key]=i;
-    }
-  }
-  const firstDateIn=(arr)=>{for(const x of arr){const d=dateMatches(x);if(d.length)return d[0].date;}return '';};
-  // Same-line values are safest and always win.
-  for(const lab of labels){
-    const i=labelLine[lab.key];
-    if(i===undefined)continue;
-    const same=firstDateIn([lines[i]]);
-    if(same)found[lab.key]=same;
-  }
-  const idxs=Object.values(labelLine).filter(x=>Number.isInteger(x));
-  if(idxs.length){
-    const lastLabel=Math.max(...idxs);
-    const local=[];
-    for(let i=lastLabel+1;i<Math.min(lines.length,lastLabel+9);i++){
-      const f=foldOcr(lines[i]);
-      if(f.includes('ausfertigung fur versicherte')||f.includes('au begrundende diagnos'))break;
-      for(const d of dateMatches(lines[i]))if(!local.includes(d.date))local.push(d.date);
-    }
-    // German AU form: the three date fields are vertically ordered as
-    // "seit", "bis einschließlich", "festgestellt am". A follow-up AU often
-    // leaves "seit" empty, producing only two dates. Never shift those dates upward.
-    if(!found.from&&!found.to&&!found.established){
-      if(local.length>=3){found.from=local[0];found.to=local[1];found.established=local[2];}
-      else if(local.length===2){found.from='';found.to=local[0];found.established=local[1];}
-      else if(local.length===1){
-        // One isolated date is ambiguous; keep it out of the AU period rather than guessing.
-        found.established=local[0];
-      }
-    }else{
-      // Fill only unambiguous remaining fields.
-      if(kind==='Folgebescheinigung'&&!found.from){
-        if(!found.to&&local[0])found.to=local[0];
-        if(!found.established&&local[1])found.established=local[1];
-      }
-    }
-  }
-  if(found.from&&found.to&&found.to<found.from){found.from='';found.to='';}
-  return found;
-}
-function extractAuDiagnosisSection(text){
-  const lines=ocrLines(text);
-  let start=-1;
-  for(let i=0;i<lines.length;i++){
-    const f=foldOcr(lines[i]);
-    if((f.includes('diagnos')&&(f.includes('icd')||f.includes('au begrund'))) || f.includes('au begrundende diagnos')){start=i;break;}
-  }
-  if(start<0)return '';
-  const endTerms=['sonstiger unfall','versorgungsleiden','im krankengeldfall','einleitung einer','wiedereingliederung','sonstige'];
-  let end=Math.min(lines.length,start+10);
-  for(let i=start+1;i<Math.min(lines.length,start+14);i++){
-    const f=foldOcr(lines[i]);
-    if(endTerms.some(t=>f.includes(t))){end=i;break;}
-  }
-  return lines.slice(start,end).join('\n');
-}
-function extractAuPrintedIcdCodes(text){
-  const section=extractAuDiagnosisSection(text);
-  if(!section)return [];
-  return extractPrintedIcdCodes(section);
-}
-function parseAuText(text){
-  let kind=detectAuKind(text);
-  let dates=findAuDateLabels(text,kind);
-  // If checkbox OCR is inconclusive, the standard follow-up layout with an empty
-  // "arbeitsunfähig seit" field and two following dates is useful supporting evidence.
-  if(!kind&&!dates.from&&dates.to&&dates.established)kind='Folgebescheinigung';
-  const printedCodes=extractAuPrintedIcdCodes(text);
-  return {
-    kind,
-    from:dates.from||'',
-    to:dates.to||'',
-    established:dates.established||'',
-    codes:printedCodes,
-    printedCodes,
-    inferred:[],
-    diagnosisSection:extractAuDiagnosisSection(text)
-  };
-}
-function lungNumber(v){
-  const n=parseFloat(String(v||'').replace(',','.'));
-  return Number.isFinite(n)?n:null;
-}
-function lungFormat(v,decimals=2){
-  if(v===null||v===undefined||!Number.isFinite(v))return '';
-  return Number(v).toLocaleString('de-DE',{maximumFractionDigits:decimals,minimumFractionDigits:0});
-}
-function lungNumbers(line){
-  return [...String(line||'').matchAll(/-?\d+(?:[.,]\d+)?/g)].map(m=>({raw:m[0],value:lungNumber(m[0]),index:m.index||0})).filter(x=>x.value!==null);
-}
-function lungMetricFromLine(line,kind='volume'){
-  const nums=lungNumbers(line);
-  if(!nums.length)return {value:'',percent:''};
-  const explicitPct=[...String(line).matchAll(/(-?\d+(?:[.,]\d+)?)\s*%/g)].map(m=>lungNumber(m[1])).filter(x=>x!==null);
-  let percent=explicitPct.length?explicitPct[explicitPct.length-1]:null;
-  let actual=null;
-  const values=nums.map(x=>x.value);
-
-  if(kind==='ratio'){
-    // Häufige Tabellenreihenfolge: Soll | Ist | %Soll. Dann ist der mittlere Wert der gemessene Quotient.
-    if(values.length>=3 && values[values.length-1]>=10 && values[values.length-1]<=250) actual=values[values.length-2];
-    else if(values.length>=2 && percent!==null) actual=values[values.length-2];
-    else if(values.length>=2) actual=values[values.length-1];
-    else actual=values[0];
-    if(actual!==null && actual>0 && actual<=1.5)return {value:lungFormat(actual,2),percent:percent!==null?lungFormat(percent,0):''};
-    return {value:actual!==null?lungFormat(actual,1)+(actual<=100?' %':''):'',percent:percent!==null?lungFormat(percent,0):''};
-  }
-
-  if(percent===null && values.length>=2){
-    const last=values[values.length-1];
-    const prev=values[values.length-2];
-    // Prozentwerte stehen auf vielen Lufu-Ausdrucken in der letzten Spalte, auch ohne Prozentzeichen.
-    if(last>=10 && last<=250 && prev>=0 && prev<20) percent=last;
-  }
-  if(percent!==null && values.length>=2){
-    // Gemessener Wert ist typischerweise direkt vor der %-Soll-Spalte.
-    actual=values[values.length-2];
-  }else{
-    const plausible=values.filter(v=>kind==='flow' ? v>=0 && v<=25 : v>=0 && v<=15);
-    actual=plausible.length?plausible[plausible.length-1]:values[values.length-1];
-  }
-  return {value:actual!==null?lungFormat(actual,2):'',percent:percent!==null?lungFormat(percent,0):''};
-}
-function parseLungFunctionText(text){
-  const raw=String(text||'');
-  const lines=raw.split(/\r?\n/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean);
-  const lower=raw.toLowerCase();
-
-  let date='';
-  const dateLine=lines.find(l=>/(?:datum|untersuch|messung|test)/i.test(l) && /\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4}/.test(l));
-  const dateMatch=(dateLine||raw).match(/\b\d{1,2}[.\/-]\d{1,2}[.\/-]\d{2,4}\b/);
-  if(dateMatch)date=normalizeDate(dateMatch[0]);
-
-  let doctor='';
-  const doctorLine=lines.find(l=>/(?:praxis|klinik|zentrum|ambulanz|dr\.?\s|pneumolog|lungenfach)/i.test(l) && l.length<=120);
-  if(doctorLine)doctor=doctorLine;
-
-  const types=[];
-  if(/bodypleth|ganzkörperpleth/i.test(raw))types.push('Bodyplethysmographie');
-  if(/spirometr/i.test(raw))types.push('Spirometrie');
-  if(/diffusionskapaz|\bdlco\b|transferfaktor/i.test(raw))types.push('Diffusionsmessung');
-  if(/broncholy|bronchodilat|salbutamol|reversibil/i.test(raw))types.push('Broncholyse/Provokation');
-  const testType=[...new Set(types)].join(' + ');
-
-  const findLine=(re,exclude)=>lines.find(l=>re.test(l) && !(exclude&&exclude.test(l)))||'';
-  const fev1Line=findLine(/\bFEV\s*1\b|\bFEV1\b|sekundenkapaz/i,/FEV\s*1\s*[\/\\]\s*(?:FVC|VC)|tiff/i);
-  const fvcLine=findLine(/\bFVC\b|forcierte\s+vitalkap/i);
-  const ratioLine=findLine(/FEV\s*1\s*[\/\\]\s*(?:FVC|VC)|FEV1\s*%\s*(?:FVC|VC)|tiff(?:eneau)?/i);
-  const fev1=lungMetricFromLine(fev1Line,'volume');
-  const fvc=lungMetricFromLine(fvcLine,'volume');
-  const ratio=lungMetricFromLine(ratioLine,'ratio');
-
-  const metricDefs=[
-    ['PEF',/\bPEF\b|peak\s*flow/i,'flow'],
-    ['VC',/(?:^|\s)(?:VC|max\.?\s*VC|VCmax|IVC)(?:\s|$)/i,'volume'],
-    ['MEF 75',/\bMEF\s*75\b|\bFEF\s*25\b/i,'flow'],
-    ['MEF 50',/\bMEF\s*50\b|\bFEF\s*50\b/i,'flow'],
-    ['MEF 25',/\bMEF\s*25\b|\bFEF\s*75\b/i,'flow'],
-    ['TLC',/\bTLC\b/i,'volume'],
-    ['RV',/(?:^|\s)RV(?:\s|$)/i,'volume'],
-    ['DLCO',/\bDLCO\b|diffusionskapaz/i,'flow'],
-    ['KCO',/\bKCO\b/i,'flow']
-  ];
-  const parsed={};
-  const other=[];
-  for(const [label,re,kind] of metricDefs){
-    const line=findLine(re);
-    if(!line)continue;
-    const m=lungMetricFromLine(line,kind);
-    if(!m.value&&!m.percent)continue;
-    parsed[label]={...m,line};
-    other.push(`${label}: ${m.value||'—'}${m.percent?` (${m.percent} % Soll)`:''}`);
-  }
-
-  // Falls Prä-/Post-Bronchodilatationszeilen separat vorkommen, bleiben sie als erkannte Zusatzwerte erhalten.
-  const prePost=lines.filter(l=>/(?:pre|post|vor\s+bronch|nach\s+bronch|broncholy)/i.test(l) && /(?:FEV|FVC|PEF)/i.test(l)).slice(0,6);
-  for(const l of prePost)other.push(`Messreihe: ${l}`);
-
-  const coreFound=[fev1.value,fev1.percent,fvc.value,fvc.percent,ratio.value].filter(Boolean).length;
-  return {
-    date,doctor,testType,
-    fev1Liters:fev1.value,fev1Percent:fev1.percent,
-    fvcLiters:fvc.value,fvcPercent:fvc.percent,
-    ratio:ratio.value,
-    otherValues:other.join('\n'),
-    parsedValues:parsed,
-    matchedLines:{fev1:fev1Line,fvc:fvcLine,ratio:ratioLine},
-    coreFound
-  };
-}
-
-function parseShiftText(text){const emp=(state.company.employeeName||'').trim().toLowerCase();const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);let chosen=emp?lines.find(l=>l.toLowerCase().includes(emp)):'';if(!chosen&&emp){const parts=emp.split(/\s+/);chosen=lines.find(l=>parts.some(p=>p.length>3&&l.toLowerCase().includes(p)))||'';}chosen=chosen||lines.join(' ');const times=[...chosen.matchAll(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/g)].map(m=>`${m[1].padStart(2,'0')}:${m[2]}`);const shifts=[];const dateMatches=[...text.matchAll(/\b\d{1,2}[.]\d{1,2}(?:[.]\d{2,4})?\b/g)].map(m=>m[0]);if(times.length>=2){shifts.push({date:'',shift:guessShift(times[0]),start:times[0],end:times[1],note:chosen});}else{const codes=[...chosen.matchAll(/\b(F|S|N|FRÜH|SPAET|SPÄT|NACHT)\b/gi)].map(m=>m[0]);if(codes.length)shifts.push({date:'',shift:codes[0],start:'',end:'',note:chosen});}return {row:chosen,dates:dateMatches,shifts};}
-function guessShift(start){const h=parseInt(start.split(':')[0],10);if(h>=20||h<5)return 'Nacht';if(h<12)return 'Früh';return 'Spät';}
 
 async function saveCompany(){state.company={...state.company,name:$('#companyName').value.trim(),employeeName:$('#employeeName').value.trim(),contractStart:$('#contractStart').value,employeeNo:$('#employeeNo').value.trim(),notes:$('#companyNotes').value.trim()};await save();}
 async function saveMeeting(){state.meetings.push({id:id(),type:$('#meetingType').value,date:$('#meetingDate').value,time:$('#meetingTime').value,partner:$('#meetingPartner').value.trim(),place:$('#meetingPlace').value.trim(),note:$('#meetingNote').value.trim(),createdAt:now()});await save();['meetingDate','meetingTime','meetingPartner','meetingPlace','meetingNote'].forEach(i=>$('#'+i).value='');}
@@ -404,59 +150,6 @@ async function selectedFileData(inputId){const f=$(inputId).files[0];if(!f)retur
 function addLungTest(){modal(`<div class="sheet-head"><strong>Lungenfunktion manuell</strong><button onclick="closeModal()">✕</button></div><div class="review-grid"><label>Datum<input id="mLungDate" type="date"></label><label>Arzt / Praxis<input id="mLungDoctor" placeholder="optional"></label><label>Testart<input id="mLungType" placeholder="z. B. Spirometrie"></label><label>FEV1 (Liter)<input id="mLungFev1L" inputmode="decimal"></label><label>FEV1 (% Soll)<input id="mLungFev1P" inputmode="decimal"></label><label>FVC (Liter)<input id="mLungFvcL" inputmode="decimal"></label><label>FVC (% Soll)<input id="mLungFvcP" inputmode="decimal"></label><label>FEV1/FVC<input id="mLungRatio"></label><label class="wide">Weitere Werte<textarea id="mLungOther" rows="4"></textarea></label><label class="wide">Originalbefund (Foto/PDF)<input id="mLungFile" type="file" accept="image/*,.pdf"><span class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</span></label><label class="wide">Notiz<textarea id="mLungNote" rows="3"></textarea></label><button class="primary wide" onclick="commitLungTest()">Speichern</button></div>`);}
 window.commitLungTest=async()=>{const f=await selectedFileData('#mLungFile');state.health.lungTests.push({id:id(),date:$('#mLungDate').value,doctor:$('#mLungDoctor').value.trim(),testType:$('#mLungType').value.trim(),fev1Liters:$('#mLungFev1L').value.trim(),fev1Percent:$('#mLungFev1P').value.trim(),fvcLiters:$('#mLungFvcL').value.trim(),fvcPercent:$('#mLungFvcP').value.trim(),ratio:$('#mLungRatio').value.trim(),otherValues:$('#mLungOther').value.trim(),note:$('#mLungNote').value.trim(),...f,createdAt:now()});await save();closeModal();};
 
-async function scanLungTest(){
-  const f=$('#lungImage').files[0];
-  const status=$('#lungOcrStatus');
-  if(!f){status.textContent='Bitte zuerst den Lungenfunktionsbefund fotografieren oder ein Bild auswählen.';return;}
-  try{
-    pendingLungOriginal={name:f.name||'Lungenfunktion.jpg',mime:'image/jpeg',data:await imageForStorage(f)};
-    const r=await ocrFile(f,status);
-    $('#lungOcrText').value=r.text;
-    $('#lungOcrText').dataset.image=r.image;
-    reviewLungTest();
-  }catch(e){pendingLungOriginal=null;status.textContent=e.message;}
-}
-function reviewLungTest(){
-  const p=parseLungFunctionText($('#lungOcrText').value);
-  const detected=[];
-  if(p.fev1Liters||p.fev1Percent)detected.push('FEV1');
-  if(p.fvcLiters||p.fvcPercent)detected.push('FVC');
-  if(p.ratio)detected.push('FEV1/FVC');
-  if(p.otherValues)detected.push('weitere Parameter');
-  const preview=pendingLungOriginal?.data?`<div class="wide"><strong>Originalbefund:</strong><br><img src="${pendingLungOriginal.data}" alt="Lungenfunktionsbefund" style="max-width:100%;max-height:260px;object-fit:contain;border-radius:12px;margin-top:8px"></div>`:'<div class="wide hint">Originalbild fehlt – bitte Befund erneut auswählen.</div>';
-  $('#lungReview').classList.remove('hidden');
-  $('#lungReview').innerHTML=`<h3>Automatisch erkannte Lungenfunktion prüfen</h3><div class="review-grid">
-    <div class="wide hint"><strong>Erkannt:</strong> ${esc(detected.join(', ')||'keine eindeutigen Messwerte')}. Die App übernimmt Messwerte aus dem Befund, nimmt aber keine medizinische Bewertung vor.</div>
-    <label>Datum<input id="rLungDate" type="date" value="${esc(p.date)}"></label>
-    <label>Arzt / Praxis<input id="rLungDoctor" value="${esc(p.doctor)}"></label>
-    <label>Testart<input id="rLungType" value="${esc(p.testType)}"></label>
-    <label>FEV1 (Liter)<input id="rLungFev1L" inputmode="decimal" value="${esc(p.fev1Liters)}"></label>
-    <label>FEV1 (% Soll)<input id="rLungFev1P" inputmode="decimal" value="${esc(p.fev1Percent)}"></label>
-    <label>FVC (Liter)<input id="rLungFvcL" inputmode="decimal" value="${esc(p.fvcLiters)}"></label>
-    <label>FVC (% Soll)<input id="rLungFvcP" inputmode="decimal" value="${esc(p.fvcPercent)}"></label>
-    <label>FEV1/FVC<input id="rLungRatio" value="${esc(p.ratio)}"></label>
-    <label class="wide">Weitere automatisch erkannte Werte<textarea id="rLungOther" rows="5">${esc(p.otherValues)}</textarea></label>
-    ${preview}
-    <label class="wide">Notiz<textarea id="rLungNote" rows="3"></textarea></label>
-    <button class="primary wide" id="commitLungReview">Geprüfte Werte + Originalbefund speichern</button>
-  </div>`;
-  $('#commitLungReview').onclick=async()=>{
-    if(!pendingLungOriginal?.data){alert('Das Originalbild des Lungenfunktionstests fehlt. Bitte den Befund erneut fotografieren oder auswählen.');return;}
-    state.health.lungTests.push({
-      id:id(),date:$('#rLungDate').value,doctor:$('#rLungDoctor').value.trim(),testType:$('#rLungType').value.trim(),
-      fev1Liters:$('#rLungFev1L').value.trim(),fev1Percent:$('#rLungFev1P').value.trim(),
-      fvcLiters:$('#rLungFvcL').value.trim(),fvcPercent:$('#rLungFvcP').value.trim(),ratio:$('#rLungRatio').value.trim(),
-      otherValues:$('#rLungOther').value.trim(),note:$('#rLungNote').value.trim(),
-      parsedValues:p.parsedValues,matchedLines:p.matchedLines,ocrText:$('#lungOcrText').value,
-      data:pendingLungOriginal.data,name:pendingLungOriginal.name,mime:pendingLungOriginal.mime,createdAt:now()
-    });
-    await save('Lungenfunktion gespeichert');
-    pendingLungOriginal=null;
-    $('#lungImage').value='';$('#lungOcrText').value='';$('#lungOcrText').dataset.image='';$('#lungReview').classList.add('hidden');
-    $('#lungOcrStatus').textContent='Lungenfunktion gespeichert.';
-  };
-}
-
 function addLabResult(){modal(`<div class="sheet-head"><strong>Laborwerte</strong><button onclick="closeModal()">✕</button></div><div class="review-grid"><label>Datum<input id="mLabDate" type="date"></label><label>Arzt / Labor<input id="mLabProvider" placeholder="optional"></label><label class="wide">Laborwerte<textarea id="mLabValues" rows="6" placeholder="z. B. CRP: 3 mg/l&#10;Leukozyten: 7,2 /nl&#10;... "></textarea></label><label class="wide">Laborbefund (Foto/PDF)<input id="mLabFile" type="file" accept="image/*,.pdf"><span class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</span></label><label class="wide">Notiz<textarea id="mLabNote" rows="3"></textarea></label><button class="primary wide" onclick="commitLabResult()">Speichern</button></div>`);}
 window.commitLabResult=async()=>{const f=await selectedFileData('#mLabFile');state.health.labResults.push({id:id(),date:$('#mLabDate').value,provider:$('#mLabProvider').value.trim(),values:$('#mLabValues').value.trim(),note:$('#mLabNote').value.trim(),...f,createdAt:now()});await save();closeModal();};
 function addDoctorLetter(){modal(`<div class="sheet-head"><strong>Arztbrief</strong><button onclick="closeModal()">✕</button></div><div class="review-grid"><label>Datum<input id="mLetterDate" type="date"></label><label>Arzt / Praxis / Klinik<input id="mLetterDoctor"></label><label>Fachrichtung<input id="mLetterSpecialty" placeholder="z. B. Pneumologie"></label><label>Betreff<input id="mLetterSubject" placeholder="z. B. Befundbericht"></label><label class="wide">Arztbrief (Foto/PDF)<input id="mLetterFile" type="file" accept="image/*,.pdf"><span class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</span></label><label class="wide">Notiz<textarea id="mLetterNote" rows="3"></textarea></label><button class="primary wide" onclick="commitDoctorLetter()">Speichern</button></div>`);}
@@ -466,250 +159,11 @@ window.commitManualShift=async()=>{state.shifts.push({id:id(),date:$('#mShiftDat
 async function addManualAu(){modal(`<div class="sheet-head"><strong>AU hinzufügen</strong><button onclick="closeModal()">✕</button></div><div class="review-grid"><label>Art<select id="mAuKind"><option>Erstbescheinigung</option><option>Folgebescheinigung</option></select></label><label>ICD‑10-Code(s)<input id="mAuCodes" placeholder="z. B. J45.9, J20.9"></label><label>Von<input id="mAuFrom" type="date"></label><label>Bis<input id="mAuTo" type="date"></label><label class="wide">Notiz<textarea id="mAuNote"></textarea></label><button class="primary wide" onclick="commitManualAu()">Speichern</button></div>`);}
 window.commitManualAu=async()=>{state.aus.push({id:id(),kind:$('#mAuKind').value,from:$('#mAuFrom').value,to:$('#mAuTo').value,codes:$('#mAuCodes').value.toUpperCase().split(/[,;\s]+/).filter(Boolean),note:$('#mAuNote').value.trim(),createdAt:now()});await save();closeModal();};
 
-async function scanShift(){const f=$('#shiftImage').files[0];const status=$('#shiftOcrStatus');try{const r=await ocrFile(f,status);$('#shiftOcrText').value=r.text;$('#shiftOcrText').dataset.image=r.image;}catch(e){status.textContent=e.message;}}
-function reviewShift(){const parsed=parseShiftText($('#shiftOcrText').value);const first=parsed.shifts[0]||{date:'',shift:'',start:'',end:'',note:parsed.row};$('#shiftReview').classList.remove('hidden');$('#shiftReview').innerHTML=`<h3>Erkennung prüfen</h3><div class="review-grid"><label>Datum<input id="rShiftDate" type="date" value="${esc(first.date)}"></label><label>Schicht<input id="rShiftName" value="${esc(first.shift)}"></label><label>Von<input id="rShiftStart" type="time" value="${esc(first.start)}"></label><label>Bis<input id="rShiftEnd" type="time" value="${esc(first.end)}"></label><label class="wide">Erkannte Zeile<textarea id="rShiftNote">${esc(first.note)}</textarea></label><div class="wide muted">Erkannte Datumsangaben im Plan: ${esc(parsed.dates.join(', ')||'keine')}</div><button class="primary wide" id="commitShiftReview">Geprüfte Schicht speichern</button></div>`;$('#commitShiftReview').onclick=async()=>{state.shifts.push({id:id(),date:$('#rShiftDate').value,shift:$('#rShiftName').value.trim(),start:$('#rShiftStart').value,end:$('#rShiftEnd').value,note:$('#rShiftNote').value.trim(),sourceImage:$('#shiftOcrText').dataset.image||'',createdAt:now()});await save();$('#shiftReview').classList.add('hidden');};}
-
-async function scanAu(){
-  const f=$('#auImage').files[0];
-  const status=$('#auOcrStatus');
-  if(!f){status.textContent='Bitte zuerst die AU fotografieren oder ein Bild auswählen.';return;}
-  try{
-    // Originaldatei unverändert sichern; die komprimierte Kopie wird nur für OCR/Kompatibilität genutzt.
-    pendingAuOriginal={name:f.name||'AU.jpg',mime:'image/jpeg',data:await imageForStorage(f)};
-    const r=await ocrFile(f,status);
-    $('#auOcrText').value=r.text;
-    $('#auOcrText').dataset.image=r.image;
-    reviewAu();
-  }catch(e){pendingAuOriginal=null;status.textContent=e.message;}
-}
-function reviewAu(){
-  const p=parseAuText($('#auOcrText').value);
-  const sourceText=p.printedCodes.length
-    ? `${p.printedCodes.length} ICD-10-Code${p.printedCodes.length===1?'':'s'} ausschließlich im Diagnosefeld der AU erkannt.`
-    : 'Im Diagnosefeld wurde kein ICD-10-Code sicher erkannt. Es wird kein Code geraten.';
-  const originalPreview=pendingAuOriginal?.data
-    ? `<div class="wide"><strong>Original-AU:</strong><br><img src="${pendingAuOriginal.data}" alt="Original-AU" style="max-width:100%;max-height:260px;object-fit:contain;border-radius:12px;margin-top:8px"></div>`
-    : '<div class="wide hint">Originalbild nicht verfügbar – bitte AU erneut auswählen.</div>';
-  const kindOptions=`<option value="" ${!p.kind?'selected':''}>Bitte prüfen</option><option ${p.kind==='Erstbescheinigung'?'selected':''}>Erstbescheinigung</option><option ${p.kind==='Folgebescheinigung'?'selected':''}>Folgebescheinigung</option>`;
-  $('#auReview').classList.remove('hidden');
-  $('#auReview').innerHTML=`<h3>AU-Daten prüfen</h3><div class="review-grid">
-    <label>Art<select id="rAuKind">${kindOptions}</select></label>
-    <label>ICD‑10-Code(s)<input id="rAuCodes" value="${esc(p.codes.join(', '))}" placeholder="nur Codes aus Diagnosefeld"></label>
-    <label>Von · arbeitsunfähig seit<input id="rAuFrom" type="date" value="${esc(p.from)}"></label>
-    <label>Bis · voraussichtlich bis einschließlich<input id="rAuTo" type="date" value="${esc(p.to)}"></label>
-    <label>Festgestellt am<input id="rAuEstablished" type="date" value="${esc(p.established)}"></label>
-    <div class="wide hint"><strong>Datums-Erkennung:</strong> Die App verwendet nur die beschrifteten AU-Felder. Geburtsdatum und „festgestellt am“ werden nicht als AU-Zeitraum verwendet.${p.established?`<br>Festgestellt am: ${esc(fmtDate(p.established))}`:''}</div>
-    <div class="wide hint"><strong>ICD-Erkennung:</strong> ${esc(sourceText)}${p.diagnosisSection?'<details style="margin-top:6px"><summary>Erkannten Diagnosebereich anzeigen</summary><pre style="white-space:pre-wrap">'+esc(p.diagnosisSection)+'</pre></details>':''}</div>
-    ${originalPreview}
-    <label class="wide">Notiz<textarea id="rAuNote"></textarea></label>
-    <button class="primary wide" id="commitAuReview">Geprüfte AU mit Originalbild speichern</button>
-  </div>`;
-  $('#commitAuReview').onclick=async()=>{
-    const codes=extractPrintedIcdCodes($('#rAuCodes').value);
-    const kind=$('#rAuKind').value;
-    const from=$('#rAuFrom').value,to=$('#rAuTo').value,established=$('#rAuEstablished').value;
-    if(!pendingAuOriginal?.data){alert('Das Originalbild der AU fehlt. Bitte die AU erneut fotografieren oder auswählen.');return;}
-    if(!to){alert('Das Bis-Datum wurde nicht sicher erkannt. Bitte am Original prüfen und ergänzen.');return;}
-    if(kind==='Erstbescheinigung'&&!from){alert('Bei der Erstbescheinigung fehlt „arbeitsunfähig seit“. Bitte am Original prüfen und ergänzen.');return;}
-    if(from&&to<from){alert('Das Bis-Datum liegt vor dem Von-Datum. Bitte die AU-Daten prüfen.');return;}
-    if(!kind){alert('Bitte Erst- oder Folgebescheinigung anhand der AU auswählen.');return;}
-    state.aus.push({
-      id:id(),kind,from,to,codes:[...new Set(codes)],note:$('#rAuNote').value.trim(),
-      established:established||'',codeSource:'Diagnosefeld-AU',inferredIcd:[],diagnosisSection:p.diagnosisSection||'',
-      ocrText:$('#auOcrText').value,data:pendingAuOriginal.data,name:pendingAuOriginal.name,mime:pendingAuOriginal.mime,createdAt:now()
-    });
-    await save('AU gespeichert');
-    pendingAuOriginal=null;
-    $('#auImage').value='';
-    $('#auOcrText').value='';
-    $('#auOcrText').dataset.image='';
-    $('#auReview').classList.add('hidden');
-  };
-}
-
-function inferWorkplanMonth(text, selectedMonth=''){
-  if(selectedMonth)return selectedMonth;
-  const lower=String(text||'').toLowerCase();
-  const months=['januar','februar','märz','maerz','april','mai','juni','juli','august','september','oktober','november','dezember'];
-  const map={januar:1,februar:2,'märz':3,maerz:3,april:4,mai:5,juni:6,juli:7,august:8,september:9,oktober:10,november:11,dezember:12};
-  for(const m of months){
-    const re=new RegExp('\\b'+m+'\\b[^0-9]{0,10}(20\\d{2})','i');
-    const hit=lower.match(re);
-    if(hit)return `${hit[1]}-${String(map[m]).padStart(2,'0')}`;
-    const justMonth=new RegExp('\\b'+m+'\\b','i');
-    if(justMonth.test(lower))return `${new Date().getFullYear()}-${String(map[m]).padStart(2,'0')}`;
-  }
-  const mmY=String(text||'').match(/\b(0?[1-9]|1[0-2])[.\/\-](20\d{2})\b/);
-  if(mmY)return `${mmY[2]}-${String(mmY[1]).padStart(2,'0')}`;
-  const dates=[...String(text||'').matchAll(/\b\d{1,2}[.\/\-](\d{1,2})[.\/\-](20\d{2})\b/g)];
-  if(dates.length)return `${dates[0][2]}-${String(dates[0][1]).padStart(2,'0')}`;
-  return '';
-}
-function normalizeWorkplanTime(v){
-  const m=String(v||'').trim().match(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/);
-  return m?`${m[1].padStart(2,'0')}:${m[2]}`:'';
-}
-function workplanShiftFromToken(token){
-  const t=String(token||'').trim().toUpperCase().replace('Ü','U').replace('Ä','A');
-  const known={
-    F:{shift:'Früh',start:'05:45',end:'13:45'},FRUH:{shift:'Früh',start:'05:45',end:'13:45'},FRUEH:{shift:'Früh',start:'05:45',end:'13:45'},
-    S:{shift:'Spät',start:'13:45',end:'21:45'},SPAT:{shift:'Spät',start:'13:45',end:'21:45'},SPAET:{shift:'Spät',start:'13:45',end:'21:45'},
-    N:{shift:'Nacht',start:'21:45',end:'05:45'},NACHT:{shift:'Nacht',start:'21:45',end:'05:45'}
-  };
-  return known[t]||null;
-}
-function dateFromDay(day,month){
-  if(!month||!day)return '';
-  const [y,m]=month.split('-');
-  const d=String(parseInt(day,10)).padStart(2,'0');
-  return `${y}-${m}-${d}`;
-}
-function parseWorkplanText(text,selectedMonth=''){
-  const raw=String(text||'');
-  const lines=raw.split(/\r?\n/).map(x=>x.replace(/\s+/g,' ').trim()).filter(Boolean);
-  const month=inferWorkplanMonth(raw,selectedMonth);
-  const configured=(state.company.employeeName||'').trim();
-  const lowerName=configured.toLowerCase();
-  const nameParts=lowerName.split(/\s+/).filter(x=>x.length>=3);
-  const employeeLines=lines.filter(l=>{
-    const low=l.toLowerCase();
-    return lowerName?low.includes(lowerName):false;
-  });
-  if(!employeeLines.length&&nameParts.length){
-    employeeLines.push(...lines.filter(l=>nameParts.filter(p=>l.toLowerCase().includes(p)).length>=Math.min(2,nameParts.length)));
-  }
-  const employee=employeeLines.length?configured:'';
-  const entries=[];
-  const statuses=[];
-  const addEntry=e=>{
-    if(!e.date&&!e.day)return;
-    const key=`${e.date||e.day}|${e.shift||''}|${e.start||''}|${e.end||''}`;
-    if(entries.some(x=>x._key===key))return;
-    entries.push({...e,_key:key});
-  };
-
-  // Strongest case: a line contains a date/day and explicit working times.
-  for(const line of lines){
-    const dateHit=line.match(/\b(\d{1,2})[.\/\-](\d{1,2})(?:[.\/\-](\d{2,4}))?\b/);
-    const times=[...line.matchAll(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/g)].map(m=>`${m[1].padStart(2,'0')}:${m[2]}`);
-    const tokenHit=line.match(/(?:^|\s)(F|S|N|FRÜH|FRUEH|SPÄT|SPAET|NACHT)(?:\s|$)/i);
-    if(dateHit&&(times.length>=2||tokenHit)){
-      let date='';
-      if(dateHit[3])date=normalizeDate(dateHit[0]);
-      else if(month)date=dateFromDay(dateHit[1],month);
-      let shift='',start=times[0]||'',end=times[1]||'';
-      if(tokenHit){const k=workplanShiftFromToken(tokenHit[1]);if(k){shift=k.shift;start=start||k.start;end=end||k.end;}}
-      if(!shift&&start)shift=guessShift(start);
-      addEntry({date,day:dateHit[1],shift,start,end,source:line,confidence:times.length>=2?'hoch':'mittel'});
-    }
-    if(/\b(urlaub|frei|krank|feiertag|kurzarbeit)\b/i.test(line)){
-      const found=line.match(/\b(urlaub|frei|krank|feiertag|kurzarbeit)\b/ig)||[];
-      found.forEach(x=>{const v=x.charAt(0).toUpperCase()+x.slice(1).toLowerCase();if(!statuses.includes(v))statuses.push(v);});
-    }
-  }
-
-  // Table OCR often separates the date header and the employee row. Pair a sequence of day numbers with F/S/N tokens.
-  if(!entries.length&&employeeLines.length){
-    const allDays=[];
-    for(const line of lines){
-      const nums=[...line.matchAll(/(?:^|\s)([1-9]|[12]\d|3[01])(?:[.]|\s|$)/g)].map(m=>parseInt(m[1],10));
-      if(nums.length>=5){allDays.push(...nums);break;}
-    }
-    const row=employeeLines.join(' ');
-    const tokens=[...row.matchAll(/(?:^|\s)(F|S|N|FRÜH|FRUEH|SPÄT|SPAET|NACHT)(?=\s|$)/ig)].map(m=>m[1]);
-    if(allDays.length&&tokens.length){
-      const count=Math.min(allDays.length,tokens.length);
-      for(let i=0;i<count;i++){
-        const k=workplanShiftFromToken(tokens[i]);
-        if(k)addEntry({date:month?dateFromDay(allDays[i],month):'',day:String(allDays[i]),...k,source:row,confidence:'mittel'});
-      }
-    }
-  }
-
-  // Last fallback: collect explicit time pairs from employee line even without a clean date association.
-  if(!entries.length&&employeeLines.length){
-    for(const row of employeeLines){
-      const pairs=[...row.matchAll(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\s*[-–]\s*([01]?\d|2[0-3])[:.]([0-5]\d)\b/g)];
-      pairs.forEach((m,i)=>{const start=`${m[1].padStart(2,'0')}:${m[2]}`,end=`${m[3].padStart(2,'0')}:${m[4]}`;addEntry({date:'',day:'',shift:guessShift(start),start,end,source:row,confidence:'niedrig',sequence:i+1});});
-    }
-  }
-
-  return {month,employee,employeeConfigured:configured,employeeLines,entries:entries.map(({_key,...e})=>e),statuses,rawLineCount:lines.length};
-}
-async function scanWorkplan(){
-  const f=$('#workplanImage').files[0];
-  const status=$('#workplanOcrStatus');
-  if(!f){status.textContent='Bitte zuerst einen Arbeitsplan fotografieren oder auswählen.';return;}
-  try{
-    pendingWorkplanOriginal={name:f.name||'Arbeitsplan.jpg',mime:'image/jpeg',data:await imageForStorage(f)};
-    if(!f.type.startsWith('image/')){
-      status.textContent='PDF wird als Original gespeichert. Automatische OCR funktioniert aktuell bei Bildern; für Analyse bitte eine Seite als Foto/Bild verwenden.';
-      $('#workplanOcrText').value='';
-      reviewWorkplan(parseWorkplanText('', $('#workplanMonth').value));
-      return;
-    }
-    const r=await ocrFile(f,status);
-    $('#workplanOcrText').value=r.text;
-    $('#workplanOcrText').dataset.image=r.image;
-    reviewWorkplan(parseWorkplanText(r.text,$('#workplanMonth').value));
-  }catch(e){pendingWorkplanOriginal=null;status.textContent=e.message;}
-}
-function reviewWorkplan(p){
-  const entries=p.entries||[];
-  const employeeHint=p.employee?`Mitarbeiter erkannt: ${p.employee}`:(p.employeeConfigured?`Name „${p.employeeConfigured}“ im OCR-Text nicht sicher gefunden.`:'Bitte unter Firma & Vertrag zuerst deinen Mitarbeiternamen hinterlegen.');
-  const rows=entries.length?entries.map((e,i)=>`<div class="workplan-entry" data-workplan-row="${i}" data-day="${esc(e.day||'')}">
-      <label>Datum<input class="wp-date" type="date" value="${esc(e.date||'')}"></label>
-      <label>Schicht<input class="wp-shift" value="${esc(e.shift||'')}"></label>
-      <label>Von<input class="wp-start" type="time" value="${esc(e.start||'')}"></label>
-      <label>Bis<input class="wp-end" type="time" value="${esc(e.end||'')}"></label>
-      <label class="wp-include"><input class="wp-use" type="checkbox" checked> übernehmen</label>
-    </div>`).join(''):'<div class="hint">Keine einzelnen Schichten sicher erkannt. Der Arbeitsplan kann trotzdem als Original gespeichert werden.</div>';
-  $('#workplanReview').classList.remove('hidden');
-  $('#workplanReview').innerHTML=`<div class="section-head"><h3>Arbeitsplan-Analyse prüfen</h3><span class="privacy-badge">${entries.length} Schicht${entries.length===1?'':'en'} erkannt</span></div>
-    <div class="review-grid">
-      <label>Monat<input id="rWorkplanMonth" type="month" value="${esc(p.month||'')}"></label>
-      <div class="wide hint"><strong>Erkennung:</strong> ${esc(employeeHint)}${p.statuses.length?'<br>Weitere Angaben: '+esc(p.statuses.join(', ')):''}</div>
-      <div class="wide"><strong>Erkannte Schichten</strong><div id="workplanRows">${rows}</div></div>
-      <label class="wide">Notiz<textarea id="rWorkplanNote" rows="2" placeholder="optional"></textarea></label>
-      <button class="primary wide" id="commitWorkplanReview">Arbeitsplan + erkannte Schichten speichern</button>
-    </div>`;
-  const monthInput=$('#rWorkplanMonth');
-  if(monthInput){monthInput.onchange=()=>{
-    $$('[data-workplan-row]').forEach(r=>{
-      const date=r.querySelector('.wp-date');const day=r.dataset.day;
-      if(date&&!date.value&&day&&monthInput.value)date.value=dateFromDay(day,monthInput.value);
-    });
-  };}
-  $('#commitWorkplanReview').onclick=commitWorkplanReview;
-}
-async function commitWorkplanReview(){
-  if(!pendingWorkplanOriginal?.data){alert('Das Original des Arbeitsplans fehlt. Bitte erneut auswählen.');return;}
-  const rows=$$('[data-workplan-row]');
-  const detected=[];
-  rows.forEach(r=>{
-    if(!r.querySelector('.wp-use')?.checked)return;
-    detected.push({date:r.querySelector('.wp-date').value,shift:r.querySelector('.wp-shift').value.trim(),start:r.querySelector('.wp-start').value,end:r.querySelector('.wp-end').value});
-  });
-  let imported=0;
-  for(const e of detected){
-    if(!e.date&&!e.start&&!e.shift)continue;
-    const duplicate=state.shifts.some(s=>s.date===e.date&&s.start===e.start&&s.end===e.end&&String(s.shift||'').toLowerCase()===String(e.shift||'').toLowerCase());
-    if(!duplicate){state.shifts.push({id:id(),...e,note:'Automatisch aus Arbeitsplan übernommen',source:'workplan',createdAt:now()});imported++;}
-  }
-  const month=$('#rWorkplanMonth').value||$('#workplanMonth').value;
-  const parsed=parseWorkplanText($('#workplanOcrText').value,month);
-  state.documents.push({
-    id:id(),type:'workplan',month,name:pendingWorkplanOriginal.name,mime:pendingWorkplanOriginal.mime,data:pendingWorkplanOriginal.data,
-    ocrText:$('#workplanOcrText').value,note:$('#rWorkplanNote').value.trim(),
-    analysis:{employee:parsed.employee||parsed.employeeConfigured||'',detectedShiftCount:parsed.entries.length,importedShiftCount:imported,statuses:parsed.statuses,entries:detected},createdAt:now()
-  });
-  await save('Arbeitsplan gespeichert');
-  pendingWorkplanOriginal=null;
-  $('#workplanImage').value='';$('#workplanOcrText').value='';$('#workplanOcrText').dataset.image='';$('#workplanReview').classList.add('hidden');
-  $('#workplanOcrStatus').textContent=`Arbeitsplan gespeichert. ${imported} neue Schicht${imported===1?'':'en'} übernommen.`;
-}
-
-async function saveScannedDoc(type){const fileEl=type==='payroll'?$('#payrollImage'):$('#stampImage');const monthEl=type==='payroll'?$('#payrollMonth'):$('#stampMonth');const f=fileEl.files[0];if(!f){alert('Bitte zuerst eine Datei auswählen.');return;}let data,ocrText='';if(f.type.startsWith('image/')){data=await imageForStorage(f);try{const status=document.createElement('div');const r=await ocrFile(f,status);ocrText=r.text;}catch{} }else{data=await fileToDataURL(f);}state.documents.push({id:id(),type,month:monthEl.value,name:f.name,mime:f.type,data,ocrText,createdAt:now()});fileEl.value='';await save();}
+async function saveSimpleDoc(type){const map={payroll:['payrollImage','payrollMonth'],stamp:['stampImage','stampMonth'],workplan:['workplanImage','workplanMonth']};const cfg=map[type];if(!cfg)return;const fileEl=$('#'+cfg[0]),monthEl=$('#'+cfg[1]);const f=fileEl?.files?.[0];if(!f){alert('Bitte zuerst ein Foto oder eine Datei auswählen.');return;}const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);state.documents.push({id:id(),type,month:monthEl?.value||'',name:f.name||'Dokument',mime:f.type||'',data,createdAt:now()});fileEl.value='';await save('Dokument gespeichert');}
+async function saveAuPhoto(){const f=$('#auImage')?.files?.[0];if(!f){alert('Bitte zuerst eine AU als Foto oder Datei auswählen.');return;}const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);state.aus.push({id:id(),kind:'AU-Dokument',from:'',to:'',codes:[],note:'',name:f.name||'AU',mime:f.type||'',data,createdAt:now()});$('#auImage').value='';await save('AU gespeichert');}
+async function saveLungPhoto(){const f=$('#lungImage')?.files?.[0];if(!f){alert('Bitte zuerst einen Lungenfunktionsbefund auswählen.');return;}const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);state.health.lungTests.push({id:id(),date:'',doctor:'',testType:'',fev1Liters:'',fev1Percent:'',fvcLiters:'',fvcPercent:'',ratio:'',otherValues:'',note:'',name:f.name||'Lungenfunktion',mime:f.type||'',data,createdAt:now()});$('#lungImage').value='';await save('Lungenfunktion gespeichert');}
+async function saveLabPhoto(){const f=$('#labPhoto')?.files?.[0];if(!f){alert('Bitte zuerst einen Laborbefund auswählen.');return;}const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);state.health.labResults.push({id:id(),date:'',provider:'',values:'',note:'',name:f.name||'Laborbefund',mime:f.type||'',data,createdAt:now()});$('#labPhoto').value='';await save('Laborbefund gespeichert');}
+async function saveLetterPhoto(){const f=$('#letterPhoto')?.files?.[0];if(!f){alert('Bitte zuerst einen Arztbrief auswählen.');return;}const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);state.health.doctorLetters.push({id:id(),date:'',doctor:'',specialty:'',subject:'',note:'',name:f.name||'Arztbrief',mime:f.type||'',data,createdAt:now()});$('#letterPhoto').value='';await save('Arztbrief gespeichert');}
 
 async function saveContractFile(){const f=$('#contractFile').files[0];if(!f)return alert('Bitte Datei auswählen.');const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);state.company.contracts.push({id:id(),name:f.name,type:f.type,data,createdAt:now()});$('#contractFile').value='';await save();}
 
@@ -725,16 +179,312 @@ window.delRehab=async x=>{if(confirm('Eintrag löschen?')){state.rehabs=state.re
 window.delContract=async x=>{if(confirm('Arbeitsvertrag löschen?')){state.company.contracts=state.company.contracts.filter(y=>y.id!==x);await save();}};
 window.closeModal=closeModal;
 
+
+function reportYearFromValue(value){
+  const m=String(value||'').match(/^(\d{4})/);
+  return m?m[1]:'';
+}
+function reportEntryYear(item,fields=[]){
+  for(const f of fields){const y=reportYearFromValue(item?.[f]);if(y)return y;}
+  return reportYearFromValue(item?.createdAt);
+}
+function reportInYear(item,fields,year){return reportEntryYear(item,fields)===String(year);}
+function reportRangeOverlapsYear(from,to,year,createdAt=''){
+  const y=String(year),startYear=`${y}-01-01`,endYear=`${y}-12-31`;
+  const a=from||to,b=to||from;
+  if(a&&b)return a<=endYear&&b>=startYear;
+  return reportYearFromValue(createdAt)===y;
+}
+function reportDateOrdinal(value){
+  const m=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return null;
+  return Math.floor(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3]))/86400000);
+}
+function reportDaysWithinYear(from,to,year){
+  if(!from||!to)return 0;
+  const y=String(year),start=`${y}-01-01`,end=`${y}-12-31`;
+  const a=from<start?start:from,b=to>end?end:to;
+  const ao=reportDateOrdinal(a),bo=reportDateOrdinal(b);
+  return ao===null||bo===null||bo<ao?0:bo-ao+1;
+}
+function reportFormatDateTime(value){
+  if(!value)return '—';
+  const d=new Date(value);if(Number.isNaN(d.getTime()))return String(value);
+  return d.toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'});
+}
+function reportAvailableYears(){
+  const years=new Set([String(new Date().getFullYear())]);
+  const add=v=>{const y=reportYearFromValue(v);if(y)years.add(y);};
+  add(state.company?.contractStart);
+  for(const x of state.shifts)add(x.date||x.createdAt);
+  for(const x of state.meetings)add(x.date||x.createdAt);
+  for(const x of state.notices)add(x.date||x.createdAt);
+  for(const x of state.documents)add(x.month||x.createdAt);
+  for(const x of state.aus){add(x.from||x.to||x.createdAt);add(x.to);}
+  for(const x of state.childSick){add(x.from||x.to||x.createdAt);add(x.to);}
+  for(const x of state.rehabs){add(x.from||x.to||x.createdAt);add(x.to);}
+  for(const x of state.stairs)add(x.date||x.createdAt);
+  for(const x of state.health.lungTests)add(x.date||x.createdAt);
+  for(const x of state.health.labResults)add(x.date||x.createdAt);
+  for(const x of state.health.doctorLetters)add(x.date||x.createdAt);
+  for(const x of state.company.contracts||[])add(x.createdAt);
+  for(const arr of Object.values(state.attachments||{}))for(const x of arr||[])add(x.createdAt);
+  return [...years].filter(x=>/^\d{4}$/.test(x)).sort().reverse();
+}
+function reportYearData(year){
+  const y=String(year);
+  const shifts=state.shifts.filter(x=>reportInYear(x,['date'],y));
+  const meetings=state.meetings.filter(x=>reportInYear(x,['date'],y));
+  const notices=state.notices.filter(x=>reportInYear(x,['date'],y));
+  const documents=state.documents.filter(x=>reportInYear(x,['month'],y));
+  const aus=state.aus.filter(x=>reportRangeOverlapsYear(x.from,x.to,y,x.createdAt));
+  const childSick=state.childSick.filter(x=>reportRangeOverlapsYear(x.from,x.to,y,x.createdAt));
+  const rehabs=state.rehabs.filter(x=>reportRangeOverlapsYear(x.from,x.to,y,x.createdAt));
+  const stairs=state.stairs.filter(x=>reportInYear(x,['date'],y));
+  const lungTests=state.health.lungTests.filter(x=>reportInYear(x,['date'],y));
+  const labResults=state.health.labResults.filter(x=>reportInYear(x,['date'],y));
+  const doctorLetters=state.health.doctorLetters.filter(x=>reportInYear(x,['date'],y));
+  const contracts=(state.company.contracts||[]).filter(x=>reportInYear(x,[],y));
+  const attachments={};
+  for(const [key,arr] of Object.entries(state.attachments||{}))attachments[key]=(arr||[]).filter(x=>reportInYear(x,[],y));
+  return {year:y,shifts,meetings,notices,documents,aus,childSick,rehabs,stairs,lungTests,labResults,doctorLetters,contracts,attachments};
+}
+function reportSummary(year){
+  const d=reportYearData(year);
+  const auDays=d.aus.reduce((n,x)=>n+reportDaysWithinYear(x.from,x.to,d.year),0);
+  const childDays=d.childSick.reduce((n,x)=>n+reportDaysWithinYear(x.from,x.to,d.year),0);
+  const stair=stairStats(d.stairs);
+  const health=d.lungTests.length+d.labResults.length+d.doctorLetters.length;
+  const attached=Object.values(d.attachments).reduce((n,a)=>n+a.length,0);
+  const healthDocs=[...d.lungTests,...d.labResults,...d.doctorLetters].filter(x=>x.data).length;
+  const noticeDocs=d.notices.filter(x=>x.file).length;
+  const auDocs=d.aus.filter(x=>x.data||x.image||x.name).length;
+  const docs=d.documents.length+d.contracts.length+attached+healthDocs+noticeDocs+auDocs;
+  return {...d,auDays,childDays,stair,health,docs};
+}
+function renderAnnualReport(){
+  const select=$('#annualYear');if(!select)return;
+  const previous=select.value;
+  const years=reportAvailableYears();
+  select.innerHTML=years.map(y=>`<option value="${y}">${y}</option>`).join('');
+  if(previous&&years.includes(previous))select.value=previous;
+  else select.value=years.includes(String(new Date().getFullYear()))?String(new Date().getFullYear()):years[0]||String(new Date().getFullYear());
+  const s=reportSummary(select.value);
+  if($('#annualStatShifts'))$('#annualStatShifts').textContent=s.shifts.length;
+  if($('#annualStatAuCases'))$('#annualStatAuCases').textContent=s.aus.length;
+  if($('#annualStatAuDays'))$('#annualStatAuDays').textContent=`${s.auDays} Tage`;
+  if($('#annualStatStairs'))$('#annualStatStairs').textContent=s.stair.total;
+  if($('#annualStatStairDays'))$('#annualStatStairDays').textContent=`${s.stair.days} aktive Tage`;
+  if($('#annualStatDocs'))$('#annualStatDocs').textContent=s.docs;
+  if($('#annualStatHealth'))$('#annualStatHealth').textContent=s.health;
+  if($('#annualStatMeetings'))$('#annualStatMeetings').textContent=s.meetings.length;
+  const preview=$('#annualPreview');
+  if(preview)preview.innerHTML=`<div class="annual-preview-grid">
+    <div><strong>AU</strong><span>${s.aus.length} Fälle · ${s.auDays} Kalendertage</span></div>
+    <div><strong>Kind krank</strong><span>${s.childSick.length} Einträge · ${s.childDays} Kalendertage</span></div>
+    <div><strong>Schichten</strong><span>${s.shifts.length} Einträge</span></div>
+    <div><strong>Treppen</strong><span>${s.stair.total} gesamt · ${s.stair.entries} Einträge · ${s.stair.days} aktive Tage</span></div>
+    <div><strong>Gesundheit</strong><span>${s.health} Einträge</span></div>
+    <div><strong>Dokumente</strong><span>${s.docs} gespeicherte Dateien/Scans</span></div>
+    <div><strong>Gespräche</strong><span>${s.meetings.length} Einträge</span></div>
+    <div><strong>Aushänge</strong><span>${s.notices.length} Einträge</span></div>
+    <div><strong>Reha</strong><span>${s.rehabs.length} Einträge</span></div>
+  </div>`;
+}
+function reportText(v,fallback='—'){const s=String(v??'').trim();return s||fallback;}
+function reportOneLine(v){return reportText(v,'').replace(/\s+/g,' ').trim();}
+function buildAnnualReportLines(year){
+  const d=reportSummary(year),lines=[];
+  const title=t=>lines.push({kind:'title',text:t});
+  const h2=t=>lines.push({kind:'h2',text:t});
+  const h3=t=>lines.push({kind:'h3',text:t});
+  const row=(label,value)=>lines.push({kind:'text',text:`${label}: ${reportText(value)}`});
+  const bullet=t=>lines.push({kind:'bullet',text:t});
+  const empty=()=>lines.push({kind:'spacer',text:''});
+  const section=(name,items,formatter)=>{h2(name);if(!items.length)bullet('Keine Einträge.');else items.forEach((x,i)=>bullet(formatter(x,i)));empty();};
+
+  title(`WorksManager Jahresstatistik ${d.year}`);
+  row('Erstellt am',new Date().toLocaleString('de-DE'));
+  row('Mitarbeiter',state.company.employeeName||'nicht hinterlegt');
+  row('Firma',state.company.name||'nicht hinterlegt');
+  row('Personalnummer',state.company.employeeNo||'nicht hinterlegt');
+  row('Vertragsbeginn',state.company.contractStart?fmtDate(state.company.contractStart):'nicht hinterlegt');
+  if(state.company.notes)row('Firmennotiz',reportOneLine(state.company.notes));
+  empty();
+
+  h2('Jahresübersicht');
+  row('Schichten',d.shifts.length);
+  row('AU-Fälle',d.aus.length);
+  row('AU-Kalendertage im Jahr',d.auDays);
+  row('Kind-krank-Einträge',d.childSick.length);
+  row('Kind-krank-Kalendertage im Jahr',d.childDays);
+  row('Gespräche / BEM / AMZ',d.meetings.length);
+  row('Aushänge',d.notices.length);
+  row('Reha-Einträge',d.rehabs.length);
+  row('Gesundheitseinträge',d.health);
+  row('Gespeicherte Dokumente/Scans',d.docs);
+  row('Treppen gesamt',d.stair.total);
+  row('Treppeneinträge',d.stair.entries);
+  row('Aktive Treppentage',d.stair.days);
+  row('Ø Treppen pro aktivem Tag',String(d.stair.avg).replace('.',','));
+  empty();
+
+  h2('Treppen - Monatsstatistik');
+  for(let m=1;m<=12;m++){
+    const key=`${d.year}-${String(m).padStart(2,'0')}`;
+    const items=d.stairs.filter(x=>(x.date||'').startsWith(key));
+    const s=stairStats(items);
+    bullet(`${monthLabel(key)}: ${s.total} Treppen · ${s.entries} Einträge · ${s.days} aktive Tage · Ø ${String(s.avg).replace('.',',')} pro aktivem Tag`);
+  }
+  empty();
+
+  section('Schichten',d.shifts,x=>`${fmtDate(x.date)} · ${reportText(x.shift,'Schicht')} · ${reportText(x.start,'—')}–${reportText(x.end,'—')}${x.note?' · '+reportOneLine(x.note):''}`);
+  section('Krankheit & AU',d.aus,x=>`${x.from?fmtDate(x.from):'ohne Von-Datum'}${x.to?' bis '+fmtDate(x.to):''} · ${reportText(x.kind,'AU')}${x.codes?.length?' · ICD-10: '+x.codes.join(', '):''}${x.note?' · '+reportOneLine(x.note):''}${x.name?' · Datei: '+reportOneLine(x.name):''}`);
+  section('Kind krank',d.childSick,x=>`${reportText(x.child,'Kind')} · ${x.from?fmtDate(x.from):'ohne Von-Datum'}${x.to?' bis '+fmtDate(x.to):''}${x.note?' · '+reportOneLine(x.note):''}`);
+  section('BEM · AMZ · Gespräche',d.meetings,x=>`${reportText(x.type,'Gespräch')} · ${x.date?fmtDate(x.date):'ohne Datum'}${x.time?' '+x.time:''}${x.partner?' · '+reportOneLine(x.partner):''}${x.place?' · '+reportOneLine(x.place):''}${x.note?' · '+reportOneLine(x.note):''}`);
+  section('Aushänge',d.notices,x=>`${reportText(x.type,'Aushang')} · ${x.date?fmtDate(x.date):'ohne Datum'} · ${reportText(x.title,'ohne Titel')}${x.note?' · '+reportOneLine(x.note):''}${x.file?.name?' · Datei: '+reportOneLine(x.file.name):''}`);
+  section('Abrechnung · Stempelübersicht · Arbeitsplan',d.documents,x=>`${x.month?monthLabel(x.month):'ohne Monat'} · ${x.type==='payroll'?'Lohnabrechnung':x.type==='stamp'?'Stempelübersicht':x.type==='workplan'?'Arbeitsplan':reportText(x.type,'Dokument')} · Datei: ${reportText(x.name,'Dokument')}`);
+
+  h2('Gesundheit');
+  h3('Lungenfunktion');
+  if(!d.lungTests.length)bullet('Keine Einträge.');
+  else d.lungTests.forEach(x=>bullet(`${x.date?fmtDate(x.date):'ohne Datum'}${x.doctor?' · '+reportOneLine(x.doctor):''}${x.testType?' · '+reportOneLine(x.testType):''}${x.fev1Liters?' · FEV1 '+x.fev1Liters+' L':''}${x.fev1Percent?' / '+x.fev1Percent+' %':''}${x.fvcLiters?' · FVC '+x.fvcLiters+' L':''}${x.fvcPercent?' / '+x.fvcPercent+' %':''}${x.ratio?' · FEV1/FVC '+x.ratio:''}${x.otherValues?' · '+reportOneLine(x.otherValues):''}${x.note?' · '+reportOneLine(x.note):''}${x.name?' · Datei: '+reportOneLine(x.name):''}`));
+  h3('Laborwerte');
+  if(!d.labResults.length)bullet('Keine Einträge.');
+  else d.labResults.forEach(x=>bullet(`${x.date?fmtDate(x.date):'ohne Datum'}${x.provider?' · '+reportOneLine(x.provider):''}${x.values?' · '+reportOneLine(x.values):''}${x.note?' · '+reportOneLine(x.note):''}${x.name?' · Datei: '+reportOneLine(x.name):''}`));
+  h3('Arztbriefe');
+  if(!d.doctorLetters.length)bullet('Keine Einträge.');
+  else d.doctorLetters.forEach(x=>bullet(`${x.date?fmtDate(x.date):'ohne Datum'}${x.doctor?' · '+reportOneLine(x.doctor):''}${x.specialty?' · '+reportOneLine(x.specialty):''}${x.subject?' · '+reportOneLine(x.subject):''}${x.note?' · '+reportOneLine(x.note):''}${x.name?' · Datei: '+reportOneLine(x.name):''}`));
+  empty();
+
+  section('Reha',d.rehabs,x=>`${reportText(x.status,'Reha')} · ${reportText(x.clinic,'ohne Einrichtung')} · ${x.from?fmtDate(x.from):'ohne Von-Datum'}${x.to?' bis '+fmtDate(x.to):''}${x.note?' · '+reportOneLine(x.note):''}`);
+  section('Treppenzähler - Einzeleinträge',d.stairs,x=>`${x.date?fmtDate(x.date):'ohne Datum'}${x.time?' '+x.time:''} · ${Number(x.count)||0} Treppen${x.reason?' · '+reportOneLine(x.reason):''}`);
+
+  h2('Weitere Fotos / Dokumente');
+  if(d.contracts.length){h3('Arbeitsverträge / Vertragsdokumente');d.contracts.forEach(x=>bullet(`${reportFormatDateTime(x.createdAt)} · ${reportText(x.name,'Dokument')}`));}
+  const attachmentLabels={company:'Firma & Vertrag',shift:'Schichtplan',meetings:'BEM / AMZ / Gespräche',notices:'Aushänge',family:'Kind krank',rehab:'Reha'};
+  let anyAttachment=d.contracts.length>0;
+  for(const [key,arr] of Object.entries(d.attachments)){
+    if(!arr.length)continue;anyAttachment=true;h3(attachmentLabels[key]||key);
+    arr.forEach(x=>bullet(`${reportFormatDateTime(x.createdAt)} · ${reportText(x.name,'Foto / Dokument')}`));
+  }
+  if(!anyAttachment)bullet('Keine weiteren Dateien im gewählten Jahr.');
+  empty();
+
+  h2('Hinweis');
+  bullet('Diese Jahresstatistik enthält die in WorksManager gespeicherten Angaben und eine Dateiliste. Die Originalfotos und Original-PDFs sind nicht in diese Statistik-PDF eingebettet.');
+  bullet('Für eine vollständige Datensicherung einschließlich Originaldateien zusätzlich das verschlüsselte WorksManager-Backup exportieren.');
+  return lines;
+}
+function pdfWinAnsiByte(ch){
+  const cp=ch.codePointAt(0);
+  if(cp>=32&&cp<=255)return cp;
+  const map={8364:128,8218:130,402:131,8222:132,8230:133,8224:134,8225:135,710:136,8240:137,352:138,8249:139,338:140,381:142,8216:145,8217:146,8220:147,8221:148,8226:149,8211:150,8212:151,732:152,8482:153,353:154,8250:155,339:156,382:158,376:159};
+  return map[cp]??63;
+}
+function pdfLiteral(text){
+  let out='(';
+  for(const ch of String(text??'')){
+    const b=pdfWinAnsiByte(ch);
+    if(b===40||b===41||b===92)out+='\\'+String.fromCharCode(b);
+    else if(b<32||b>=127)out+='\\'+b.toString(8).padStart(3,'0');
+    else out+=String.fromCharCode(b);
+  }
+  return out+')';
+}
+function pdfWrap(text,size=9,indent=0){
+  const maxChars=Math.max(28,Math.floor((500-indent)/(size*.53)));
+  const paragraphs=String(text??'').replace(/\r/g,'').split('\n');
+  const result=[];
+  for(const p of paragraphs){
+    const words=p.split(/\s+/).filter(Boolean);
+    if(!words.length){result.push('');continue;}
+    let line='';
+    for(const word of words){
+      if(word.length>maxChars){
+        if(line){result.push(line);line='';}
+        for(let i=0;i<word.length;i+=maxChars)result.push(word.slice(i,i+maxChars));
+        continue;
+      }
+      const candidate=line?line+' '+word:word;
+      if(candidate.length>maxChars){result.push(line);line=word;}else line=candidate;
+    }
+    if(line)result.push(line);
+  }
+  return result;
+}
+function makeAnnualPdfBlob(year,reportLines){
+  const pageW=595.28,pageH=841.89,left=46,right=46,top=796,bottom=54;
+  const pages=[[]];let y=top;
+  const spec={title:{size:18,bold:true,before:0,after:10,lh:23},h2:{size:13,bold:true,before:10,after:4,lh:18},h3:{size:10.5,bold:true,before:6,after:2,lh:15},text:{size:9,bold:false,before:0,after:1,lh:12.5},bullet:{size:8.7,bold:false,before:0,after:1,lh:12.2}};
+  const newPage=()=>{pages.push([]);y=top;};
+  for(const item of reportLines){
+    if(item.kind==='spacer'){y-=7;if(y<bottom)newPage();continue;}
+    const s=spec[item.kind]||spec.text,indent=item.kind==='bullet'?12:0,prefix=item.kind==='bullet'?'• ':'';
+    y-=s.before;
+    const wrapped=pdfWrap(prefix+item.text,s.size,indent);
+    const need=wrapped.length*s.lh+s.after;
+    if(y-need<bottom&&pages[pages.length-1].length)newPage();
+    for(const line of wrapped){
+      if(y-s.lh<bottom)newPage();
+      pages[pages.length-1].push({x:left+indent,y,size:s.size,bold:s.bold,text:line});
+      y-=s.lh;
+    }
+    y-=s.after;
+  }
+  const objects={};
+  objects[1]='<< /Type /Catalog /Pages 2 0 R >>';
+  objects[3]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>';
+  objects[4]='<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>';
+  const pageIds=[];
+  for(let i=0;i<pages.length;i++)pageIds.push(5+i*2);
+  objects[2]=`<< /Type /Pages /Kids [${pageIds.map(id=>id+' 0 R').join(' ')}] /Count ${pages.length} >>`;
+  for(let i=0;i<pages.length;i++){
+    const pageId=5+i*2,contentId=pageId+1;
+    objects[pageId]=`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageW} ${pageH}] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${contentId} 0 R >>`;
+    const cmds=[];
+    for(const line of pages[i])cmds.push(`BT /${line.bold?'F2':'F1'} ${line.size} Tf 1 0 0 1 ${line.x.toFixed(2)} ${line.y.toFixed(2)} Tm ${pdfLiteral(line.text)} Tj ET`);
+    cmds.push(`BT /F1 7.5 Tf 1 0 0 1 ${left.toFixed(2)} 27 Tm ${pdfLiteral(`WorksManager · Jahresstatistik ${year} · Seite ${i+1} / ${pages.length}`)} Tj ET`);
+    const content=cmds.join('\n');
+    objects[contentId]=`<< /Length ${content.length} >>\nstream\n${content}\nendstream`;
+  }
+  const maxId=4+pages.length*2;
+  let pdf='%PDF-1.4\n%WorksManager\n';
+  const offsets=[0];
+  for(let i=1;i<=maxId;i++){
+    offsets[i]=pdf.length;
+    pdf+=`${i} 0 obj\n${objects[i]}\nendobj\n`;
+  }
+  const xref=pdf.length;
+  pdf+=`xref\n0 ${maxId+1}\n0000000000 65535 f \n`;
+  for(let i=1;i<=maxId;i++)pdf+=String(offsets[i]).padStart(10,'0')+' 00000 n \n';
+  pdf+=`trailer\n<< /Size ${maxId+1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF`;
+  return new Blob([pdf],{type:'application/pdf'});
+}
+function downloadBlob(blob,filename){
+  const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=filename;a.rel='noopener';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),3000);
+}
+function createAnnualPdf(){
+  const year=$('#annualYear')?.value||String(new Date().getFullYear());
+  try{
+    const lines=buildAnnualReportLines(year);const blob=makeAnnualPdfBlob(year,lines);
+    downloadBlob(blob,`WorksManager-Jahresstatistik-${year}.pdf`);
+    showToast(`Jahres-PDF ${year} erstellt`);
+  }catch(e){console.error('Jahres-PDF fehlgeschlagen:',e);alert('Jahres-PDF konnte nicht erstellt werden: '+(e?.message||e));}
+}
+
 async function exportBackup(){const payload=await dbGet('payload');const salt=await dbGet('salt');const blob=new Blob([JSON.stringify({app:'WorksManager',version:1,salt,payload,exportedAt:now()},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`WorksManager-Backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
 async function importBackup(file){try{const j=JSON.parse(await file.text());if(j.app!=='WorksManager'||!j.salt||!j.payload)throw new Error('Ungültiges Backup');await dbPut('salt',j.salt);await dbPut('payload',j.payload);alert('Backup importiert. Bitte erneut mit dem Backup-Passwort öffnen.');lock();}catch(e){alert('Backup konnte nicht importiert werden: '+e.message);}}
 
 function bind(){
   $('#unlockBtn').onclick=unlock;$('#unlockPassword').addEventListener('keydown',e=>{if(e.key==='Enter')unlock();});$('#lockBtn').onclick=lock;
   $$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));$('#moreBtn').onclick=()=>$('#moreMenu').classList.remove('hidden');$('#closeMore').onclick=()=>$('#moreMenu').classList.add('hidden');$('#moreMenu').addEventListener('click',e=>{if(e.target===$('#moreMenu'))$('#moreMenu').classList.add('hidden');});$('#modal').addEventListener('click',e=>{if(e.target===$('#modal'))closeModal();});
-  $('#saveCompany').onclick=saveCompany;$('#saveContractFile').onclick=saveContractFile;$('#saveMeeting').onclick=saveMeeting;$('#saveNotice').onclick=saveNotice;$('#saveChild').onclick=saveChild;$('#saveRehab').onclick=saveRehab;$('#addLungTest').onclick=addLungTest;$('#addLabResult').onclick=addLabResult;$('#addDoctorLetter').onclick=addDoctorLetter;
-  $('#scanLung').onclick=scanLungTest;$('#parseLung').onclick=reviewLungTest;
-  $('#addShiftManual').onclick=addManualShift;$('#addAuManual').onclick=addManualAu;$('#scanShift').onclick=scanShift;$('#parseShift').onclick=reviewShift;$('#scanAu').onclick=scanAu;$('#parseAu').onclick=reviewAu;$('#scanWorkplan').onclick=scanWorkplan;
-  $$('[data-docscan]').forEach(b=>b.onclick=()=>saveScannedDoc(b.dataset.docscan));
+  $('#saveStairEntry').onclick=saveStairEntry;
+  $('#annualYear').onchange=renderAnnualReport;$('#createAnnualPdf').onclick=createAnnualPdf;
+  $('#saveCompany').onclick=saveCompany;$('#saveContractFile').onclick=saveContractFile;$('#saveMeeting').onclick=saveMeeting;$('#saveNotice').onclick=saveNotice;$('#saveChild').onclick=saveChild;$('#saveRehab').onclick=saveRehab;
+  $('#addLungTest').onclick=addLungTest;$('#addLabResult').onclick=addLabResult;$('#addDoctorLetter').onclick=addDoctorLetter;$('#addShiftManual').onclick=addManualShift;$('#addAuManual').onclick=addManualAu;
+  $('#saveAuPhoto').onclick=saveAuPhoto;$('#saveLungPhoto').onclick=saveLungPhoto;$('#saveLabPhoto').onclick=saveLabPhoto;$('#saveLetterPhoto').onclick=saveLetterPhoto;
+  $$('[data-docsave]').forEach(b=>b.onclick=()=>saveSimpleDoc(b.dataset.docsave));
+  $$('[data-attachment-section]').forEach(b=>b.onclick=()=>saveGenericAttachment(b.dataset.attachmentSection,b.dataset.attachmentInput));
   $('#exportBackup').onclick=exportBackup;$('#importBackup').onchange=e=>e.target.files[0]&&importBackup(e.target.files[0]);
   $('#wipeData').onclick=async()=>{if(confirm('Wirklich ALLE lokalen WorksManager-Daten löschen?')){await dbClear();location.reload();}};
 }
