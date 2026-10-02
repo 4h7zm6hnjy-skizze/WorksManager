@@ -26,18 +26,71 @@ function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open('WorksMa
 function dbGet(k){return new Promise((res,rej)=>{const tx=db.transaction('kv','readonly');const r=tx.objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
 function dbPut(k,v){return new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
 function dbClear(){return new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').clear();tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
-function b64(buf){return btoa(String.fromCharCode(...new Uint8Array(buf)));}
+function b64(buf){
+  const bytes=buf instanceof Uint8Array?buf:new Uint8Array(buf);
+  const chunk=0x8000;
+  let binary='';
+  for(let i=0;i<bytes.length;i+=chunk){
+    binary+=String.fromCharCode.apply(null,bytes.subarray(i,Math.min(i+chunk,bytes.length)));
+  }
+  return btoa(binary);
+}
+function showToast(message,type='success'){
+  let el=document.getElementById('wmToast');
+  if(!el){el=document.createElement('div');el.id='wmToast';el.setAttribute('role','status');document.body.appendChild(el);}
+  el.className=`wm-toast ${type}`;el.textContent=message;el.classList.add('show');
+  clearTimeout(showToast._timer);showToast._timer=setTimeout(()=>el.classList.remove('show'),2200);
+}
+async function imageForStorage(file){
+  if(!file)return '';
+  if(!file.type.startsWith('image/'))return await fileToDataURL(file);
+  try{return await compressImage(file,2400,.88);}catch(e){console.warn('Bildkomprimierung nicht möglich, Original wird verwendet.',e);return await fileToDataURL(file);}
+}
+async function ocrImageForText(file,max=2300){
+  const src=await fileToDataURL(file);
+  const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;});
+  const scale=Math.min(1,max/Math.max(img.width,img.height));
+  const c=document.createElement('canvas');
+  c.width=Math.max(1,Math.round(img.width*scale));c.height=Math.max(1,Math.round(img.height*scale));
+  const ctx=c.getContext('2d',{willReadFrequently:true});
+  ctx.drawImage(img,0,0,c.width,c.height);
+  // OCR copy only: grayscale + moderate contrast. The stored original is untouched.
+  const d=ctx.getImageData(0,0,c.width,c.height),a=d.data;
+  for(let i=0;i<a.length;i+=4){
+    const y=.299*a[i]+.587*a[i+1]+.114*a[i+2];
+    const v=Math.max(0,Math.min(255,(y-128)*1.28+128));
+    a[i]=a[i+1]=a[i+2]=v;
+  }
+  ctx.putImageData(d,0,0);
+  return c.toDataURL('image/jpeg',.94);
+}
 function unb64(s){const x=atob(s);const a=new Uint8Array(x.length);for(let i=0;i<x.length;i++)a[i]=x.charCodeAt(i);return a.buffer;}
 async function deriveKey(password,salt){const base=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:210000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
 async function encryptState(){const iv=crypto.getRandomValues(new Uint8Array(12));const plain=enc.encode(JSON.stringify(state));const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},cryptoKey,plain);return {iv:b64(iv),cipher:b64(cipher),updatedAt:now()};}
 async function decryptPayload(payload,key){const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(unb64(payload.iv))},key,unb64(payload.cipher));return JSON.parse(dec.decode(plain));}
-async function save(){if(!cryptoKey)return;await dbPut('payload',await encryptState());renderAll();}
+async function save(successMessage='Gespeichert'){
+  if(!cryptoKey)throw new Error('App ist gesperrt. Bitte erneut entsperren.');
+  try{
+    const payload=await encryptState();
+    await dbPut('payload',payload);
+    renderAll();
+    if(successMessage)showToast(successMessage);
+    return true;
+  }catch(e){
+    console.error('WorksManager Speichern fehlgeschlagen:',e);
+    // Nicht gespeicherte Änderungen aus dem Arbeitsspeicher zurückrollen, damit ein erneuter Klick keine Duplikate erzeugt.
+    try{const stored=await dbGet('payload');if(stored){state=normalizeState(await decryptPayload(stored,cryptoKey));renderAll();}}catch(restoreError){console.error('Rollback fehlgeschlagen:',restoreError);}
+    const quota=(e&&(/quota/i.test(e.name||'')||/quota|storage|space/i.test(e.message||'')));
+    alert(quota?'Speichern fehlgeschlagen: Der lokale Gerätespeicher für WorksManager ist voll. Bitte zuerst ein verschlüsseltes Backup erstellen und nicht benötigte große Dokumente entfernen.':'Speichern fehlgeschlagen. Bitte erneut versuchen. Technischer Hinweis: '+(e?.message||e));
+    throw e;
+  }
+}
 
-async function unlock(){const pass=$('#unlockPassword').value;if(!pass){$('#unlockHint').textContent='Bitte Passwort eingeben.';return;}try{let saltB64=await dbGet('salt');if(!saltB64){const salt=crypto.getRandomValues(new Uint8Array(16));saltB64=b64(salt);await dbPut('salt',saltB64);}cryptoKey=await deriveKey(pass,new Uint8Array(unb64(saltB64)));const payload=await dbGet('payload');if(payload){state=normalizeState(await decryptPayload(payload,cryptoKey));}else{state=blankState();await save();}$('#unlock').classList.add('hidden');$('#app').classList.remove('hidden');$('#unlockPassword').value='';$('#unlockHint').textContent='';renderAll();}catch(e){cryptoKey=null;$('#unlockHint').textContent='Passwort falsch oder Daten beschädigt.';}}
+async function unlock(){const pass=$('#unlockPassword').value;if(!pass){$('#unlockHint').textContent='Bitte Passwort eingeben.';return;}try{let saltB64=await dbGet('salt');if(!saltB64){const salt=crypto.getRandomValues(new Uint8Array(16));saltB64=b64(salt);await dbPut('salt',saltB64);}cryptoKey=await deriveKey(pass,new Uint8Array(unb64(saltB64)));const payload=await dbGet('payload');if(payload){state=normalizeState(await decryptPayload(payload,cryptoKey));}else{state=blankState();await save('');}$('#unlock').classList.add('hidden');$('#app').classList.remove('hidden');$('#unlockPassword').value='';$('#unlockHint').textContent='';renderAll();}catch(e){cryptoKey=null;$('#unlockHint').textContent='Passwort falsch oder Daten beschädigt.';}}
 function lock(){cryptoKey=null;state=blankState();pendingAuOriginal=null;pendingLungOriginal=null;pendingWorkplanOriginal=null;$('#app').classList.add('hidden');$('#unlock').classList.remove('hidden');}
 
 async function loadTesseract(){if(window.Tesseract)return window.Tesseract;await new Promise((res,rej)=>{const s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';s.onload=res;s.onerror=rej;document.head.appendChild(s);});return window.Tesseract;}
-async function ocrFile(file,statusEl){if(!file)throw new Error('Kein Bild ausgewählt.');if(!file.type.startsWith('image/'))throw new Error('OCR unterstützt hier nur Bilddateien. PDFs werden gespeichert, aber nicht automatisch gelesen.');statusEl.textContent='OCR wird lokal geladen …';const T=await loadTesseract();const image=await compressImage(file,1800,.9);statusEl.textContent='Texterkennung läuft lokal auf diesem Gerät …';const result=await T.recognize(image,'deu+eng',{logger:m=>{if(m.progress!=null)statusEl.textContent=`Texterkennung: ${Math.round(m.progress*100)} %`;}});statusEl.textContent='Erkennung abgeschlossen. Bitte Ergebnis prüfen.';return {text:result.data.text,image};}
+async function ocrFile(file,statusEl){if(!file)throw new Error('Kein Bild ausgewählt.');if(!file.type.startsWith('image/'))throw new Error('OCR unterstützt hier nur Bilddateien. PDFs werden gespeichert, aber nicht automatisch gelesen.');statusEl.textContent='Bild wird für die Texterkennung optimiert …';const T=await loadTesseract();const image=await ocrImageForText(file);statusEl.textContent='Texterkennung läuft lokal auf diesem Gerät …';const result=await T.recognize(image,'deu+eng',{logger:m=>{if(m.progress!=null)statusEl.textContent=`Texterkennung: ${Math.round(m.progress*100)} %`;}});statusEl.textContent='Erkennung abgeschlossen. Bitte Ergebnis prüfen.';return {text:result.data.text,image};}
 
 function go(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id===name));$$('.nav-btn[data-go]').forEach(b=>b.classList.toggle('active',b.dataset.go===name));$('#moreMenu').classList.add('hidden');window.scrollTo({top:0,behavior:'smooth'});}
 
@@ -102,41 +155,129 @@ function extractPrintedIcdCodes(text){
   const matches=t.match(/\b[A-TV-Z][0-9O]{2}(?:\.[0-9O]{1,2})?\b/g)||[];
   return [...new Set(matches.map(raw=>raw[0]+raw.slice(1).replace(/O/g,'0')))];
 }
-function inferIcdFromDiagnosisText(text){
-  const s=String(text||'').toLowerCase().replace(/\s+/g,' ');
-  const found=[];
-  const add=(code,label,match)=>{if(!found.some(x=>x.code===code))found.push({code,label,match});};
-
-  if(/status asthmaticus|akutes schweres asthma bronchiale/.test(s)) add('J46','Status asthmaticus / akutes schweres Asthma','Asthma');
-  else if(/(?:allergisch|atopisch|extrinsisch).{0,30}asthma|asthma.{0,30}(?:allergisch|atopisch|extrinsisch)/.test(s)) add('J45.09','Vorwiegend allergisches Asthma bronchiale, Kontrollstatus/Schweregrad nicht angegeben','Asthma');
-  else if(/(?:nichtallergisch|intrinsisch).{0,30}asthma|asthma.{0,30}(?:nichtallergisch|intrinsisch)/.test(s)) add('J45.19','Nichtallergisches Asthma bronchiale, Kontrollstatus/Schweregrad nicht angegeben','Asthma');
-  else if(/asthma bronchiale|asthmatische bronchitis/.test(s)) add('J45.99','Asthma bronchiale, nicht näher bezeichnet; Kontrollstatus/Schweregrad nicht angegeben','Asthma');
-
-  const rules=[
-    {re:/grippaler infekt|akute infektion (?:der )?oberen atemwege/,code:'J06.9',label:'Akute Infektion der oberen Atemwege, nicht näher bezeichnet'},
-    {re:/akute bronchitis/,code:'J20.9',label:'Akute Bronchitis, nicht näher bezeichnet'},
-    {re:/akute infektion (?:der )?unteren atemwege/,code:'J22',label:'Akute Infektion der unteren Atemwege, nicht näher bezeichnet'},
-    {re:/akute sinusitis|akute nasennebenhöhlenentzündung/,code:'J01.9',label:'Akute Sinusitis, nicht näher bezeichnet'},
-    {re:/akute pharyngitis|akute rachenentzündung/,code:'J02.9',label:'Akute Pharyngitis, nicht näher bezeichnet'},
-    {re:/akute tonsillitis|akute mandelentzündung/,code:'J03.9',label:'Akute Tonsillitis, nicht näher bezeichnet'},
-    {re:/pollenallergie|heuschnupfen|pollinose/,code:'J30.1',label:'Allergische Rhinopathie durch Pollen'},
-    {re:/allergische (?:rhinitis|rhinopathie)/,code:'J30.4',label:'Allergische Rhinopathie, nicht näher bezeichnet'},
-    {re:/chronische rhinitis/,code:'J31.0',label:'Chronische Rhinitis'},
-    {re:/chronische sinusitis/,code:'J32.9',label:'Chronische Sinusitis, nicht näher bezeichnet'}
+function foldOcr(v=''){
+  return String(v).toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/ß/g,'ss').replace(/[^a-z0-9]+/g,' ').trim();
+}
+function ocrLines(text){return String(text||'').split(/\r?\n/).map(x=>x.trim()).filter(Boolean);}
+function dateMatches(text){
+  return [...String(text||'').matchAll(/\b\d{1,2}[.\/\-]\d{1,2}[.\/\-]\d{2,4}\b/g)]
+    .map(m=>({raw:m[0],date:normalizeDate(m[0]),index:m.index||0})).filter(x=>x.date);
+}
+function detectAuKind(text){
+  const lines=ocrLines(text);
+  const score=(line,word)=>{
+    const f=foldOcr(line), pos=f.indexOf(word);
+    if(pos<0)return 0;
+    const raw=String(line);
+    const rawPos=raw.toLowerCase().indexOf(word.slice(0,5));
+    const prefix=rawPos>=0?raw.slice(Math.max(0,rawPos-12),rawPos):raw.slice(0,14);
+    let n=1;
+    if(/[☒☑✓✔■●]/.test(prefix))n+=5;
+    if(/(?:^|\s)(?:\[?x\]?|x|1)\s*$/i.test(prefix.trim()))n+=4;
+    if(/^\s*[xX]\s+/.test(raw))n+=4;
+    return n;
+  };
+  let erst=0,folge=0;
+  for(const l of lines){erst=Math.max(erst,score(l,'erstbescheinigung'));folge=Math.max(folge,score(l,'folgebescheinigung'));}
+  if(erst>=4&&erst>folge)return 'Erstbescheinigung';
+  if(folge>=4&&folge>erst)return 'Folgebescheinigung';
+  return '';
+}
+function findAuDateLabels(text, kind=''){
+  const raw=String(text||'');
+  const lines=ocrLines(raw);
+  const labels=[
+    {key:'from',terms:['arbeitsunfahig seit','arbeits unfahig seit']},
+    {key:'to',terms:['voraussichtlich arbeitsunfahig bis einschliesslich','arbeitsunfahig bis einschliesslich','bis einschliesslich']},
+    {key:'established',terms:['festgestellt am','fest gestellt am']}
   ];
-  for(const r of rules){if(r.re.test(s))add(r.code,r.label,r.re.source);}
-  if(/covid[- ]?19|sars[- ]?cov[- ]?2/.test(s) && /(?:virus\s*)?(?:nachgewiesen|positiv)/.test(s)) add('U07.1','COVID-19, Virus nachgewiesen','COVID-19');
+  const found={from:'',to:'',established:''};
+  const labelLine={};
+  for(let i=0;i<lines.length;i++){
+    const f=foldOcr(lines[i]);
+    for(const lab of labels){
+      if(labelLine[lab.key]!==undefined)continue;
+      if(lab.terms.some(t=>f.includes(t)))labelLine[lab.key]=i;
+    }
+  }
+  const firstDateIn=(arr)=>{for(const x of arr){const d=dateMatches(x);if(d.length)return d[0].date;}return '';};
+  // Same-line values are safest and always win.
+  for(const lab of labels){
+    const i=labelLine[lab.key];
+    if(i===undefined)continue;
+    const same=firstDateIn([lines[i]]);
+    if(same)found[lab.key]=same;
+  }
+  const idxs=Object.values(labelLine).filter(x=>Number.isInteger(x));
+  if(idxs.length){
+    const lastLabel=Math.max(...idxs);
+    const local=[];
+    for(let i=lastLabel+1;i<Math.min(lines.length,lastLabel+9);i++){
+      const f=foldOcr(lines[i]);
+      if(f.includes('ausfertigung fur versicherte')||f.includes('au begrundende diagnos'))break;
+      for(const d of dateMatches(lines[i]))if(!local.includes(d.date))local.push(d.date);
+    }
+    // German AU form: the three date fields are vertically ordered as
+    // "seit", "bis einschließlich", "festgestellt am". A follow-up AU often
+    // leaves "seit" empty, producing only two dates. Never shift those dates upward.
+    if(!found.from&&!found.to&&!found.established){
+      if(local.length>=3){found.from=local[0];found.to=local[1];found.established=local[2];}
+      else if(local.length===2){found.from='';found.to=local[0];found.established=local[1];}
+      else if(local.length===1){
+        // One isolated date is ambiguous; keep it out of the AU period rather than guessing.
+        found.established=local[0];
+      }
+    }else{
+      // Fill only unambiguous remaining fields.
+      if(kind==='Folgebescheinigung'&&!found.from){
+        if(!found.to&&local[0])found.to=local[0];
+        if(!found.established&&local[1])found.established=local[1];
+      }
+    }
+  }
+  if(found.from&&found.to&&found.to<found.from){found.from='';found.to='';}
   return found;
 }
+function extractAuDiagnosisSection(text){
+  const lines=ocrLines(text);
+  let start=-1;
+  for(let i=0;i<lines.length;i++){
+    const f=foldOcr(lines[i]);
+    if((f.includes('diagnos')&&(f.includes('icd')||f.includes('au begrund'))) || f.includes('au begrundende diagnos')){start=i;break;}
+  }
+  if(start<0)return '';
+  const endTerms=['sonstiger unfall','versorgungsleiden','im krankengeldfall','einleitung einer','wiedereingliederung','sonstige'];
+  let end=Math.min(lines.length,start+10);
+  for(let i=start+1;i<Math.min(lines.length,start+14);i++){
+    const f=foldOcr(lines[i]);
+    if(endTerms.some(t=>f.includes(t))){end=i;break;}
+  }
+  return lines.slice(start,end).join('\n');
+}
+function extractAuPrintedIcdCodes(text){
+  const section=extractAuDiagnosisSection(text);
+  if(!section)return [];
+  return extractPrintedIcdCodes(section);
+}
 function parseAuText(text){
-  const lower=String(text||'').toLowerCase();
-  const kind=/folge|folgebescheinigung/.test(lower)?'Folgebescheinigung':'Erstbescheinigung';
-  const dates=[...String(text||'').matchAll(/\b\d{1,2}[.\/\-]\d{1,2}[.\/\-]\d{2,4}\b/g)].map(m=>normalizeDate(m[0])).filter(Boolean);
-  const unique=[...new Set(dates)];
-  const printedCodes=extractPrintedIcdCodes(text);
-  const inferred=printedCodes.length?[]:inferIcdFromDiagnosisText(text);
-  const codes=printedCodes.length?printedCodes:inferred.map(x=>x.code);
-  return {kind,from:unique[0]||'',to:unique[1]||unique[0]||'',codes:[...new Set(codes)],printedCodes,inferred};
+  let kind=detectAuKind(text);
+  let dates=findAuDateLabels(text,kind);
+  // If checkbox OCR is inconclusive, the standard follow-up layout with an empty
+  // "arbeitsunfähig seit" field and two following dates is useful supporting evidence.
+  if(!kind&&!dates.from&&dates.to&&dates.established)kind='Folgebescheinigung';
+  const printedCodes=extractAuPrintedIcdCodes(text);
+  return {
+    kind,
+    from:dates.from||'',
+    to:dates.to||'',
+    established:dates.established||'',
+    codes:printedCodes,
+    printedCodes,
+    inferred:[],
+    diagnosisSection:extractAuDiagnosisSection(text)
+  };
 }
 function lungNumber(v){
   const n=parseFloat(String(v||'').replace(',','.'));
@@ -255,20 +396,20 @@ function guessShift(start){const h=parseInt(start.split(':')[0],10);if(h>=20||h<
 
 async function saveCompany(){state.company={...state.company,name:$('#companyName').value.trim(),employeeName:$('#employeeName').value.trim(),contractStart:$('#contractStart').value,employeeNo:$('#employeeNo').value.trim(),notes:$('#companyNotes').value.trim()};await save();}
 async function saveMeeting(){state.meetings.push({id:id(),type:$('#meetingType').value,date:$('#meetingDate').value,time:$('#meetingTime').value,partner:$('#meetingPartner').value.trim(),place:$('#meetingPlace').value.trim(),note:$('#meetingNote').value.trim(),createdAt:now()});await save();['meetingDate','meetingTime','meetingPartner','meetingPlace','meetingNote'].forEach(i=>$('#'+i).value='');}
-async function saveNotice(){const f=$('#noticeFile').files[0];let file=null;if(f)file={name:f.name,type:f.type,data:f.type.startsWith('image/')?await compressImage(f):await fileToDataURL(f)};state.notices.push({id:id(),type:$('#noticeType').value,date:$('#noticeDate').value,title:$('#noticeTitle').value.trim(),note:$('#noticeNote').value.trim(),file,createdAt:now()});await save();$('#noticeTitle').value='';$('#noticeNote').value='';$('#noticeFile').value='';}
+async function saveNotice(){const f=$('#noticeFile').files[0];let file=null;if(f)file={name:f.name,type:f.type,data:f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f)};state.notices.push({id:id(),type:$('#noticeType').value,date:$('#noticeDate').value,title:$('#noticeTitle').value.trim(),note:$('#noticeNote').value.trim(),file,createdAt:now()});await save();$('#noticeTitle').value='';$('#noticeNote').value='';$('#noticeFile').value='';}
 async function saveChild(){state.childSick.push({id:id(),child:$('#childName').value.trim(),from:$('#childFrom').value,to:$('#childTo').value,note:$('#childNote').value.trim(),createdAt:now()});await save();}
 async function saveRehab(){state.rehabs.push({id:id(),status:$('#rehabStatus').value,clinic:$('#rehabClinic').value.trim(),from:$('#rehabFrom').value,to:$('#rehabTo').value,note:$('#rehabNote').value.trim(),createdAt:now()});await save();}
 
-async function selectedFileData(inputId){const f=$(inputId).files[0];if(!f)return {name:'',mime:'',data:''};const data=f.type.startsWith('image/')?await compressImage(f):await fileToDataURL(f);return {name:f.name,mime:f.type,data};}
+async function selectedFileData(inputId){const f=$(inputId).files[0];if(!f)return {name:'',mime:'',data:''};const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);return {name:f.name,mime:f.type,data};}
 function addLungTest(){modal(`<div class="sheet-head"><strong>Lungenfunktion manuell</strong><button onclick="closeModal()">✕</button></div><div class="review-grid"><label>Datum<input id="mLungDate" type="date"></label><label>Arzt / Praxis<input id="mLungDoctor" placeholder="optional"></label><label>Testart<input id="mLungType" placeholder="z. B. Spirometrie"></label><label>FEV1 (Liter)<input id="mLungFev1L" inputmode="decimal"></label><label>FEV1 (% Soll)<input id="mLungFev1P" inputmode="decimal"></label><label>FVC (Liter)<input id="mLungFvcL" inputmode="decimal"></label><label>FVC (% Soll)<input id="mLungFvcP" inputmode="decimal"></label><label>FEV1/FVC<input id="mLungRatio"></label><label class="wide">Weitere Werte<textarea id="mLungOther" rows="4"></textarea></label><label class="wide">Originalbefund (Foto/PDF)<input id="mLungFile" type="file" accept="image/*,.pdf"><span class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</span></label><label class="wide">Notiz<textarea id="mLungNote" rows="3"></textarea></label><button class="primary wide" onclick="commitLungTest()">Speichern</button></div>`);}
-window.commitLungTest=async()=>{const inp=$('#mLungFile');const file=inp.files[0];let f={name:'',mime:'',data:''};if(file)f={name:file.name,mime:file.type,data:await fileToDataURL(file)};state.health.lungTests.push({id:id(),date:$('#mLungDate').value,doctor:$('#mLungDoctor').value.trim(),testType:$('#mLungType').value.trim(),fev1Liters:$('#mLungFev1L').value.trim(),fev1Percent:$('#mLungFev1P').value.trim(),fvcLiters:$('#mLungFvcL').value.trim(),fvcPercent:$('#mLungFvcP').value.trim(),ratio:$('#mLungRatio').value.trim(),otherValues:$('#mLungOther').value.trim(),note:$('#mLungNote').value.trim(),...f,createdAt:now()});await save();closeModal();};
+window.commitLungTest=async()=>{const f=await selectedFileData('#mLungFile');state.health.lungTests.push({id:id(),date:$('#mLungDate').value,doctor:$('#mLungDoctor').value.trim(),testType:$('#mLungType').value.trim(),fev1Liters:$('#mLungFev1L').value.trim(),fev1Percent:$('#mLungFev1P').value.trim(),fvcLiters:$('#mLungFvcL').value.trim(),fvcPercent:$('#mLungFvcP').value.trim(),ratio:$('#mLungRatio').value.trim(),otherValues:$('#mLungOther').value.trim(),note:$('#mLungNote').value.trim(),...f,createdAt:now()});await save();closeModal();};
 
 async function scanLungTest(){
   const f=$('#lungImage').files[0];
   const status=$('#lungOcrStatus');
   if(!f){status.textContent='Bitte zuerst den Lungenfunktionsbefund fotografieren oder ein Bild auswählen.';return;}
   try{
-    pendingLungOriginal={name:f.name||'Lungenfunktion.jpg',mime:f.type||'image/jpeg',data:await fileToDataURL(f)};
+    pendingLungOriginal={name:f.name||'Lungenfunktion.jpg',mime:'image/jpeg',data:await imageForStorage(f)};
     const r=await ocrFile(f,status);
     $('#lungOcrText').value=r.text;
     $('#lungOcrText').dataset.image=r.image;
@@ -307,10 +448,9 @@ function reviewLungTest(){
       fvcLiters:$('#rLungFvcL').value.trim(),fvcPercent:$('#rLungFvcP').value.trim(),ratio:$('#rLungRatio').value.trim(),
       otherValues:$('#rLungOther').value.trim(),note:$('#rLungNote').value.trim(),
       parsedValues:p.parsedValues,matchedLines:p.matchedLines,ocrText:$('#lungOcrText').value,
-      data:pendingLungOriginal.data,name:pendingLungOriginal.name,mime:pendingLungOriginal.mime,
-      image:$('#lungOcrText').dataset.image||'',createdAt:now()
+      data:pendingLungOriginal.data,name:pendingLungOriginal.name,mime:pendingLungOriginal.mime,createdAt:now()
     });
-    await save();
+    await save('Lungenfunktion gespeichert');
     pendingLungOriginal=null;
     $('#lungImage').value='';$('#lungOcrText').value='';$('#lungOcrText').dataset.image='';$('#lungReview').classList.add('hidden');
     $('#lungOcrStatus').textContent='Lungenfunktion gespeichert.';
@@ -335,7 +475,7 @@ async function scanAu(){
   if(!f){status.textContent='Bitte zuerst die AU fotografieren oder ein Bild auswählen.';return;}
   try{
     // Originaldatei unverändert sichern; die komprimierte Kopie wird nur für OCR/Kompatibilität genutzt.
-    pendingAuOriginal={name:f.name||'AU.jpg',mime:f.type||'image/jpeg',data:await fileToDataURL(f)};
+    pendingAuOriginal={name:f.name||'AU.jpg',mime:'image/jpeg',data:await imageForStorage(f)};
     const r=await ocrFile(f,status);
     $('#auOcrText').value=r.text;
     $('#auOcrText').dataset.image=r.image;
@@ -345,37 +485,40 @@ async function scanAu(){
 function reviewAu(){
   const p=parseAuText($('#auOcrText').value);
   const sourceText=p.printedCodes.length
-    ? `${p.printedCodes.length} ICD-10-Code${p.printedCodes.length===1?'':'s'} direkt auf der AU erkannt. Alle werden übernommen.`
-    : p.inferred.length
-      ? `${p.inferred.length} ICD-10-Vorschlag${p.inferred.length===1?'':'e'} aus dem erkannten Diagnosetext ermittelt. Bitte vor dem Speichern prüfen.`
-      : 'Kein ICD-10-Code sicher ermittelt. Bitte den OCR-Text prüfen oder den Code manuell ergänzen.';
-  const inferredText=p.inferred.length?p.inferred.map(x=>`${x.code} – ${x.label}`).join(' · '):'';
+    ? `${p.printedCodes.length} ICD-10-Code${p.printedCodes.length===1?'':'s'} ausschließlich im Diagnosefeld der AU erkannt.`
+    : 'Im Diagnosefeld wurde kein ICD-10-Code sicher erkannt. Es wird kein Code geraten.';
   const originalPreview=pendingAuOriginal?.data
     ? `<div class="wide"><strong>Original-AU:</strong><br><img src="${pendingAuOriginal.data}" alt="Original-AU" style="max-width:100%;max-height:260px;object-fit:contain;border-radius:12px;margin-top:8px"></div>`
     : '<div class="wide hint">Originalbild nicht verfügbar – bitte AU erneut auswählen.</div>';
+  const kindOptions=`<option value="" ${!p.kind?'selected':''}>Bitte prüfen</option><option ${p.kind==='Erstbescheinigung'?'selected':''}>Erstbescheinigung</option><option ${p.kind==='Folgebescheinigung'?'selected':''}>Folgebescheinigung</option>`;
   $('#auReview').classList.remove('hidden');
   $('#auReview').innerHTML=`<h3>AU-Daten prüfen</h3><div class="review-grid">
-    <label>Art<select id="rAuKind"><option ${p.kind==='Erstbescheinigung'?'selected':''}>Erstbescheinigung</option><option ${p.kind==='Folgebescheinigung'?'selected':''}>Folgebescheinigung</option></select></label>
-    <label>ICD‑10-Code(s)<input id="rAuCodes" value="${esc(p.codes.join(', '))}" placeholder="wird automatisch ermittelt"></label>
-    <label>Von<input id="rAuFrom" type="date" value="${esc(p.from)}"></label>
-    <label>Bis<input id="rAuTo" type="date" value="${esc(p.to)}"></label>
-    <div class="wide hint"><strong>ICD-Erkennung:</strong> ${esc(sourceText)}${inferredText?'<br>'+esc(inferredText):''}</div>
+    <label>Art<select id="rAuKind">${kindOptions}</select></label>
+    <label>ICD‑10-Code(s)<input id="rAuCodes" value="${esc(p.codes.join(', '))}" placeholder="nur Codes aus Diagnosefeld"></label>
+    <label>Von · arbeitsunfähig seit<input id="rAuFrom" type="date" value="${esc(p.from)}"></label>
+    <label>Bis · voraussichtlich bis einschließlich<input id="rAuTo" type="date" value="${esc(p.to)}"></label>
+    <label>Festgestellt am<input id="rAuEstablished" type="date" value="${esc(p.established)}"></label>
+    <div class="wide hint"><strong>Datums-Erkennung:</strong> Die App verwendet nur die beschrifteten AU-Felder. Geburtsdatum und „festgestellt am“ werden nicht als AU-Zeitraum verwendet.${p.established?`<br>Festgestellt am: ${esc(fmtDate(p.established))}`:''}</div>
+    <div class="wide hint"><strong>ICD-Erkennung:</strong> ${esc(sourceText)}${p.diagnosisSection?'<details style="margin-top:6px"><summary>Erkannten Diagnosebereich anzeigen</summary><pre style="white-space:pre-wrap">'+esc(p.diagnosisSection)+'</pre></details>':''}</div>
     ${originalPreview}
     <label class="wide">Notiz<textarea id="rAuNote"></textarea></label>
     <button class="primary wide" id="commitAuReview">Geprüfte AU mit Originalbild speichern</button>
   </div>`;
   $('#commitAuReview').onclick=async()=>{
     const codes=extractPrintedIcdCodes($('#rAuCodes').value);
+    const kind=$('#rAuKind').value;
+    const from=$('#rAuFrom').value,to=$('#rAuTo').value,established=$('#rAuEstablished').value;
     if(!pendingAuOriginal?.data){alert('Das Originalbild der AU fehlt. Bitte die AU erneut fotografieren oder auswählen.');return;}
+    if(!to){alert('Das Bis-Datum wurde nicht sicher erkannt. Bitte am Original prüfen und ergänzen.');return;}
+    if(kind==='Erstbescheinigung'&&!from){alert('Bei der Erstbescheinigung fehlt „arbeitsunfähig seit“. Bitte am Original prüfen und ergänzen.');return;}
+    if(from&&to<from){alert('Das Bis-Datum liegt vor dem Von-Datum. Bitte die AU-Daten prüfen.');return;}
+    if(!kind){alert('Bitte Erst- oder Folgebescheinigung anhand der AU auswählen.');return;}
     state.aus.push({
-      id:id(),kind:$('#rAuKind').value,from:$('#rAuFrom').value,to:$('#rAuTo').value,
-      codes:[...new Set(codes)],note:$('#rAuNote').value.trim(),
-      codeSource:p.printedCodes.length?'AU-OCR':(p.inferred.length?'Diagnosetext-Vorschlag':'manuell'),
-      inferredIcd:p.inferred,ocrText:$('#auOcrText').value,
-      data:pendingAuOriginal.data,name:pendingAuOriginal.name,mime:pendingAuOriginal.mime,
-      image:$('#auOcrText').dataset.image||'',createdAt:now()
+      id:id(),kind,from,to,codes:[...new Set(codes)],note:$('#rAuNote').value.trim(),
+      established:established||'',codeSource:'Diagnosefeld-AU',inferredIcd:[],diagnosisSection:p.diagnosisSection||'',
+      ocrText:$('#auOcrText').value,data:pendingAuOriginal.data,name:pendingAuOriginal.name,mime:pendingAuOriginal.mime,createdAt:now()
     });
-    await save();
+    await save('AU gespeichert');
     pendingAuOriginal=null;
     $('#auImage').value='';
     $('#auOcrText').value='';
@@ -383,7 +526,6 @@ function reviewAu(){
     $('#auReview').classList.add('hidden');
   };
 }
-
 
 function inferWorkplanMonth(text, selectedMonth=''){
   if(selectedMonth)return selectedMonth;
@@ -499,7 +641,7 @@ async function scanWorkplan(){
   const status=$('#workplanOcrStatus');
   if(!f){status.textContent='Bitte zuerst einen Arbeitsplan fotografieren oder auswählen.';return;}
   try{
-    pendingWorkplanOriginal={name:f.name||'Arbeitsplan.jpg',mime:f.type||'image/jpeg',data:await fileToDataURL(f)};
+    pendingWorkplanOriginal={name:f.name||'Arbeitsplan.jpg',mime:'image/jpeg',data:await imageForStorage(f)};
     if(!f.type.startsWith('image/')){
       status.textContent='PDF wird als Original gespeichert. Automatische OCR funktioniert aktuell bei Bildern; für Analyse bitte eine Seite als Foto/Bild verwenden.';
       $('#workplanOcrText').value='';
@@ -558,18 +700,18 @@ async function commitWorkplanReview(){
   const parsed=parseWorkplanText($('#workplanOcrText').value,month);
   state.documents.push({
     id:id(),type:'workplan',month,name:pendingWorkplanOriginal.name,mime:pendingWorkplanOriginal.mime,data:pendingWorkplanOriginal.data,
-    ocrText:$('#workplanOcrText').value,image:$('#workplanOcrText').dataset.image||'',note:$('#rWorkplanNote').value.trim(),
+    ocrText:$('#workplanOcrText').value,note:$('#rWorkplanNote').value.trim(),
     analysis:{employee:parsed.employee||parsed.employeeConfigured||'',detectedShiftCount:parsed.entries.length,importedShiftCount:imported,statuses:parsed.statuses,entries:detected},createdAt:now()
   });
-  await save();
+  await save('Arbeitsplan gespeichert');
   pendingWorkplanOriginal=null;
   $('#workplanImage').value='';$('#workplanOcrText').value='';$('#workplanOcrText').dataset.image='';$('#workplanReview').classList.add('hidden');
   $('#workplanOcrStatus').textContent=`Arbeitsplan gespeichert. ${imported} neue Schicht${imported===1?'':'en'} übernommen.`;
 }
 
-async function saveScannedDoc(type){const fileEl=type==='payroll'?$('#payrollImage'):$('#stampImage');const monthEl=type==='payroll'?$('#payrollMonth'):$('#stampMonth');const f=fileEl.files[0];if(!f){alert('Bitte zuerst eine Datei auswählen.');return;}let data,ocrText='';if(f.type.startsWith('image/')){data=await compressImage(f);try{const status=document.createElement('div');const r=await ocrFile(f,status);ocrText=r.text;}catch{} }else{data=await fileToDataURL(f);}state.documents.push({id:id(),type,month:monthEl.value,name:f.name,mime:f.type,data,ocrText,createdAt:now()});fileEl.value='';await save();}
+async function saveScannedDoc(type){const fileEl=type==='payroll'?$('#payrollImage'):$('#stampImage');const monthEl=type==='payroll'?$('#payrollMonth'):$('#stampMonth');const f=fileEl.files[0];if(!f){alert('Bitte zuerst eine Datei auswählen.');return;}let data,ocrText='';if(f.type.startsWith('image/')){data=await imageForStorage(f);try{const status=document.createElement('div');const r=await ocrFile(f,status);ocrText=r.text;}catch{} }else{data=await fileToDataURL(f);}state.documents.push({id:id(),type,month:monthEl.value,name:f.name,mime:f.type,data,ocrText,createdAt:now()});fileEl.value='';await save();}
 
-async function saveContractFile(){const f=$('#contractFile').files[0];if(!f)return alert('Bitte Datei auswählen.');const data=f.type.startsWith('image/')?await compressImage(f):await fileToDataURL(f);state.company.contracts.push({id:id(),name:f.name,type:f.type,data,createdAt:now()});$('#contractFile').value='';await save();}
+async function saveContractFile(){const f=$('#contractFile').files[0];if(!f)return alert('Bitte Datei auswählen.');const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);state.company.contracts.push({id:id(),name:f.name,type:f.type,data,createdAt:now()});$('#contractFile').value='';await save();}
 
 window.viewDoc=(ident,kind)=>{let obj;if(kind==='contract')obj=state.company.contracts.find(x=>x.id===ident);if(kind==='notice')obj=state.notices.find(x=>x.id===ident)?.file;if(kind==='doc')obj=state.documents.find(x=>x.id===ident);if(kind==='au')obj=state.aus.find(x=>x.id===ident);if(kind==='lung')obj=state.health.lungTests.find(x=>x.id===ident);if(kind==='lab')obj=state.health.labResults.find(x=>x.id===ident);if(kind==='letter')obj=state.health.doctorLetters.find(x=>x.id===ident);const data=obj?.data||obj?.image;if(!data)return;const w=window.open();if(!w)return alert('Popup wurde blockiert.');if(data.startsWith('data:application/pdf'))w.location=data;else w.document.write(`<title>WorksManager Dokument</title><img src="${data}" style="max-width:100%;height:auto">`);};
 window.delShift=async x=>{if(confirm('Schicht löschen?')){state.shifts=state.shifts.filter(y=>y.id!==x);await save();}};
@@ -597,4 +739,12 @@ function bind(){
   $('#wipeData').onclick=async()=>{if(confirm('Wirklich ALLE lokalen WorksManager-Daten löschen?')){await dbClear();location.reload();}};
 }
 
-(async function init(){db=await openDB();bind();if('serviceWorker' in navigator)navigator.serviceWorker.register('./sw.js').catch(()=>{});const has=await dbGet('payload');$('#unlockHint').textContent=has?'Daten vorhanden – mit deinem Passwort öffnen.':'Erster Start: Dieses Passwort verschlüsselt deine Daten. Merke es dir; es kann nicht wiederhergestellt werden.';})();
+(async function init(){
+  db=await openDB();bind();
+  if('serviceWorker' in navigator){
+    navigator.serviceWorker.addEventListener('controllerchange',()=>{try{if(!sessionStorage.getItem('wm-sw-reload')){sessionStorage.setItem('wm-sw-reload','1');location.reload();}}catch{}});
+    navigator.serviceWorker.register('./sw.js').then(r=>r.update()).catch(()=>{});
+  }
+  const has=await dbGet('payload');
+  $('#unlockHint').textContent=has?'Daten vorhanden – mit deinem Passwort öffnen.':'Erster Start: Dieses Passwort verschlüsselt deine Daten. Merke es dir; es kann nicht wiederhergestellt werden.';
+})();

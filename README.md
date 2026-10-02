@@ -1,4 +1,4 @@
-Version: **v1.0.1**
+Version: **v1.0.2**
 
 # WorksManager
 
@@ -29,4 +29,14 @@ OCR ist eine Erkennungshilfe, keine fehlerfreie medizinische oder rechtliche Dat
 ## Gesundheit (v2)
 Neue Rubrik mit Lungenfunktionstests (inkl. FEV1/FVC-Werte und Befunddatei), Laborwerten sowie Arztbriefen. Alle Einträge liegen im bestehenden verschlüsselten lokalen Datenspeicher und werden in verschlüsselte Backups einbezogen.
 
-- v1.0.1: Fotoauswahl aus Kamera, Fotomediathek oder Dateien bei allen Bild-/Dokumenten-Uploads.
+- v1.0.2: Fotoauswahl aus Kamera, Fotomediathek oder Dateien bei allen Bild-/Dokumenten-Uploads.
+
+
+## Version 1.0.3
+- AU-Auswertung auf strikte Formularerkennung umgestellt.
+- AU-Zeitraum wird nur aus „arbeitsunfähig seit“ und „voraussichtlich arbeitsunfähig bis einschließlich“ gelesen.
+- Geburtsdatum und „festgestellt am“ werden nicht mehr als AU-Zeitraum verwendet.
+- ICD-10-Codes werden nur aus „AU-begründende Diagnose(n) / ICD-10“ übernommen; keine Diagnose-zu-Code-Schätzung mehr.
+- Mehrere ICD-10-Codes im Diagnosefeld werden vollständig übernommen.
+- OCR-Kopie wird für bessere Lesbarkeit in Graustufen und mit moderatem Kontrast optimiert; Originalscan bleibt unverändert gespeichert.
+- Unsichere Werte bleiben leer und müssen geprüft werden, statt automatisch falsch befüllt zu werden.
