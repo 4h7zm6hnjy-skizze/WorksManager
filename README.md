@@ -1,3 +1,5 @@
+Version: **v1.0.1**
+
 # WorksManager
 
 Private PWA zur Verwaltung von Arbeitsdaten.
@@ -26,3 +28,5 @@ OCR ist eine Erkennungshilfe, keine fehlerfreie medizinische oder rechtliche Dat
 
 ## Gesundheit (v2)
 Neue Rubrik mit Lungenfunktionstests (inkl. FEV1/FVC-Werte und Befunddatei), Laborwerten sowie Arztbriefen. Alle Einträge liegen im bestehenden verschlüsselten lokalen Datenspeicher und werden in verschlüsselte Backups einbezogen.
+
+- v1.0.1: Fotoauswahl aus Kamera, Fotomediathek oder Dateien bei allen Bild-/Dokumenten-Uploads.

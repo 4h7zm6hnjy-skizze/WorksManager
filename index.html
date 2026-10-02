@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#062f4f" />
-  <title>WorksManager</title>
+  <title>WorksManager v1.0.1</title>
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
@@ -13,8 +13,11 @@
 <body>
   <div id="unlock" class="unlock-screen">
     <div class="unlock-card">
-      <img class="unlock-logo" src="worksmanager-logo.png" alt="WorksManager" />
-      <h1 class="sr-only">WorksManager</h1>
+      <div class="unlock-brand">
+        <img class="unlock-logo" src="worksmanager-logo.png" alt="WorksManager" />
+        <span class="version-badge unlock-version" aria-label="Version 1.0.1">v1.0.1</span>
+      </div>
+      <h1 class="sr-only">WorksManager v1.0.1</h1>
       <p class="muted">Private Arbeitsverwaltung · lokale, verschlüsselte Datenspeicherung</p>
       <label>Passwort / PIN</label>
       <input id="unlockPassword" type="password" autocomplete="current-password" placeholder="Passwort eingeben" />
@@ -26,7 +29,10 @@
   <div id="app" class="app hidden">
     <header class="topbar">
       <div class="top-brand">
-        <img class="top-logo" src="worksmanager-logo.png" alt="WorksManager" />
+        <div class="brand-row">
+          <img class="top-logo" src="worksmanager-logo.png" alt="WorksManager" />
+          <span class="version-badge" aria-label="Version 1.0.1">v1.0.1</span>
+        </div>
         <div class="subtitle">Copyright Marcel Hentschel</div>
       </div>
       <div class="top-actions">
@@ -93,6 +99,7 @@
           <h3>Arbeitsvertrag</h3>
           <div class="upload-row">
             <input id="contractFile" type="file" accept="image/*,.pdf" />
+            <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
             <button id="saveContractFile">Dokument speichern</button>
           </div>
           <div id="contractList" class="list"></div>
@@ -105,6 +112,7 @@
           <h3>Plan einlesen</h3>
           <p class="muted">Foto aufnehmen oder aus der Mediathek bzw. dem Fotoordner auswählen. WorksManager sucht nach deinem hinterlegten Namen und versucht Datum, Schichtkürzel und Uhrzeiten zu erkennen.</p>
           <input id="shiftImage" type="file" accept="image/*" />
+          <div class="media-source-hint">📷 Neues Foto aufnehmen oder 🖼 aus der Fotomediathek auswählen</div>
           <button id="scanShift" class="primary">Foto lokal auswerten</button>
           <div id="shiftOcrStatus" class="hint"></div>
           <textarea id="shiftOcrText" rows="7" placeholder="Erkannter Text erscheint hier"></textarea>
@@ -135,7 +143,7 @@
           <label>Datum<input id="noticeDate" type="date" /></label>
           <label class="wide">Titel<input id="noticeTitle" /></label>
           <label class="wide">Notiz<textarea id="noticeNote" rows="3"></textarea></label>
-          <label class="wide">Foto / Dokument<input id="noticeFile" type="file" accept="image/*,.pdf" /></label>
+          <label class="wide">Foto / Dokument<input id="noticeFile" type="file" accept="image/*,.pdf" /><span class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</span></label>
           <div class="wide"><button id="saveNotice" class="primary">Speichern</button></div>
         </div>
         <div id="noticeList" class="list"></div>
@@ -148,19 +156,22 @@
             <h3>Lohnabrechnung</h3>
             <label>Monat<input id="payrollMonth" type="month" /></label>
             <input id="payrollImage" type="file" accept="image/*,.pdf" />
+            <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
             <button data-docscan="payroll" class="primary">Scannen & speichern</button>
           </div>
           <div class="card scanner-card">
             <h3>Stempelübersicht</h3>
             <label>Monat<input id="stampMonth" type="month" /></label>
             <input id="stampImage" type="file" accept="image/*,.pdf" />
+            <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
             <button data-docscan="stamp" class="primary">Scannen & speichern</button>
           </div>
           <div class="card scanner-card workplan-card">
             <h3>Arbeitsplan</h3>
-            <p class="muted">Arbeitsplan fotografieren. WorksManager sucht automatisch nach deinem Namen, Datumsangaben, Schichtkürzeln und Uhrzeiten. Erkannte Schichten kannst du direkt in den Schichtplan übernehmen.</p>
+            <p class="muted">Arbeitsplan neu fotografieren oder aus der Fotomediathek auswählen. WorksManager sucht automatisch nach deinem Namen, Datumsangaben, Schichtkürzeln und Uhrzeiten. Erkannte Schichten kannst du direkt in den Schichtplan übernehmen.</p>
             <label>Monat <small>(optional)</small><input id="workplanMonth" type="month" /></label>
             <input id="workplanImage" type="file" accept="image/*,.pdf" />
+            <div class="media-source-hint">📷 Neues Foto · 🖼 Fotomediathek · 📁 Dateien</div>
             <button id="scanWorkplan" class="primary">Arbeitsplan scannen & analysieren</button>
             <div id="workplanOcrStatus" class="hint"></div>
             <details class="ocr-details"><summary>Erkannten Text anzeigen</summary><textarea id="workplanOcrText" rows="7" placeholder="Erkannter Text erscheint hier"></textarea></details>
@@ -174,8 +185,9 @@
         <div class="section-head"><h2>Krankheit & AU</h2><button id="addAuManual">+ AU manuell</button></div>
         <div class="card scanner-card">
           <h3>AU-Scanner</h3>
-          <p class="muted">Foto aufnehmen. WorksManager erkennt nach Möglichkeit Zeitraum, Erst-/Folgebescheinigung und ICD‑10-Code(s). Bitte vor dem Speichern prüfen.</p>
+          <p class="muted">Foto neu aufnehmen oder eine vorhandene AU aus der Fotomediathek auswählen. WorksManager erkennt nach Möglichkeit Zeitraum, Erst-/Folgebescheinigung und alle ICD‑10-Code(s). Bitte vor dem Speichern prüfen.</p>
           <input id="auImage" type="file" accept="image/*" />
+          <div class="media-source-hint">📷 Neues Foto aufnehmen oder 🖼 vorhandene AU aus der Fotomediathek auswählen</div>
           <button id="scanAu" class="primary">AU lokal erkennen</button>
           <div id="auOcrStatus" class="hint"></div>
           <textarea id="auOcrText" rows="7" placeholder="Erkannter Text erscheint hier"></textarea>
@@ -199,6 +211,7 @@
           <div class="section-head"><h3>Lungenfunktionstest</h3><button id="addLungTest">+ Manuell</button></div>
           <p class="muted">Befund fotografieren oder als Bild auswählen. WorksManager liest Datum, Praxis/Testart sowie FEV1, FVC, FEV1/FVC und weitere gängige Messwerte automatisch aus. Vor dem Speichern kannst du alles prüfen und korrigieren.</p>
           <input id="lungImage" type="file" accept="image/*" />
+          <div class="media-source-hint">📷 Neues Foto aufnehmen oder 🖼 vorhandenen Befund aus der Fotomediathek auswählen</div>
           <button id="scanLung" class="primary">Lungenfunktion scannen & analysieren</button>
           <div id="lungOcrStatus" class="hint"></div>
           <details>
