@@ -1,53 +1,56 @@
-# WorksManager v1.4.3
+# WorksManager v1.5.1
 
-Private Arbeits- und Dokumentenverwaltung.
+Private, lokal verschlüsselte Arbeits- und Dokumentenverwaltung.
 
-## Änderung in v1.1.0
-- Automatische OCR-/Fotoanalyse vollständig aus der Bedienoberfläche entfernt.
-- Foto-/Dokument-Upload zusätzlich in Firma, Gespräche/BEM/AMZ, Aushänge, Kind krank und Reha.
-- Kamera, Fotomediathek und Dateien werden unterstützt.
-- Manuelle Eingabefelder bleiben optional verfügbar.
-- Alle gespeicherten Daten bleiben lokal verschlüsselt.
+## Enthalten
+- Firma & Arbeitsvertrag
+- Schichtplan mit manuellen Schichten und Foto-/Dokumentenablage
+- BEM, AMZ und Gespräche
+- Aushänge
+- Lohnabrechnung, Stempelübersicht und Arbeitsplan
+- Krankheit & AU: Foto plus Von-/Bis-Datum, ohne OCR oder automatische Analyse
+- Monatliche und jährliche AU-Statistik mit eindeutigen Krankheitstagen
+- Kind krank und Reha
+- Treppenzähler mit Datum, Uhrzeit, Grund sowie Monats- und Jahresstatistik
+- Jahresstatistik als PDF
+- Verschlüsselter Backup-Export und -Import einschließlich gespeicherter Dateien
 
-## Änderung in v1.2.0
-- Neuer täglicher Treppenzähler mit Datum, Uhrzeit, Anzahl und Grund.
-- Automatische Monats- und Jahresstatistik mit Summe, Einträgen, aktiven Tagen und Tagesdurchschnitt.
+## v1.5.0 – vollständige Stabilitätsprüfung
+- Kritischen Entsperr-/Speicherfehler behoben: Ein Fehler in der Jahresbericht-Anzeige konnte die Oberfläche sichtbar lassen, obwohl der Verschlüsselungsschlüssel verworfen worden war.
+- Jahresbericht-Funktionen vervollständigt und gegen Anzeige-Fehler isoliert.
+- Fotos und PDFs werden getrennt vom Hauptdatensatz verschlüsselt in IndexedDB gespeichert; alte eingebettete Dateien werden beim Entsperren migriert.
+- Speichern, Öffnen und Löschen für AU, Arbeitsverträge, Abrechnung, Aushänge und weitere Anhänge vereinheitlicht.
+- AU-Löschung funktioniert über ID mit Index-Fallback für ältere Datensätze.
+- Überlappende AU-Zeiträume werden in Monats- und Jahresstatistiken nicht doppelt gezählt.
+- Datumsberechnungen sind UTC-/DST-sicher und ungültige Kalenderdaten werden verworfen.
+- Alte Gesundheitsdaten/-anhänge werden nicht mehr in die aktuelle App-Struktur übernommen.
+- Backup v3 enthält den verschlüsselten Hauptdatensatz und getrennt gespeicherte verschlüsselte Dateien.
+- Service Worker aktualisiert WorksManager netzwerkbevorzugt und löscht nur eigene alte WorksManager-Caches.
+- iPhone/PWA-Darstellung gegen horizontales Überlaufen und Formular-Zoom gehärtet.
+- Asynchrone Speicheraktionen erhalten zentrale Fehlerbehandlung; ein Fehler in einem einzelnen Renderer sperrt die App nicht mehr.
+- Initialisierung meldet verständlich, wenn IndexedDB nicht geöffnet werden kann.
+- Veraltete OCR-/Scanner-Reste aus dem aktiven Code und Styling entfernt.
 
-## Änderung in v1.3.1
-- Neue Jahresstatistik mit frei wählbarem Jahr.
-- Treppen-Monatsstatistik für alle zwölf Monate.
-- Vollständige Liste der gespeicherten Jahreseinträge und Dokumentnamen im Jahresbericht.
-- Jahresbericht kann direkt als PDF gespeichert werden.
-- Originalfotos und Original-PDFs bleiben separat in WorksManager/Backup und werden aus Datenschutz- und Dateigrößengründen nicht erneut in die Statistik-PDF eingebettet.
+## Datenschutz
+Es findet keine OCR, Texterkennung oder automatische Fotoanalyse statt. Der Hauptdatensatz und gespeicherte Dateien werden lokal mit AES-GCM verschlüsselt. Der Schlüssel wird aus dem eingegebenen Passwort/PIN abgeleitet und nicht dauerhaft gespeichert.
 
 Copyright Marcel Hentschel.
 
 
-## Änderung in v1.4.0
-- Rubrik Krankheit & AU grundlegend vereinfacht.
-- Krankschreibung nur noch als Foto speichern.
-- Eingabe ausschließlich des Zeitraums über Kalenderfelder Von/Bis.
-- Keine ICD-Codes, AU-Art, Notiz oder automatische Analyse.
-- Monatsstatistik mit Fällen und Krankheitstagen.
-- Jahresstatistik mit Fällen und Krankheitstagen sowie 12-Monats-Übersicht.
-
-## Änderung in v1.4.2
-- Löschen-Funktionen in allen Rubriken repariert.
-- Öffnen gespeicherter Fotos und Dokumente repariert.
-- Ältere Einträge ohne interne ID erhalten beim Laden automatisch eine ID und können wieder gelöscht werden.
-- Arbeitsvertrag-Dateispeicherung repariert.
-- PWA-Cache auf v1.4.2 aktualisiert.
-
-## Änderung in v1.4.3
-
-- AU-Löschung vollständig neu angebunden: Löschen erfolgt über die aktuelle interne ID mit Index-Fallback und ist nicht mehr von alten Inline-Handlern abhängig.
-- Alte Krankschreibungen ohne Datum oder frühere ID können ebenfalls gelöscht werden.
-- iPhone/PWA-Startansicht korrigiert: kein horizontales Überlaufen, Startposition links oben, responsive Statistik-Kacheln und fester 1:1-Viewport.
-- PWA-Cache auf v1.4.3 aktualisiert.
-
-
-## Version 1.4.5
-- AU-Speichern auf iPhone/PWA robuster gemacht.
-- AU-Fotos werden speicherschonend komprimiert.
-- Eingaben werden erst nach erfolgreichem Speichern geleert.
-- Sichtbarer Speicherstatus am AU-Button.
+## v1.5.1 – Komplettprüfung und Fehlerkorrekturen
+- Versionsabgleich zwischen HTML und JavaScript ergänzt, damit gemischte Cache-Versionen erkannt werden.
+- Foto-/PDF-Erkennung robuster gemacht, auch wenn ein Gerät keinen MIME-Typ liefert.
+- Öffnen älterer Bild-/PDF-Dateien mit fehlendem MIME-Typ verbessert.
+- Ungültige Dateitypen werden vor dem Speichern abgefangen.
+- Gespräche benötigen jetzt ein Datum; Kind-krank-Einträge benötigen Von- und Bis-Datum; manuelle Schichten benötigen Datum und Schichtname.
+- Backup-Import wird vor dem Überschreiben vollständig mit dem Backup-Passwort geprüft; Hauptdaten und verschlüsselte Dateien werden kryptografisch validiert.
+- Nach erfolgreichem Backup-Import bleibt die App mit dem geprüften Backup entsperrt.
+- Backup-Export enthält die App-Version und meldet den erfolgreichen Export sichtbar.
+- PDF-/Dateianzeige auf iPhone/PWA robuster verlinkt.
+- JavaScript-, Navigation-, ID-, Versions-, Statistik- und PDF-Prüfungen durchgeführt.
+- Alte/duplizierte interne IDs werden bereinigt und anschließend dauerhaft gespeichert, damit Öffnen und Löschen nach einem Neustart stabil bleiben.
+- AU-Löschen verwendet keinen unsicheren Listenindex mehr, wenn eine konkrete ID vorhanden ist.
+- Entsperren blockiert die Bedienoberfläche bis Datenmigration und Speicherbereinigung abgeschlossen sind; dadurch keine parallelen Speicherzugriffe direkt beim Start.
+- IndexedDB-Blockierungen und abgebrochene Schreibtransaktionen liefern jetzt klare Fehler statt still hängen zu bleiben.
+- Backup-Import prüft zusätzlich doppelte Dateischlüssel und fehlende referenzierte Dateien, bevor bestehende Daten überschrieben werden.
+- Backup-Nachbereinigung kann einen bereits erfolgreichen Import nicht mehr fälschlich als fehlgeschlagen melden.

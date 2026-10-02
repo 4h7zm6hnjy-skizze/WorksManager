@@ -4,29 +4,80 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const enc = new TextEncoder();
 const dec = new TextDecoder();
+const APP_VERSION='1.5.1';
 let state = blankState();
 let cryptoKey = null;
 let db = null;
 
-function blankState(){return {version:5,company:{name:'',employeeName:'',contractStart:'',employeeNo:'',notes:'',contracts:[]},shifts:[],meetings:[],notices:[],documents:[],aus:[],childSick:[],rehabs:[],stairs:[],attachments:{company:[],shift:[],meetings:[],notices:[],family:[],rehab:[]}};}
-function normalizeState(v){const base=blankState();const x=v&&typeof v==='object'?v:{};x.company={...base.company,...(x.company||{})};x.company.contracts=Array.isArray(x.company.contracts)?x.company.contracts:[];for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])x[k]=Array.isArray(x[k])?x[k]:[];delete x.health;x.attachments=x.attachments&&typeof x.attachments==='object'?x.attachments:{};for(const k of ['company','shift','meetings','notices','family','rehab'])x.attachments[k]=Array.isArray(x.attachments[k])?x.attachments[k]:[];const ensureIds=arr=>arr.forEach(item=>{if(!item||typeof item!=='object')return;if(item.id===undefined||item.id===null||String(item.id).trim()==='')item.id=id();else item.id=String(item.id);});ensureIds(x.company.contracts);for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])ensureIds(x[k]);for(const k of ['company','shift','meetings','notices','family','rehab'])ensureIds(x.attachments[k]);x.version=5;return x;}
+function blankState(){return {version:6,company:{name:'',employeeName:'',contractStart:'',employeeNo:'',notes:'',contracts:[]},shifts:[],meetings:[],notices:[],documents:[],aus:[],childSick:[],rehabs:[],stairs:[],attachments:{company:[],shift:[],meetings:[],notices:[],family:[],rehab:[]}};}
+function normalizeState(v){
+  const base=blankState();
+  const x=v&&typeof v==='object'&&!Array.isArray(v)?v:{};
+  const rawCompany=x.company&&typeof x.company==='object'&&!Array.isArray(x.company)?x.company:{};
+  x.company={...base.company,...rawCompany};
+  x.company.contracts=Array.isArray(x.company.contracts)?x.company.contracts:[];
+  for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])x[k]=Array.isArray(x[k])?x[k]:[];
+  delete x.health;
+  const incomingAttachments=x.attachments&&typeof x.attachments==='object'?x.attachments:{};
+  x.attachments={};
+  for(const k of ['company','shift','meetings','notices','family','rehab'])x.attachments[k]=Array.isArray(incomingAttachments[k])?incomingAttachments[k]:[];
+  const ensureIds=arr=>{
+    const seen=new Set();
+    for(const item of arr){
+      if(!item||typeof item!=='object')continue;
+      const old=String(item.id??'').trim();
+      let next=/^[A-Za-z0-9._:-]{1,160}$/.test(old)&&!seen.has(old)?old:id();
+      while(seen.has(next))next=id();
+      item.id=next;seen.add(next);
+    }
+  };
+  ensureIds(x.company.contracts);
+  for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])ensureIds(x[k]);
+  for(const k of ['company','shift','meetings','notices','family','rehab'])ensureIds(x.attachments[k]);
+  x.version=6;
+  return x;
+}
 function id(){return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2);}
 function now(){return new Date().toISOString();}
-function fmtDate(v){if(!v)return '—';const d=new Date(v+'T12:00:00');return d.toLocaleDateString('de-DE');}
+function fmtDate(v){if(!v)return '—';const d=new Date(String(v).slice(0,10)+'T12:00:00');return Number.isNaN(d.getTime())?'—':d.toLocaleDateString('de-DE');}
 function esc(v=''){return String(v).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));}
-function daysInclusive(a,b){if(!a||!b)return 0;const d1=new Date(a+'T12:00:00'),d2=new Date(b+'T12:00:00');return Math.max(0,Math.floor((d2-d1)/86400000)+1);}
-function normalizeDate(s){if(!s)return '';let m=s.match(/(\d{1,2})[.\/\-](\d{1,2})[.\/\-](\d{2,4})/);if(!m)return '';let y=m[3].length===2?'20'+m[3]:m[3];return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;}
-function fileToDataURL(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file);});}
-async function compressImage(file,max=1600,q=.78){if(!file.type.startsWith('image/')) return await fileToDataURL(file);const src=await fileToDataURL(file);const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;});const scale=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c.toDataURL('image/jpeg',q);}
-
-function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open('WorksManagerSecure',2);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('kv'))d.createObjectStore('kv');if(!d.objectStoreNames.contains('files'))d.createObjectStore('files');};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+function inferMime(name='',mime=''){
+  const current=String(mime||'').trim().toLowerCase();
+  if(current&&current!=='application/octet-stream')return current;
+  const n=String(name||'').toLowerCase();
+  if(/\.pdf$/.test(n))return 'application/pdf';
+  if(/\.(?:jpe?g|jfif)$/.test(n))return 'image/jpeg';
+  if(/\.png$/.test(n))return 'image/png';
+  if(/\.webp$/.test(n))return 'image/webp';
+  if(/\.gif$/.test(n))return 'image/gif';
+  if(/\.bmp$/.test(n))return 'image/bmp';
+  if(/\.(?:heic|heif)$/.test(n))return 'image/heic';
+  return current||'application/octet-stream';
+}
+function isImageFile(file){return !!file&&inferMime(file.name,file.type).startsWith('image/');}
+function isPdfFile(file){return !!file&&inferMime(file.name,file.type)==='application/pdf';}
+function isSupportedDocument(file){return isImageFile(file)||isPdfFile(file);}
+function openDB(){
+  return new Promise((res,rej)=>{
+    const r=indexedDB.open('WorksManagerSecure',2);
+    r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('kv'))d.createObjectStore('kv');if(!d.objectStoreNames.contains('files'))d.createObjectStore('files');};
+    r.onblocked=()=>rej(new Error('Der lokale Speicher ist noch in einer älteren WorksManager-Instanz geöffnet. Bitte andere WorksManager-Tabs/Fenster schließen und erneut öffnen.'));
+    r.onsuccess=()=>{const d=r.result;d.onversionchange=()=>{try{d.close();}catch{}};res(d);};
+    r.onerror=()=>rej(r.error||new Error('IndexedDB konnte nicht geöffnet werden.'));
+  });
+}
 function dbGet(k){return new Promise((res,rej)=>{const tx=db.transaction('kv','readonly');const r=tx.objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
-function dbPut(k,v){return new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
+function dbPut(k,v){return new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error||new Error('Speichertransaktion abgebrochen.'));});}
+function dbDelete(k){return new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').delete(k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error||new Error('Speichertransaktion abgebrochen.'));});}
+function dbKvKeys(){return new Promise((res,rej)=>{const tx=db.transaction('kv','readonly');const store=tx.objectStore('kv');const out=[];const req=store.openKeyCursor();req.onsuccess=()=>{const c=req.result;if(c){out.push(c.key);c.continue();}else res(out);};req.onerror=()=>rej(req.error);});}
 function dbFileGet(k){return new Promise((res,rej)=>{const tx=db.transaction('files','readonly');const r=tx.objectStore('files').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
-function dbFilePut(k,v){return new Promise((res,rej)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
-function dbFileDelete(k){return new Promise((res,rej)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').delete(k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
+function dbFilePut(k,v){return new Promise((res,rej)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error||new Error('Dateispeicherung abgebrochen.'));});}
+function dbFileDelete(k){return new Promise((res,rej)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').delete(k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error||new Error('Dateilöschung abgebrochen.'));});}
 function dbFileEntries(){return new Promise((res,rej)=>{const tx=db.transaction('files','readonly');const store=tx.objectStore('files');const out=[];const req=store.openCursor();req.onsuccess=()=>{const c=req.result;if(c){out.push([c.key,c.value]);c.continue();}else res(out);};req.onerror=()=>rej(req.error);});}
-function dbClear(){return new Promise((res,rej)=>{const names=['kv',...(db.objectStoreNames.contains('files')?['files']:[])];const tx=db.transaction(names,'readwrite');names.forEach(n=>tx.objectStore(n).clear());tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
+function dbClear(){return new Promise((res,rej)=>{const names=['kv',...(db.objectStoreNames.contains('files')?['files']:[])];const tx=db.transaction(names,'readwrite');names.forEach(n=>tx.objectStore(n).clear());tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error||new Error('Löschen der lokalen Daten abgebrochen.'));});}
+function dbReplaceAll(salt,payload,files=[]){return new Promise((res,rej)=>{const tx=db.transaction(['kv','files'],'readwrite'),kv=tx.objectStore('kv'),fs=tx.objectStore('files');kv.clear();fs.clear();kv.put(salt,'salt');kv.put(payload,'payload');for(const [key,value] of files)fs.put(value,key);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);tx.onabort=()=>rej(tx.error||new Error('Import abgebrochen'));});}
+async function ensureCryptoKey(){if(cryptoKey)return cryptoKey;throw new Error('App ist gesperrt. Bitte einmal erneut entsperren.');}
+function clearRememberedCryptoKey(){}
 function b64(buf){
   const bytes=buf instanceof Uint8Array?buf:new Uint8Array(buf);
   const chunk=0x8000;
@@ -42,13 +93,9 @@ function showToast(message,type='success'){
   el.className=`wm-toast ${type}`;el.textContent=message;el.classList.add('show');
   clearTimeout(showToast._timer);showToast._timer=setTimeout(()=>el.classList.remove('show'),2200);
 }
-async function imageForStorage(file){
-  if(!file)return '';
-  if(!file.type.startsWith('image/'))return await fileToDataURL(file);
-  try{return await compressImage(file,2400,.88);}catch(e){console.warn('Bildkomprimierung nicht möglich, Original wird verwendet.',e);return await fileToDataURL(file);}
-}
+function showFileError(action,e){if(e?._wmAlerted)return;const msg=String(e?.message||e||'unbekannter Fehler');const quota=/quota|storage|space/i.test(`${e?.name||''} ${msg}`);alert(quota?`${action} fehlgeschlagen: Der lokale Speicher ist voll. Bitte zuerst ein Backup erstellen und nicht benötigte Dateien entfernen.`:`${action} fehlgeschlagen: ${msg}`);try{e._wmAlerted=true;}catch{}}
 async function compressImageBlob(file,max=1200,q=.64){
-  if(!file||!String(file.type||'').startsWith('image/'))return file;
+  if(!file||!isImageFile(file))return file;
   const url=URL.createObjectURL(file);
   try{
     const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Bild konnte nicht gelesen werden.'));i.src=url;});
@@ -60,13 +107,14 @@ async function compressImageBlob(file,max=1200,q=.64){
   }finally{URL.revokeObjectURL(url);}
 }
 async function encryptFileBlob(blob,name='Datei'){
-  if(!cryptoKey)throw new Error('App ist gesperrt.');
+  await ensureCryptoKey();
   const iv=crypto.getRandomValues(new Uint8Array(12));
   const plain=await blob.arrayBuffer();
   const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},cryptoKey,plain);
-  return {iv:b64(iv),cipher,mime:blob.type||'application/octet-stream',name:name||'Datei',size:blob.size||plain.byteLength,createdAt:now()};
+  return {iv:b64(iv),cipher,mime:inferMime(name,blob.type),name:name||'Datei',size:blob.size||plain.byteLength,createdAt:now()};
 }
 async function decryptFileBlob(rec){
+  await ensureCryptoKey();
   if(!rec||!rec.iv||!rec.cipher)throw new Error('Gespeicherte Datei ist unvollständig.');
   const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(unb64(rec.iv))},cryptoKey,rec.cipher);
   return new Blob([plain],{type:rec.mime||'application/octet-stream'});
@@ -78,59 +126,171 @@ function dataUrlToBlob(data){
   if(m[2]){const raw=atob(m[3]);const bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);return new Blob([bytes],{type:mime});}
   return new Blob([decodeURIComponent(m[3])],{type:mime});
 }
-async function storeAuBlob(fileKey,blob,name){const encrypted=await encryptFileBlob(blob,name);await dbFilePut(fileKey,encrypted);}
-async function migrateLegacyAuImages(){
+async function storeEncryptedBlob(fileKey,blob,name){const encrypted=await encryptFileBlob(blob,name);await dbFilePut(fileKey,encrypted);}
+async function storeAuBlob(fileKey,blob,name){return storeEncryptedBlob(fileKey,blob,name);}
+async function migrateDataUrlRecord(target,prefix,legacyFields=['data']){
+  if(!target||target.fileKey)return false;
+  const oldField=legacyFields.find(k=>target[k]);
+  if(!oldField)return false;
+  try{
+    const blob=dataUrlToBlob(target[oldField]);
+    const key=`${prefix}:${target.id||id()}`;
+    await storeEncryptedBlob(key,blob,target.name||'Dokument');
+    target.fileKey=key;
+    target.mime=blob.type||target.mime||target.type||'application/octet-stream';
+    legacyFields.forEach(k=>delete target[k]);
+    return true;
+  }catch(e){
+    console.warn(`Alte Datei ${prefix} konnte nicht migriert werden:`,e);
+    return false;
+  }
+}
+async function migrateLegacyStoredFiles(){
   let changed=false;
-  for(const a of state.aus||[]){
-    if(a.fileKey||(!a.data&&!a.image))continue;
-    const old=a.data||a.image;
+  for(const a of state.aus||[])changed=(await migrateDataUrlRecord(a,'au',['data','image']))||changed;
+  for(const c of state.company?.contracts||[])changed=(await migrateDataUrlRecord(c,'contract',['data']))||changed;
+  for(const d of state.documents||[])changed=(await migrateDataUrlRecord(d,'doc',['data']))||changed;
+  for(const [section,arr] of Object.entries(state.attachments||{})){
+    for(const a of arr||[])changed=(await migrateDataUrlRecord(a,`attachment:${section}`,['data']))||changed;
+  }
+  for(const n of state.notices||[]){
+    if(!n?.file||n.file.fileKey||!n.file.data)continue;
     try{
-      const blob=dataUrlToBlob(old);
-      const key=`au:${a.id||id()}`;
-      await storeAuBlob(key,blob,a.name||'Krankschreibung');
-      a.fileKey=key;a.mime=blob.type||a.mime||'image/jpeg';delete a.data;delete a.image;changed=true;
-    }catch(e){console.warn('Altes AU-Foto konnte nicht migriert werden:',e);}
+      const blob=dataUrlToBlob(n.file.data);
+      const key=`notice:${n.id||id()}`;
+      await storeEncryptedBlob(key,blob,n.file.name||n.title||'Aushang');
+      n.file.fileKey=key;n.file.mime=blob.type||n.file.mime||n.file.type||'application/octet-stream';delete n.file.data;changed=true;
+    }catch(e){console.warn('Altes Aushang-Dokument konnte nicht migriert werden:',e);}
   }
   if(changed)await persistStateOnly();
+  return changed;
+}
+function referencedFileKeys(source=state){
+  const keys=new Set(),add=k=>{if(k)keys.add(String(k));};
+  for(const x of source.company?.contracts||[])add(x.fileKey);
+  for(const n of source.notices||[])add(n.file?.fileKey);
+  for(const d of source.documents||[])add(d.fileKey);
+  for(const a of source.aus||[])add(a.fileKey);
+  for(const arr of Object.values(source.attachments||{}))for(const x of arr||[])add(x.fileKey);
+  return keys;
+}
+async function cleanupOrphanFiles(){
+  try{const refs=referencedFileKeys();for(const [key] of await dbFileEntries()){if(!refs.has(String(key)))await dbFileDelete(key);}}catch(e){console.warn('Verwaiste Dateien konnten nicht bereinigt werden:',e);}
+}
+async function cleanupLegacySessionKeys(){
+  try{for(const key of await dbKvKeys()){if(String(key).startsWith('session-key:'))await dbDelete(key);}}catch(e){console.warn('Alte Sitzungsschlüssel konnten nicht bereinigt werden:',e);}
+}
+async function getStoredFileBlob(meta){
+  if(!meta)throw new Error('Datei nicht gefunden.');
+  if(meta.fileKey){
+    const rec=await dbFileGet(meta.fileKey);
+    if(!rec)throw new Error('Die gespeicherte Datei wurde nicht gefunden.');
+    let blob=await decryptFileBlob(rec);
+    const name=meta.name||rec.name||'Dokument';
+    const mime=inferMime(name,blob.type||meta.mime||rec.mime||'');
+    if(blob.type!==mime)blob=new Blob([blob],{type:mime});
+    return {blob,name,mime};
+  }
+  const legacy=meta.data||meta.image||'';
+  if(legacy){let blob=dataUrlToBlob(legacy);const name=meta.name||'Dokument';const mime=inferMime(name,blob.type||meta.mime||'');if(blob.type!==mime)blob=new Blob([blob],{type:mime});return {blob,name,mime};}
+  throw new Error('Zu diesem Eintrag ist keine Datei gespeichert.');
+}
+async function openStoredFile(meta,title='WorksManager Dokument'){
+  try{
+    const {blob,name,mime}=await getStoredFileBlob(meta);
+    const url=URL.createObjectURL(blob);
+    if(window._wmObjectUrl)URL.revokeObjectURL(window._wmObjectUrl);
+    window._wmObjectUrl=url;
+    const safeTitle=esc(title||name||'Dokument');
+    const safeName=esc(name||title||'Dokument');
+    if(String(mime||blob.type).startsWith('image/')){
+      modal(`<div class="sheet-head"><strong>${safeTitle}</strong><button type="button" onclick="closeModal()">✕</button></div><img src="${url}" alt="${safeTitle}" style="display:block;max-width:100%;height:auto;margin:12px auto;border-radius:12px">`);
+    }else if(String(mime||blob.type)==='application/pdf'){
+      modal(`<div class="sheet-head"><strong>${safeTitle}</strong><button type="button" onclick="closeModal()">✕</button></div><iframe class="doc-frame" src="${url}" title="${safeTitle}"></iframe><p><a href="${url}" download="${safeName}" target="_blank" rel="noopener">PDF öffnen / speichern</a></p>`);
+    }else{
+      modal(`<div class="sheet-head"><strong>${safeTitle}</strong><button type="button" onclick="closeModal()">✕</button></div><p>Diese Datei kann nicht direkt angezeigt werden.</p><p><a href="${url}" download="${safeName}" target="_blank" rel="noopener">Datei öffnen / speichern</a></p>`);
+    }
+  }catch(e){console.error('Datei öffnen fehlgeschlagen:',e);alert('Die Datei konnte nicht geöffnet werden: '+(e?.message||e));}
 }
 function unb64(s){const x=atob(s);const a=new Uint8Array(x.length);for(let i=0;i<x.length;i++)a[i]=x.charCodeAt(i);return a.buffer;}
 async function deriveKey(password,salt){const base=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:210000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
-async function encryptState(){const iv=crypto.getRandomValues(new Uint8Array(12));const plain=enc.encode(JSON.stringify(state));const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},cryptoKey,plain);return {iv:b64(iv),cipher:b64(cipher),updatedAt:now()};}
+async function encryptState(){await ensureCryptoKey();const iv=crypto.getRandomValues(new Uint8Array(12));const plain=enc.encode(JSON.stringify(state));const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},cryptoKey,plain);return {iv:b64(iv),cipher:b64(cipher),updatedAt:now()};}
 async function decryptPayload(payload,key){const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(unb64(payload.iv))},key,unb64(payload.cipher));return JSON.parse(dec.decode(plain));}
 async function persistStateOnly(){
-  if(!cryptoKey)throw new Error('App ist gesperrt. Bitte erneut entsperren.');
+  await ensureCryptoKey();
   const payload=await encryptState();
   await dbPut('payload',payload);
   return true;
 }
 async function save(successMessage='Gespeichert'){
-  if(!cryptoKey)throw new Error('App ist gesperrt. Bitte erneut entsperren.');
   try{
+    await ensureCryptoKey();
     await persistStateOnly();
   }catch(e){
     console.error('WorksManager Speichern fehlgeschlagen:',e);
-    try{const stored=await dbGet('payload');if(stored)state=normalizeState(await decryptPayload(stored,cryptoKey));}catch(restoreError){console.error('Rollback fehlgeschlagen:',restoreError);}
+    try{
+      if(cryptoKey){const stored=await dbGet('payload');if(stored)state=normalizeState(await decryptPayload(stored,cryptoKey));}
+    }catch(restoreError){console.error('Rollback fehlgeschlagen:',restoreError);}
     const quota=(e&&(/quota/i.test(e.name||'')||/quota|storage|space/i.test(e.message||'')));
-    alert(quota?'Speichern fehlgeschlagen: Der lokale Gerätespeicher für WorksManager ist voll. Bitte zuerst ein verschlüsseltes Backup erstellen und nicht benötigte große Dokumente entfernen.':'Speichern fehlgeschlagen. Technischer Hinweis: '+(e?.message||e));
+    const locked=/gesperrt/i.test(String(e?.message||''));
+    try{renderAll();}catch(renderError){console.error('Rollback-Anzeige fehlgeschlagen:',renderError);}
+    alert(quota?'Speichern fehlgeschlagen: Der lokale Gerätespeicher für WorksManager ist voll. Bitte zuerst ein verschlüsseltes Backup erstellen und nicht benötigte große Dokumente entfernen.':locked?'Die App-Sitzung ist nicht mehr entsperrt. Bitte WorksManager erneut entsperren und den Vorgang wiederholen.':'Speichern fehlgeschlagen. Technischer Hinweis: '+(e?.message||e));
+    try{e._wmAlerted=true;}catch{}
     throw e;
   }
-  try{renderAll();}catch(renderError){console.error('Anzeige nach dem Speichern konnte nicht vollständig aktualisiert werden:',renderError);}
+  renderAll();
   if(successMessage)showToast(successMessage);
   return true;
 }
 
 
-async function unlock(){const pass=$('#unlockPassword').value;if(!pass){$('#unlockHint').textContent='Bitte Passwort eingeben.';return;}try{let saltB64=await dbGet('salt');if(!saltB64){const salt=crypto.getRandomValues(new Uint8Array(16));saltB64=b64(salt);await dbPut('salt',saltB64);}cryptoKey=await deriveKey(pass,new Uint8Array(unb64(saltB64)));const payload=await dbGet('payload');if(payload){state=normalizeState(await decryptPayload(payload,cryptoKey));await migrateLegacyAuImages();}else{state=blankState();await persistStateOnly();}$('#unlock').classList.add('hidden');$('#app').classList.remove('hidden');$('#unlockPassword').value='';$('#unlockHint').textContent='';renderAll();resetViewportPosition();setTimeout(resetViewportPosition,60);}catch(e){console.error('Entsperren fehlgeschlagen:',e);cryptoKey=null;$('#unlockHint').textContent='Passwort falsch oder Daten beschädigt.';}}
-function lock(){cryptoKey=null;state=blankState();$('#app').classList.add('hidden');$('#unlock').classList.remove('hidden');}
+async function unlock(){
+  const pass=$('#unlockPassword').value;
+  if(!pass){$('#unlockHint').textContent='Bitte Passwort eingeben.';return;}
+  try{
+    let saltB64=await dbGet('salt');
+    if(!saltB64){const salt=crypto.getRandomValues(new Uint8Array(16));saltB64=b64(salt);await dbPut('salt',saltB64);}
+    const candidateKey=await deriveKey(pass,new Uint8Array(unb64(saltB64)));
+    const payload=await dbGet('payload');
+    const loaded=payload?normalizeState(await decryptPayload(payload,candidateKey)):blankState();
+    cryptoKey=candidateKey;state=loaded;
+    if(!payload)await persistStateOnly();
+  }catch(e){
+    console.error('Entsperren fehlgeschlagen:',e);
+    cryptoKey=null;clearRememberedCryptoKey();
+    $('#app').classList.add('hidden');$('#unlock').classList.remove('hidden');
+    $('#unlockHint').textContent='Passwort falsch oder Daten beschädigt.';return;
+  }
+  $('#unlockHint').textContent='Daten werden vorbereitet …';
+  let maintenanceWarning=false;
+  try{
+    await cleanupLegacySessionKeys();
+    await migrateLegacyStoredFiles();
+    // Normalisierte IDs und Datenstruktur immer dauerhaft speichern. So bleiben auch alte
+    // Einträge nach einem Neustart eindeutig lösch- und auffindbar.
+    await persistStateOnly();
+    await cleanupOrphanFiles();
+  }catch(e){maintenanceWarning=true;console.error('Dateimigration/Bereinigung fehlgeschlagen:',e);}
+  $('#unlock').classList.add('hidden');$('#app').classList.remove('hidden');$('#unlockPassword').value='';$('#unlockHint').textContent='';
+  renderAll();resetViewportPosition();setTimeout(resetViewportPosition,60);
+  if(maintenanceWarning)showToast('Alte Dateien konnten teilweise nicht optimiert werden.','error');
+}
+function lock(){clearRememberedCryptoKey();cryptoKey=null;state=blankState();closeModal();$('#moreMenu').classList.add('hidden');$('#app').classList.add('hidden');$('#unlock').classList.remove('hidden');}
 
 function resetViewportPosition(){
   try{document.documentElement.scrollLeft=0;document.body.scrollLeft=0;window.scrollTo({top:0,left:0,behavior:'auto'});}catch{}
 }
 function go(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id===name));$$('.nav-btn[data-go]').forEach(b=>b.classList.toggle('active',b.dataset.go===name));$('#moreMenu').classList.add('hidden');window.scrollTo({top:0,left:0,behavior:'smooth'});}
 
-function renderAll(){renderDashboard();renderCompany();renderShifts();renderMeetings();renderNotices();renderDocs();renderAUs();renderChild();renderRehab();renderStairs();renderAttachments();renderAnnualReport();}
-function renderDashboard(){const auDays=state.aus.reduce((sum,a)=>sum+daysInclusive(a.from,a.to),0);const extraDocs=Object.values(state.attachments||{}).reduce((n,a)=>n+(Array.isArray(a)?a.length:0),0);$('#statAuDays').textContent=auDays;$('#statAuCases').textContent=state.aus.length;$('#statChildCases').textContent=state.childSick.length;$('#statShifts').textContent=state.shifts.length;$('#statDocs').textContent=state.documents.length+state.company.contracts.length+state.notices.filter(n=>n.file).length+extraDocs;$('#welcomeText').textContent=state.company.employeeName?`${state.company.employeeName}${state.company.name?' · '+state.company.name:''}`:'Noch kein Mitarbeitername hinterlegt.';const today=localDateValue();const stairsToday=(state.stairs||[]).filter(x=>x.date===today).reduce((n,x)=>n+(Number(x.count)||0),0);const stairStat=$('#statStairsToday');if(stairStat)stairStat.textContent=stairsToday;}
-function renderCompany(){const c=state.company;$('#companyName').value=c.name||'';$('#employeeName').value=c.employeeName||'';$('#contractStart').value=c.contractStart||'';$('#employeeNo').value=c.employeeNo||'';$('#companyNotes').value=c.notes||'';$('#contractList').innerHTML=(c.contracts||[]).map(x=>itemHtml('Arbeitsvertrag',x.name||'Dokument',x.createdAt,[`<button onclick="viewDoc('${x.id}','contract')">Öffnen</button>`,`<button onclick="delContract('${x.id}')">Löschen</button>`])).join('')||empty('Noch kein Arbeitsvertrag gespeichert.');}
+function renderAll(){
+  const renderers=[['Dashboard',renderDashboard],['Firma',renderCompany],['Schichten',renderShifts],['Gespräche',renderMeetings],['Aushänge',renderNotices],['Dokumente',renderDocs],['AU',renderAUs],['Kind krank',renderChild],['Reha',renderRehab],['Treppen',renderStairs],['Anhänge',renderAttachments],['Jahresbericht',renderAnnualReport]];
+  const errors=[];
+  for(const [name,fn] of renderers){try{fn();}catch(e){errors.push(name);console.error(`Renderfehler in ${name}:`,e);}}
+  if(errors.length)showToast(`Anzeigeproblem: ${errors.join(', ')}`,'error');
+}
+
+function renderDashboard(){const auDays=countUniqueRangeDays(state.aus);const extraDocs=Object.values(state.attachments||{}).reduce((n,a)=>n+(Array.isArray(a)?a.length:0),0);$('#statAuDays').textContent=auDays;$('#statAuCases').textContent=state.aus.length;$('#statChildCases').textContent=state.childSick.length;$('#statShifts').textContent=state.shifts.length;$('#statDocs').textContent=state.documents.length+state.company.contracts.length+state.notices.filter(n=>n.file).length+extraDocs;$('#welcomeText').textContent=state.company.employeeName?`${state.company.employeeName}${state.company.name?' · '+state.company.name:''}`:'Noch kein Mitarbeitername hinterlegt.';const today=localDateValue();const stairsToday=(state.stairs||[]).filter(x=>x.date===today).reduce((n,x)=>n+(Number(x.count)||0),0);const stairStat=$('#statStairsToday');if(stairStat)stairStat.textContent=stairsToday;}
+function renderCompany(){const c=state.company;$('#companyName').value=c.name||'';$('#employeeName').value=c.employeeName||'';$('#contractStart').value=c.contractStart||'';$('#employeeNo').value=c.employeeNo||'';$('#companyNotes').value=c.notes||'';$('#contractList').innerHTML=(c.contracts||[]).map(x=>itemHtml('Arbeitsvertrag',esc(x.name||'Dokument'),x.createdAt,[`<button onclick="viewDoc('${x.id}','contract')">Öffnen</button>`,`<button onclick="delContract('${x.id}')">Löschen</button>`])).join('')||empty('Noch kein Arbeitsvertrag gespeichert.');}
 function renderShifts(){const arr=[...state.shifts].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#shiftList').innerHTML=arr.map(s=>itemHtml(`${fmtDate(s.date)} · ${esc(s.shift||'Schicht')}`,`${esc(s.start||'—')}–${esc(s.end||'—')}${s.note?' · '+esc(s.note):''}`,s.createdAt,[`<button onclick="delShift('${s.id}')">Löschen</button>`])).join('')||empty('Noch keine Schichten gespeichert.');}
 function renderMeetings(){const arr=[...state.meetings].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#meetingList').innerHTML=arr.map(m=>itemHtml(`${esc(m.type)} · ${fmtDate(m.date)}`,`${esc(m.time||'')} ${esc(m.partner||'')}${m.place?' · '+esc(m.place):''}${m.note?' · '+esc(m.note):''}`,m.createdAt,[`<button onclick="delMeeting('${m.id}')">Löschen</button>`])).join('')||empty('Noch keine Einträge.');}
 function renderNotices(){const arr=[...state.notices].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#noticeList').innerHTML=arr.map(n=>itemHtml(`${esc(n.type)} · ${esc(n.title||'Aushang')}`,`${fmtDate(n.date)}${n.note?' · '+esc(n.note):''}`,n.createdAt,[n.file?`<button onclick="viewDoc('${n.id}','notice')">Dokument</button>`:'',`<button onclick="delNotice('${n.id}')">Löschen</button>`])).join('')||empty('Noch keine Aushänge.');}
@@ -145,7 +305,11 @@ function auDates(item){
 }
 function isoDayNumber(v){
   const m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
-  return m?Math.floor(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3]))/86400000):null;
+  if(!m)return null;
+  const y=Number(m[1]),mo=Number(m[2]),d=Number(m[3]);
+  const t=Date.UTC(y,mo-1,d),x=new Date(t);
+  if(x.getUTCFullYear()!==y||x.getUTCMonth()!==mo-1||x.getUTCDate()!==d)return null;
+  return Math.floor(t/86400000);
 }
 function daysInPeriod(from,to,start,end){
   const f=isoDayNumber(from),t=isoDayNumber(to),s=isoDayNumber(start),e=isoDayNumber(end);
@@ -158,20 +322,33 @@ function auOverlapsPeriod(item,start,end){
 }
 function monthBounds(key){
   if(!/^\d{4}-\d{2}$/.test(key||''))return null;
-  const [y,m]=key.split('-').map(Number),last=new Date(Date.UTC(y,m,0)).getUTCDate();
+  const [y,m]=key.split('-').map(Number);if(m<1||m>12)return null;
+  const last=new Date(Date.UTC(y,m,0)).getUTCDate();
   return {start:`${y}-${String(m).padStart(2,'0')}-01`,end:`${y}-${String(m).padStart(2,'0')}-${String(last).padStart(2,'0')}`};
 }
 function yearBounds(year){const y=String(year||'');return /^\d{4}$/.test(y)?{start:`${y}-01-01`,end:`${y}-12-31`}:null;}
+function countUniqueRangeDays(items,start='',end=''){
+  const clampStart=start?isoDayNumber(start):null,clampEnd=end?isoDayNumber(end):null,ranges=[];
+  for(const item of items||[]){
+    const d=auDates(item),a=isoDayNumber(d.from),b=isoDayNumber(d.to);if(a===null||b===null)continue;
+    let lo=Math.min(a,b),hi=Math.max(a,b);
+    if(clampStart!==null)lo=Math.max(lo,clampStart);if(clampEnd!==null)hi=Math.min(hi,clampEnd);
+    if(hi>=lo)ranges.push([lo,hi]);
+  }
+  ranges.sort((x,y)=>x[0]-y[0]);let total=0,lo=null,hi=null;
+  for(const [a,b] of ranges){if(lo===null){lo=a;hi=b;continue;}if(a<=hi+1){hi=Math.max(hi,b);}else{total+=hi-lo+1;lo=a;hi=b;}}
+  if(lo!==null)total+=hi-lo+1;return total;
+}
 function auStatsForPeriod(items,start,end){
   const rows=items.filter(x=>auOverlapsPeriod(x,start,end));
-  return {cases:rows.length,days:rows.reduce((n,x)=>{const d=auDates(x);return n+daysInPeriod(d.from,d.to,start,end);},0)};
+  return {cases:rows.length,days:countUniqueRangeDays(rows,start,end)};
 }
 function renderAUs(){
   // IDs werden bei älteren Datensätzen beim Laden ergänzt. Die Liste behält zusätzlich
   // den Originalindex als Fallback, damit auch alte Einträge zuverlässig löschbar sind.
   const arr=state.aus.map((a,index)=>({a,index})).sort((x,y)=>(y.a.from||y.a.to||y.a.createdAt||'').localeCompare(x.a.from||x.a.to||x.a.createdAt||''));
   const records=arr.map(x=>x.a);
-  const allDays=records.reduce((sum,a)=>{const d=auDates(a);return sum+daysInclusive(d.from,d.to);},0);
+  const allDays=countUniqueRangeDays(records);
   $('#statAuDays').textContent=allDays;$('#statAuCases').textContent=records.length;
 
   const today=localDateValue(),currentMonth=today.slice(0,7),currentYear=today.slice(0,4);
@@ -203,7 +380,7 @@ function renderAUs(){
     const title=hasDates?(d.from===d.to?fmtDate(d.from):`${fmtDate(d.from)}–${fmtDate(d.to)}`):'Krankschreibung ohne Datumsangabe';
     const meta=a.name?esc(a.name):'Foto gespeichert';
     const key=esc(String(a.id||''));
-    return itemHtml(title,meta,a.createdAt,[(a.data||a.image)?`<button type="button" data-au-view="${key}" data-au-index="${index}">Foto ansehen</button>`:'',`<button type="button" data-au-delete="${key}" data-au-index="${index}">Löschen</button>`]);
+    return itemHtml(title,meta,a.createdAt,[(a.fileKey||a.data||a.image)?`<button type="button" data-au-view="${key}" data-au-index="${index}">Foto ansehen</button>`:'',`<button type="button" data-au-delete="${key}" data-au-index="${index}">Löschen</button>`]);
   }).join('')||empty('Noch keine Krankschreibung gespeichert.');
 
   list.querySelectorAll('[data-au-view]').forEach(btn=>btn.addEventListener('click',()=>viewAuRecord(btn.dataset.auView,btn.dataset.auIndex)));
@@ -241,18 +418,32 @@ async function saveStairEntry(){
   if(!time)return alert('Bitte eine Uhrzeit auswählen.');
   if(!Number.isFinite(count)||count<1)return alert('Bitte eine Anzahl ab 1 eintragen.');
   state.stairs.push({id:id(),date,time,count,reason,createdAt:now()});
-  $('#stairCount').value='';$('#stairReason').value='';$('#stairDate').value=localDateValue();$('#stairTime').value=localTimeValue();
   await save('Treppen gespeichert');
+  $('#stairCount').value='';$('#stairReason').value='';$('#stairDate').value=localDateValue();$('#stairTime').value=localTimeValue();
 }
-window.delStairEntry=async ident=>{if(confirm('Treppeneintrag löschen?')){state.stairs=state.stairs.filter(x=>x.id!==ident);await save('Treppeneintrag gelöscht');}};
+window.delStairEntry=ident=>runAction(async()=>{if(confirm('Treppeneintrag löschen?'))await deleteById('stairs',ident,'Treppeneintrag gelöscht');},'Treppeneintrag löschen')();
 
-function renderChild(){const arr=[...state.childSick].sort((a,b)=>(b.from||'').localeCompare(a.from||''));$('#childList').innerHTML=arr.map(x=>itemHtml(`${esc(x.child||'Kind')} · ${fmtDate(x.from)}–${fmtDate(x.to)}`,x.note||'',x.createdAt,[`<button onclick="delChild('${x.id}')">Löschen</button>`])).join('')||empty('Noch keine Einträge.');}
+function renderChild(){const arr=[...state.childSick].sort((a,b)=>(b.from||'').localeCompare(a.from||''));$('#childList').innerHTML=arr.map(x=>itemHtml(`${esc(x.child||'Kind')} · ${fmtDate(x.from)}–${fmtDate(x.to)}`,esc(x.note||''),x.createdAt,[`<button onclick="delChild('${x.id}')">Löschen</button>`])).join('')||empty('Noch keine Einträge.');}
 function renderRehab(){const arr=[...state.rehabs].sort((a,b)=>(b.from||'').localeCompare(a.from||''));$('#rehabList').innerHTML=arr.map(x=>itemHtml(`${esc(x.status)} · ${esc(x.clinic||'Reha')}`,`${fmtDate(x.from)}–${fmtDate(x.to)}${x.note?' · '+esc(x.note):''}`,x.createdAt,[`<button onclick="delRehab('${x.id}')">Löschen</button>`])).join('')||empty('Noch keine Reha-Einträge.');}
 const attachmentUi={company:'companyPhotoList',shift:'shiftPhotoList',meetings:'meetingPhotoList',notices:'noticePhotoList',family:'familyPhotoList',rehab:'rehabPhotoList'};
 function renderAttachments(){for(const [section,listId] of Object.entries(attachmentUi)){const el=$('#'+listId);if(!el)continue;const arr=[...(state.attachments?.[section]||[])].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));el.innerHTML=arr.map(x=>itemHtml(esc(x.name||'Foto / Dokument'),'Nur gespeichert · keine Analyse',x.createdAt,[`<button onclick="viewAttachment('${section}','${x.id}')">Öffnen</button>`,`<button onclick="delAttachment('${section}','${x.id}')">Löschen</button>`])).join('')||empty('Noch keine Fotos oder Dokumente gespeichert.');}}
-async function saveGenericAttachment(section,inputId){const input=$('#'+inputId);const f=input?.files?.[0];if(!f){alert('Bitte zuerst ein Foto oder eine Datei auswählen.');return;}const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);if(!state.attachments[section])state.attachments[section]=[];state.attachments[section].push({id:id(),name:f.name||'Foto',mime:f.type||'',data,createdAt:now()});input.value='';await save('Foto / Dokument gespeichert');}
-window.viewAttachment=(section,ident)=>{const obj=(state.attachments?.[section]||[]).find(x=>x.id===ident);if(!obj?.data)return;const w=window.open();if(!w)return alert('Popup wurde blockiert.');if(obj.data.startsWith('data:application/pdf'))w.location=obj.data;else w.document.write(`<title>WorksManager Dokument</title><img src="${obj.data}" style="max-width:100%;height:auto">`);};
-window.delAttachment=async(section,ident)=>{if(confirm('Foto / Dokument löschen?')){state.attachments[section]=(state.attachments[section]||[]).filter(x=>x.id!==ident);await save();}};
+async function saveGenericAttachment(section,inputId){
+  const input=$('#'+inputId),f=input?.files?.[0];if(!f){alert('Bitte zuerst ein Foto oder eine Datei auswählen.');return;}if(!isSupportedDocument(f)){alert('Bitte ein Foto oder eine PDF-Datei auswählen.');return;}
+  const recordId=id(),fileKey=`attachment:${section}:${recordId}`;
+  try{
+    await storeEncryptedBlob(fileKey,f,f.name||'Foto / Dokument');
+    if(!state.attachments[section])state.attachments[section]=[];
+    state.attachments[section].push({id:recordId,name:f.name||'Foto / Dokument',mime:f.type||'',fileKey,createdAt:now()});
+    await save('Foto / Dokument gespeichert');input.value='';
+  }catch(e){await dbFileDelete(fileKey).catch(()=>{});console.error('Anhang speichern fehlgeschlagen:',e);showFileError('Foto / Dokument speichern',e);}
+}
+window.viewAttachment=async(section,ident)=>{const obj=(state.attachments?.[section]||[]).find(x=>x.id===ident);if(!obj){alert('Datei nicht gefunden.');return;}await openStoredFile(obj,obj.name||'WorksManager Dokument');};
+window.delAttachment=async(section,ident)=>{
+  if(!confirm('Foto / Dokument löschen?'))return;
+  const arr=state.attachments?.[section]||[],obj=arr.find(x=>x.id===ident);if(!obj){alert('Der Eintrag konnte nicht gefunden werden.');return;}
+  state.attachments[section]=arr.filter(x=>x.id!==ident);
+  try{await save('Foto / Dokument gelöscht');if(obj.fileKey)await dbFileDelete(obj.fileKey).catch(()=>{});}catch(e){console.error('Anhang löschen fehlgeschlagen:',e);}
+};
 
 function itemHtml(title,meta,created,actions=[]){return `<div class="item"><div class="item-top"><div><div class="item-title">${title}</div><div class="item-meta">${meta||''}</div></div></div><div class="item-actions">${actions.filter(Boolean).join('')}</div></div>`;}
 function empty(t){return `<div class="muted">${esc(t)}</div>`;}
@@ -262,29 +453,22 @@ function closeModal(){if(window._wmObjectUrl){URL.revokeObjectURL(window._wmObje
 
 async function saveCompany(){state.company={...state.company,name:$('#companyName').value.trim(),employeeName:$('#employeeName').value.trim(),contractStart:$('#contractStart').value,employeeNo:$('#employeeNo').value.trim(),notes:$('#companyNotes').value.trim()};await save();}
 async function saveContractFile(){
-  const input=$('#contractFile'),f=input?.files?.[0];
-  if(!f){alert('Bitte zuerst ein Foto oder eine Datei auswählen.');return;}
-  const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);
-  state.company.contracts.push({id:id(),name:f.name||'Arbeitsvertrag',mime:f.type||'',data,createdAt:now()});
-  input.value='';
-  await save('Arbeitsvertrag gespeichert');
+  const input=$('#contractFile'),f=input?.files?.[0];if(!f){alert('Bitte zuerst ein Foto oder eine Datei auswählen.');return;}if(!isSupportedDocument(f)){alert('Bitte ein Foto oder eine PDF-Datei auswählen.');return;}
+  const recordId=id(),fileKey=`contract:${recordId}`;
+  try{
+    await storeEncryptedBlob(fileKey,f,f.name||'Arbeitsvertrag');
+    state.company.contracts.push({id:recordId,name:f.name||'Arbeitsvertrag',mime:f.type||'',fileKey,createdAt:now()});
+    await save('Arbeitsvertrag gespeichert');input.value='';
+  }catch(e){await dbFileDelete(fileKey).catch(()=>{});console.error('Arbeitsvertrag speichern fehlgeschlagen:',e);showFileError('Arbeitsvertrag speichern',e);}
 }
-function openStoredData(data,title='WorksManager Dokument'){
-  if(!data){alert('Zu diesem Eintrag ist keine Datei gespeichert.');return;}
-  const w=window.open('','_blank');
-  if(!w){alert('Das Öffnen wurde vom Browser blockiert. Bitte Pop-ups für WorksManager erlauben.');return;}
-  if(String(data).startsWith('data:application/pdf')){w.location.href=data;return;}
-  w.document.open();
-  w.document.write(`<title>${esc(title)}</title><meta name="viewport" content="width=device-width,initial-scale=1"><body style="margin:0;background:#111;display:flex;justify-content:center"><img src="${data}" alt="${esc(title)}" style="max-width:100%;height:auto;object-fit:contain"></body>`);
-  w.document.close();
-}
-window.viewDoc=(ident,type)=>{
-  let obj=null,data='',title='WorksManager Dokument';
-  if(type==='contract'){obj=(state.company.contracts||[]).find(x=>x.id===ident);data=obj?.data||'';title=obj?.name||'Arbeitsvertrag';}
-  else if(type==='notice'){obj=(state.notices||[]).find(x=>x.id===ident);data=obj?.file?.data||'';title=obj?.file?.name||obj?.title||'Aushang';}
-  else if(type==='doc'){obj=(state.documents||[]).find(x=>x.id===ident);data=obj?.data||'';title=obj?.name||'Dokument';}
-  else if(type==='au'){obj=(state.aus||[]).find(x=>x.id===ident);data=obj?.data||obj?.image||'';title=obj?.name||'Krankschreibung';}
-  openStoredData(data,title);
+window.viewDoc=async(ident,type)=>{
+  let obj=null,title='WorksManager Dokument';
+  if(type==='contract'){obj=(state.company.contracts||[]).find(x=>x.id===ident);title=obj?.name||'Arbeitsvertrag';}
+  else if(type==='notice'){const n=(state.notices||[]).find(x=>x.id===ident);obj=n?.file||null;title=obj?.name||n?.title||'Aushang';}
+  else if(type==='doc'){obj=(state.documents||[]).find(x=>x.id===ident);title=obj?.name||'Dokument';}
+  else if(type==='au'){obj=(state.aus||[]).find(x=>x.id===ident);title=obj?.name||'Krankschreibung';}
+  if(!obj){alert('Der Eintrag konnte nicht gefunden werden.');return;}
+  await openStoredFile(obj,title);
 };
 async function deleteById(listName,ident,message){
   const list=state[listName];
@@ -294,28 +478,29 @@ async function deleteById(listName,ident,message){
   if(state[listName].length===before){alert('Der Eintrag konnte nicht gefunden werden. Bitte die App einmal neu öffnen und erneut versuchen.');return;}
   await save(message);
 }
-window.delContract=async ident=>{if(confirm('Arbeitsvertrag wirklich löschen?')){const before=state.company.contracts.length;state.company.contracts=state.company.contracts.filter(x=>x.id!==ident);if(state.company.contracts.length===before){alert('Der Eintrag konnte nicht gefunden werden.');return;}await save('Arbeitsvertrag gelöscht');}};
-window.delShift=async ident=>{if(confirm('Schichteintrag wirklich löschen?'))await deleteById('shifts',ident,'Schicht gelöscht');};
-window.delMeeting=async ident=>{if(confirm('Gesprächseintrag wirklich löschen?'))await deleteById('meetings',ident,'Eintrag gelöscht');};
-window.delNotice=async ident=>{if(confirm('Aushang wirklich löschen?'))await deleteById('notices',ident,'Aushang gelöscht');};
-window.delDoc=async ident=>{if(confirm('Dokument wirklich löschen?'))await deleteById('documents',ident,'Dokument gelöscht');};
+window.delContract=async ident=>{
+  if(!confirm('Arbeitsvertrag wirklich löschen?'))return;const obj=(state.company.contracts||[]).find(x=>x.id===ident);if(!obj){alert('Der Eintrag konnte nicht gefunden werden.');return;}
+  state.company.contracts=state.company.contracts.filter(x=>x.id!==ident);try{await save('Arbeitsvertrag gelöscht');if(obj.fileKey)await dbFileDelete(obj.fileKey).catch(()=>{});}catch(e){}
+};
+window.delShift=ident=>runAction(async()=>{if(confirm('Schichteintrag wirklich löschen?'))await deleteById('shifts',ident,'Schicht gelöscht');},'Schicht löschen')();
+window.delMeeting=ident=>runAction(async()=>{if(confirm('Gesprächseintrag wirklich löschen?'))await deleteById('meetings',ident,'Eintrag gelöscht');},'Gespräch löschen')();
+window.delNotice=async ident=>{
+  if(!confirm('Aushang wirklich löschen?'))return;const obj=(state.notices||[]).find(x=>x.id===ident);if(!obj){alert('Der Eintrag konnte nicht gefunden werden.');return;}
+  state.notices=state.notices.filter(x=>x.id!==ident);try{await save('Aushang gelöscht');if(obj.file?.fileKey)await dbFileDelete(obj.file.fileKey).catch(()=>{});}catch(e){}
+};
+window.delDoc=async ident=>{
+  if(!confirm('Dokument wirklich löschen?'))return;const obj=(state.documents||[]).find(x=>x.id===ident);if(!obj){alert('Der Eintrag konnte nicht gefunden werden.');return;}
+  state.documents=state.documents.filter(x=>x.id!==ident);try{await save('Dokument gelöscht');if(obj.fileKey)await dbFileDelete(obj.fileKey).catch(()=>{});}catch(e){}
+};
 function findAuRecordIndex(ident,indexFallback){
   const key=String(ident??'');
   let i=key?state.aus.findIndex(x=>String(x?.id??'')===key):-1;
-  if(i<0){const fallback=Number(indexFallback);if(Number.isInteger(fallback)&&fallback>=0&&fallback<state.aus.length)i=fallback;}
+  if(i<0&&!key){const fallback=Number(indexFallback);if(Number.isInteger(fallback)&&fallback>=0&&fallback<state.aus.length)i=fallback;}
   return i;
 }
 async function viewAuRecord(ident,indexFallback){
-  const i=findAuRecordIndex(ident,indexFallback),obj=i>=0?state.aus[i]:null;
-  if(!obj){alert('Die Krankschreibung konnte nicht gefunden werden.');return;}
-  try{
-    if(obj.fileKey){
-      const rec=await dbFileGet(obj.fileKey);if(!rec)throw new Error('Das gespeicherte Foto wurde nicht gefunden.');
-      const blob=await decryptFileBlob(rec);const url=URL.createObjectURL(blob);window._wmObjectUrl=url;
-      modal(`<div class="sheet-head"><strong>${esc(obj.name||'Krankschreibung')}</strong><button type="button" onclick="closeModal()">✕</button></div><img src="${url}" alt="Krankschreibung" style="display:block;max-width:100%;height:auto;margin:12px auto;border-radius:12px">`);return;
-    }
-    openStoredData(obj.data||obj.image||'',obj.name||'Krankschreibung');
-  }catch(e){console.error('AU-Foto öffnen fehlgeschlagen:',e);alert('Das Foto konnte nicht geöffnet werden: '+(e?.message||e));}
+  const i=findAuRecordIndex(ident,indexFallback),obj=i>=0?state.aus[i]:null;if(!obj){alert('Die Krankschreibung konnte nicht gefunden werden.');return;}
+  await openStoredFile(obj,obj.name||'Krankschreibung');
 }
 async function deleteAuRecord(ident,indexFallback){
   if(!confirm('Krankschreibung wirklich löschen?'))return;
@@ -325,30 +510,46 @@ async function deleteAuRecord(ident,indexFallback){
   state.aus=state.aus.filter((_,idx)=>idx!==i);
   try{
     await save('Krankschreibung gelöscht');
-    if(removed?.fileKey)dbFileDelete(removed.fileKey).catch(e=>console.warn('Verwaistes AU-Foto konnte nicht entfernt werden:',e));
+    if(removed?.fileKey)await dbFileDelete(removed.fileKey).catch(e=>console.warn('Verwaistes AU-Foto konnte nicht entfernt werden:',e));
   }catch(e){console.error('AU löschen fehlgeschlagen:',e);}
 }
 window.viewAuAt=index=>viewAuRecord('',index);
 window.delAuAt=index=>deleteAuRecord('',index);
 window.delAu=ident=>deleteAuRecord(ident,-1);
-window.delChild=async ident=>{if(confirm('Kind-krank-Eintrag wirklich löschen?'))await deleteById('childSick',ident,'Eintrag gelöscht');};
-window.delRehab=async ident=>{if(confirm('Reha-Eintrag wirklich löschen?'))await deleteById('rehabs',ident,'Reha-Eintrag gelöscht');};
-async function saveMeeting(){state.meetings.push({id:id(),type:$('#meetingType').value,date:$('#meetingDate').value,time:$('#meetingTime').value,partner:$('#meetingPartner').value.trim(),place:$('#meetingPlace').value.trim(),note:$('#meetingNote').value.trim(),createdAt:now()});await save();['meetingDate','meetingTime','meetingPartner','meetingPlace','meetingNote'].forEach(i=>$('#'+i).value='');}
-async function saveNotice(){const f=$('#noticeFile').files[0];let file=null;if(f)file={name:f.name,type:f.type,data:f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f)};state.notices.push({id:id(),type:$('#noticeType').value,date:$('#noticeDate').value,title:$('#noticeTitle').value.trim(),note:$('#noticeNote').value.trim(),file,createdAt:now()});await save();$('#noticeTitle').value='';$('#noticeNote').value='';$('#noticeFile').value='';}
-async function saveChild(){state.childSick.push({id:id(),child:$('#childName').value.trim(),from:$('#childFrom').value,to:$('#childTo').value,note:$('#childNote').value.trim(),createdAt:now()});await save();}
-async function saveRehab(){state.rehabs.push({id:id(),status:$('#rehabStatus').value,clinic:$('#rehabClinic').value.trim(),from:$('#rehabFrom').value,to:$('#rehabTo').value,note:$('#rehabNote').value.trim(),createdAt:now()});await save();}
+window.delChild=ident=>runAction(async()=>{if(confirm('Kind-krank-Eintrag wirklich löschen?'))await deleteById('childSick',ident,'Eintrag gelöscht');},'Kind-krank-Eintrag löschen')();
+window.delRehab=ident=>runAction(async()=>{if(confirm('Reha-Eintrag wirklich löschen?'))await deleteById('rehabs',ident,'Reha-Eintrag gelöscht');},'Reha-Eintrag löschen')();
+async function saveMeeting(){const date=$('#meetingDate').value;if(!date){alert('Bitte ein Datum auswählen.');return;}state.meetings.push({id:id(),type:$('#meetingType').value,date,time:$('#meetingTime').value,partner:$('#meetingPartner').value.trim(),place:$('#meetingPlace').value.trim(),note:$('#meetingNote').value.trim(),createdAt:now()});await save('Gespräch gespeichert');['meetingDate','meetingTime','meetingPartner','meetingPlace','meetingNote'].forEach(i=>$('#'+i).value='');}
+async function saveNotice(){
+  const f=$('#noticeFile').files[0],recordId=id();let file=null,fileKey='';
+  if(f&&!isSupportedDocument(f)){alert('Bitte ein Foto oder eine PDF-Datei auswählen.');return;}
+  try{
+    if(f){fileKey=`notice:${recordId}`;await storeEncryptedBlob(fileKey,f,f.name||'Aushang');file={name:f.name,type:f.type,mime:f.type||'',fileKey};}
+    state.notices.push({id:recordId,type:$('#noticeType').value,date:$('#noticeDate').value,title:$('#noticeTitle').value.trim(),note:$('#noticeNote').value.trim(),file,createdAt:now()});
+    await save('Aushang gespeichert');$('#noticeTitle').value='';$('#noticeNote').value='';$('#noticeFile').value='';
+  }catch(e){if(fileKey)await dbFileDelete(fileKey).catch(()=>{});console.error('Aushang speichern fehlgeschlagen:',e);showFileError('Aushang speichern',e);}
+}
+async function saveChild(){const from=$('#childFrom').value,to=$('#childTo').value;if(!from||!to){alert('Bitte Von- und Bis-Datum auswählen.');return;}if(to<from){alert('Das Bis-Datum darf nicht vor dem Von-Datum liegen.');return;}state.childSick.push({id:id(),child:$('#childName').value.trim(),from,to,note:$('#childNote').value.trim(),createdAt:now()});await save('Kind-krank-Eintrag gespeichert');$('#childName').value='';$('#childFrom').value='';$('#childTo').value='';$('#childNote').value='';}
+async function saveRehab(){const from=$('#rehabFrom').value,to=$('#rehabTo').value;if(from&&to&&to<from){alert('Das Bis-Datum darf nicht vor dem Von-Datum liegen.');return;}state.rehabs.push({id:id(),status:$('#rehabStatus').value,clinic:$('#rehabClinic').value.trim(),from,to,note:$('#rehabNote').value.trim(),createdAt:now()});await save('Reha-Eintrag gespeichert');$('#rehabClinic').value='';$('#rehabFrom').value='';$('#rehabTo').value='';$('#rehabNote').value='';}
 
-async function selectedFileData(inputId){const f=$(inputId).files[0];if(!f)return {name:'',mime:'',data:''};const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);return {name:f.name,mime:f.type,data};}
 async function addManualShift(){modal(`<div class="sheet-head"><strong>Schicht hinzufügen</strong><button onclick="closeModal()">✕</button></div><div class="review-grid"><label>Datum<input id="mShiftDate" type="date"></label><label>Schicht<input id="mShiftName" placeholder="Früh / Spät / Nacht"></label><label>Von<input id="mShiftStart" type="time"></label><label>Bis<input id="mShiftEnd" type="time"></label><label class="wide">Notiz<input id="mShiftNote"></label><button class="primary wide" onclick="commitManualShift()">Speichern</button></div>`);}
-window.commitManualShift=async()=>{state.shifts.push({id:id(),date:$('#mShiftDate').value,shift:$('#mShiftName').value,start:$('#mShiftStart').value,end:$('#mShiftEnd').value,note:$('#mShiftNote').value,createdAt:now()});await save();closeModal();};
-async function saveSimpleDoc(type){const map={payroll:['payrollImage','payrollMonth'],stamp:['stampImage','stampMonth'],workplan:['workplanImage','workplanMonth']};const cfg=map[type];if(!cfg)return;const fileEl=$('#'+cfg[0]),monthEl=$('#'+cfg[1]);const f=fileEl?.files?.[0];if(!f){alert('Bitte zuerst ein Foto oder eine Datei auswählen.');return;}const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);state.documents.push({id:id(),type,month:monthEl?.value||'',name:f.name||'Dokument',mime:f.type||'',data,createdAt:now()});fileEl.value='';await save('Dokument gespeichert');}
+window.commitManualShift=async()=>{const date=$('#mShiftDate').value,shift=$('#mShiftName').value.trim();if(!date){alert('Bitte ein Datum auswählen.');return;}if(!shift){alert('Bitte eine Schicht eintragen.');return;}try{state.shifts.push({id:id(),date,shift,start:$('#mShiftStart').value,end:$('#mShiftEnd').value,note:$('#mShiftNote').value.trim(),createdAt:now()});await save('Schicht gespeichert');closeModal();}catch(e){if(!e?._wmAlerted)console.error('Schicht speichern fehlgeschlagen:',e);}};
+async function saveSimpleDoc(type){
+  const map={payroll:['payrollImage','payrollMonth'],stamp:['stampImage','stampMonth'],workplan:['workplanImage','workplanMonth']},cfg=map[type];if(!cfg)return;
+  const fileEl=$('#'+cfg[0]),monthEl=$('#'+cfg[1]),f=fileEl?.files?.[0];if(!f){alert('Bitte zuerst ein Foto oder eine Datei auswählen.');return;}if(!isSupportedDocument(f)){alert('Bitte ein Foto oder eine PDF-Datei auswählen.');return;}
+  const recordId=id(),fileKey=`doc:${recordId}`;
+  try{
+    await storeEncryptedBlob(fileKey,f,f.name||'Dokument');
+    state.documents.push({id:recordId,type,month:monthEl?.value||'',name:f.name||'Dokument',mime:f.type||'',fileKey,createdAt:now()});
+    await save('Dokument gespeichert');fileEl.value='';
+  }catch(e){await dbFileDelete(fileKey).catch(()=>{});console.error('Dokument speichern fehlgeschlagen:',e);showFileError('Dokument speichern',e);}
+}
 async function saveAuPhoto(){
   const btn=$('#saveAuPhoto');
   const f=$('#auImage')?.files?.[0],from=$('#auFrom')?.value||'',to=$('#auTo')?.value||from;
   if(!from){alert('Bitte den ersten Krankheitstag im Kalender auswählen.');return;}
   if(to<from){alert('Das Bis-Datum darf nicht vor dem Von-Datum liegen.');return;}
   if(!f){alert('Bitte zuerst ein Foto der Krankschreibung auswählen.');return;}
-  if(!String(f.type||'').startsWith('image/')){alert('Bitte ein Foto auswählen.');return;}
+  if(!isImageFile(f)){alert('Bitte ein Foto auswählen.');return;}
 
   const oldText=btn?.textContent||'Krankschreibung speichern';
   if(btn){btn.disabled=true;btn.textContent='Wird gespeichert …';}
@@ -357,7 +558,7 @@ async function saveAuPhoto(){
   let fileKey='';
   try{
     const recordId=id();fileKey=`au:${recordId}`;
-    let blob;try{blob=await compressImageBlob(f,1200,.64);}catch(e){console.warn('Komprimierung fehlgeschlagen, Originalfoto wird verschlüsselt gespeichert.',e);blob=f;}
+    let blob;try{blob=await compressImageBlob(f,1800,.78);}catch(e){console.warn('Komprimierung fehlgeschlagen, Originalfoto wird verschlüsselt gespeichert.',e);blob=f;}
     await storeAuBlob(fileKey,blob,f.name||'Krankschreibung');
     const record={id:recordId,from,to,name:f.name||'Krankschreibung',mime:blob.type||f.type||'image/jpeg',fileKey,createdAt:now()};
     state.aus.push(record);
@@ -373,32 +574,19 @@ async function saveAuPhoto(){
   }
 }
 
+function reportYearFromValue(value){
+  const str=String(value??'').trim();if(!str)return '';
+  const m=str.match(/(?:^|\D)((?:19|20)\d{2})(?:\D|$)/);return m?m[1]:'';
+}
 function reportEntryYear(item,fields=[]){
   for(const f of fields){const y=reportYearFromValue(item?.[f]);if(y)return y;}
   return reportYearFromValue(item?.createdAt);
 }
 function reportInYear(item,fields,year){return reportEntryYear(item,fields)===String(year);}
 function reportRangeOverlapsYear(from,to,year,createdAt=''){
-  const y=String(year),startYear=`${y}-01-01`,endYear=`${y}-12-31`;
-  const a=from||to,b=to||from;
-  if(a&&b)return a<=endYear&&b>=startYear;
-  return reportYearFromValue(createdAt)===y;
-}
-function reportDateOrdinal(value){
-  const m=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);if(!m)return null;
-  return Math.floor(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3]))/86400000);
-}
-function reportDaysWithinYear(from,to,year){
-  if(!from||!to)return 0;
-  const y=String(year),start=`${y}-01-01`,end=`${y}-12-31`;
-  const a=from<start?start:from,b=to>end?end:to;
-  const ao=reportDateOrdinal(a),bo=reportDateOrdinal(b);
-  return ao===null||bo===null||bo<ao?0:bo-ao+1;
-}
-function reportFormatDateTime(value){
-  if(!value)return '—';
-  const d=new Date(value);if(Number.isNaN(d.getTime()))return String(value);
-  return d.toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'});
+  const yb=yearBounds(year),a=isoDayNumber(from||to),b=isoDayNumber(to||from);
+  if(yb&&a!==null&&b!==null){const lo=Math.min(a,b),hi=Math.max(a,b),ys=isoDayNumber(yb.start),ye=isoDayNumber(yb.end);return hi>=ys&&lo<=ye;}
+  return reportYearFromValue(createdAt)===String(year);
 }
 function reportAvailableYears(){
   const years=new Set([String(new Date().getFullYear())]);
@@ -433,12 +621,12 @@ function reportYearData(year){
 }
 function reportSummary(year){
   const d=reportYearData(year);
-  const auDays=d.aus.reduce((n,x)=>n+reportDaysWithinYear(x.from,x.to,d.year),0);
-  const childDays=d.childSick.reduce((n,x)=>n+reportDaysWithinYear(x.from,x.to,d.year),0);
+  const auDays=countUniqueRangeDays(d.aus,`${d.year}-01-01`,`${d.year}-12-31`);
+  const childDays=countUniqueRangeDays(d.childSick,`${d.year}-01-01`,`${d.year}-12-31`);
   const stair=stairStats(d.stairs);
   const attached=Object.values(d.attachments).reduce((n,a)=>n+a.length,0);
   const noticeDocs=d.notices.filter(x=>x.file).length;
-  const auDocs=d.aus.filter(x=>x.data||x.image||x.name).length;
+  const auDocs=d.aus.filter(x=>x.fileKey||x.data||x.image||x.name).length;
   const docs=d.documents.length+d.contracts.length+attached+noticeDocs+auDocs;
   return {...d,auDays,childDays,stair,docs};
 }
@@ -640,45 +828,95 @@ function createAnnualPdf(){
 
 async function exportBackup(){
   const payload=await dbGet('payload'),salt=await dbGet('salt');
+  if(!payload?.iv||!payload?.cipher||!salt)throw new Error('Es sind keine gültigen verschlüsselten App-Daten vorhanden.');
   const entries=await dbFileEntries();
   const files=entries.map(([key,v])=>({key,iv:v.iv,cipher:b64(v.cipher),mime:v.mime||'',name:v.name||'',size:v.size||0,createdAt:v.createdAt||''}));
-  const blob=new Blob([JSON.stringify({app:'WorksManager',version:2,salt,payload,files,exportedAt:now()},null,2)],{type:'application/json'});
-  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`WorksManager-Backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+  const blob=new Blob([JSON.stringify({app:'WorksManager',version:4,appVersion:APP_VERSION,salt,payload,files,exportedAt:now()},null,2)],{type:'application/json'});
+  downloadBlob(blob,`WorksManager-Backup-${new Date().toISOString().slice(0,10)}.json`);
+  showToast('Verschlüsseltes Backup erstellt');
+}
+async function validateBackupRows(rows,key){
+  for(const [fileKey,rec] of rows){
+    if(!rec?.iv||!rec?.cipher)throw new Error(`Dateieintrag ${fileKey} ist unvollständig.`);
+    await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(unb64(rec.iv))},key,rec.cipher);
+  }
 }
 async function importBackup(file){
   try{
-    const j=JSON.parse(await file.text());if(j.app!=='WorksManager'||!j.salt||!j.payload)throw new Error('Ungültiges Backup');
-    await dbPut('salt',j.salt);await dbPut('payload',j.payload);
-    if(Array.isArray(j.files)){for(const f of j.files){if(!f?.key||!f?.iv||!f?.cipher)continue;await dbFilePut(f.key,{iv:f.iv,cipher:unb64(f.cipher),mime:f.mime||'',name:f.name||'',size:f.size||0,createdAt:f.createdAt||''});}}
-    alert('Backup importiert. Bitte erneut mit dem Backup-Passwort öffnen.');lock();
-  }catch(e){alert('Backup konnte nicht importiert werden: '+e.message);}
+    const j=JSON.parse(await file.text());
+    if(j.app!=='WorksManager'||!j.salt||!j.payload?.iv||!j.payload?.cipher)throw new Error('Ungültiges WorksManager-Backup.');
+    const rows=[],backupKeys=new Set();
+    if(Array.isArray(j.files))for(const f of j.files){
+      if(!f?.key||!f?.iv||!f?.cipher)throw new Error('Das Backup enthält einen unvollständigen Dateieintrag.');
+      const key=String(f.key);
+      if(backupKeys.has(key))throw new Error('Das Backup enthält doppelte Dateischlüssel.');
+      backupKeys.add(key);
+      rows.push([key,{iv:f.iv,cipher:unb64(f.cipher),mime:f.mime||'',name:f.name||'',size:f.size||0,createdAt:f.createdAt||''}]);
+    }
+    const pass=prompt('Passwort / PIN des Backups eingeben. Das Passwort wird nicht gespeichert.');
+    if(pass===null)return;
+    if(!pass)throw new Error('Kein Backup-Passwort eingegeben.');
+    const backupKey=await deriveKey(pass,new Uint8Array(unb64(j.salt)));
+    let loaded;
+    try{
+      loaded=normalizeState(await decryptPayload(j.payload,backupKey));
+      await validateBackupRows(rows,backupKey);
+      const missing=[...referencedFileKeys(loaded)].filter(k=>!backupKeys.has(k));
+      if(missing.length)throw new Error(`Im Backup fehlen ${missing.length} referenzierte Datei(en).`);
+    }catch(e){
+      if(/referenzierte Datei|doppelte Dateischlüssel|unvollständigen Dateieintrag/i.test(String(e?.message||'')))throw e;
+      throw new Error('Backup-Passwort falsch oder Backup beschädigt.');
+    }
+    if(!confirm('Backup importieren? Die derzeit lokal gespeicherten WorksManager-Daten werden vollständig durch das geprüfte Backup ersetzt.'))return;
+    await dbReplaceAll(j.salt,j.payload,rows);
+    cryptoKey=backupKey;state=loaded;
+    let importMaintenanceWarning=false;
+    try{await migrateLegacyStoredFiles();await persistStateOnly();}catch(e){importMaintenanceWarning=true;console.warn('Backup importiert, Nachbearbeitung unvollständig:',e);}
+    try{await cleanupOrphanFiles();}catch(e){importMaintenanceWarning=true;console.warn('Backup importiert, Dateibereinigung unvollständig:',e);}
+    $('#unlock').classList.add('hidden');$('#app').classList.remove('hidden');
+    renderAll();showToast(importMaintenanceWarning?'Backup importiert – Nachbereinigung teilweise ausgelassen':'Backup erfolgreich importiert',importMaintenanceWarning?'error':'success');
+  }catch(e){console.error('Backup-Import fehlgeschlagen:',e);alert('Backup konnte nicht importiert werden: '+(e?.message||e));}
+  finally{const input=$('#importBackup');if(input)input.value='';}
 }
 
 
+
+function runAction(fn,label='Aktion'){
+  return (...args)=>Promise.resolve().then(()=>fn(...args)).catch(e=>{
+    console.error(`${label} fehlgeschlagen:`,e);
+    if(!e?._wmAlerted)showFileError(label,e);
+  });
+}
 function bind(){
-  $('#unlockBtn').onclick=unlock;$('#unlockPassword').addEventListener('keydown',e=>{if(e.key==='Enter')unlock();});$('#lockBtn').onclick=lock;
+  $('#unlockBtn').onclick=runAction(unlock,'Entsperren');$('#unlockPassword').addEventListener('keydown',e=>{if(e.key==='Enter')runAction(unlock,'Entsperren')();});$('#lockBtn').onclick=lock;
   $$('[data-go]').forEach(b=>b.addEventListener('click',()=>go(b.dataset.go)));$('#moreBtn').onclick=()=>$('#moreMenu').classList.remove('hidden');$('#closeMore').onclick=()=>$('#moreMenu').classList.add('hidden');$('#moreMenu').addEventListener('click',e=>{if(e.target===$('#moreMenu'))$('#moreMenu').classList.add('hidden');});$('#modal').addEventListener('click',e=>{if(e.target===$('#modal'))closeModal();});
-  $('#saveStairEntry').onclick=saveStairEntry;
+  $('#saveStairEntry').onclick=runAction(saveStairEntry,'Treppeneintrag speichern');
   $('#annualYear').onchange=renderAnnualReport;$('#createAnnualPdf').onclick=createAnnualPdf;
-  $('#saveCompany').onclick=saveCompany;$('#saveContractFile').onclick=saveContractFile;$('#saveMeeting').onclick=saveMeeting;$('#saveNotice').onclick=saveNotice;$('#saveChild').onclick=saveChild;$('#saveRehab').onclick=saveRehab;
+  $('#saveCompany').onclick=runAction(saveCompany,'Firmendaten speichern');$('#saveContractFile').onclick=runAction(saveContractFile,'Arbeitsvertrag speichern');$('#saveMeeting').onclick=runAction(saveMeeting,'Gespräch speichern');$('#saveNotice').onclick=runAction(saveNotice,'Aushang speichern');$('#saveChild').onclick=runAction(saveChild,'Kind-krank-Eintrag speichern');$('#saveRehab').onclick=runAction(saveRehab,'Reha-Eintrag speichern');
   $('#addShiftManual').onclick=addManualShift;
-  $('#saveAuPhoto').onclick=saveAuPhoto;$('#auStatsMonth').onchange=renderAUs;$('#auStatsYear').onchange=renderAUs;
-  $$('[data-docsave]').forEach(b=>b.onclick=()=>saveSimpleDoc(b.dataset.docsave));
-  $$('[data-attachment-section]').forEach(b=>b.onclick=()=>saveGenericAttachment(b.dataset.attachmentSection,b.dataset.attachmentInput));
-  $('#exportBackup').onclick=exportBackup;$('#importBackup').onchange=e=>e.target.files[0]&&importBackup(e.target.files[0]);
-  $('#wipeData').onclick=async()=>{if(confirm('Wirklich ALLE lokalen WorksManager-Daten löschen?')){await dbClear();location.reload();}};
+  $('#saveAuPhoto').onclick=runAction(saveAuPhoto,'Krankschreibung speichern');$('#auStatsMonth').onchange=renderAUs;$('#auStatsYear').onchange=renderAUs;
+  $$('[data-docsave]').forEach(b=>b.onclick=runAction(()=>saveSimpleDoc(b.dataset.docsave),'Dokument speichern'));
+  $$('[data-attachment-section]').forEach(b=>b.onclick=runAction(()=>saveGenericAttachment(b.dataset.attachmentSection,b.dataset.attachmentInput),'Foto / Dokument speichern'));
+  $('#exportBackup').onclick=runAction(exportBackup,'Backup exportieren');$('#importBackup').onchange=e=>{if(e.target.files[0])runAction(()=>importBackup(e.target.files[0]),'Backup importieren')();};
+  $('#wipeData').onclick=runAction(async()=>{if(confirm('Wirklich ALLE lokalen WorksManager-Daten löschen?')){await dbClear();location.reload();}},'Daten löschen');
 }
 
 (async function init(){
-  db=await openDB();bind();
-  if('serviceWorker' in navigator){
-    try{sessionStorage.removeItem('wm-sw-reload');}catch{}
-    navigator.serviceWorker.addEventListener('controllerchange',()=>{try{if(!sessionStorage.getItem('wm-sw-reload')){sessionStorage.setItem('wm-sw-reload','1');location.reload();}}catch{}});
-    navigator.serviceWorker.register('./sw.js?v=1.4.5',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+  try{
+    const htmlVersion=document.documentElement.dataset.appVersion||'';
+    if(htmlVersion!==APP_VERSION)throw new Error(`Versionskonflikt: HTML ${htmlVersion||'unbekannt'}, JavaScript ${APP_VERSION}`);
+    db=await openDB();bind();
+    if('serviceWorker' in navigator){
+      navigator.serviceWorker.register(`./sw.js?v=${APP_VERSION}`,{updateViaCache:'none'}).then(r=>r.update()).catch(e=>console.warn('Service Worker konnte nicht aktualisiert werden:',e));
+    }
+    window.addEventListener('pageshow',()=>{setTimeout(resetViewportPosition,0);const app=$('#app');if(app&&!app.classList.contains('hidden')&&!cryptoKey){app.classList.add('hidden');$('#unlock').classList.remove('hidden');$('#unlockHint').textContent='Die Sitzung wurde neu geladen. Bitte einmal erneut entsperren.';}});
+    window.addEventListener('orientationchange',()=>setTimeout(resetViewportPosition,120));
+    resetViewportPosition();
+    const has=await dbGet('payload');
+    $('#unlockHint').textContent=has?'Daten vorhanden – mit deinem Passwort öffnen.':'Erster Start: Dieses Passwort verschlüsselt deine Daten. Merke es dir; es kann nicht wiederhergestellt werden.';
+  }catch(e){
+    console.error('WorksManager konnte nicht gestartet werden:',e);
+    const hint=$('#unlockHint');if(hint)hint.textContent=/Versionskonflikt/.test(String(e?.message||''))?`${e.message}. Bitte die Seite vollständig neu laden.`:'Der lokale App-Speicher konnte nicht geöffnet werden. Bitte Safari/WorksManager vollständig schließen und erneut öffnen.';
+    const btn=$('#unlockBtn');if(btn)btn.disabled=true;
   }
-  window.addEventListener('pageshow',()=>setTimeout(resetViewportPosition,0));
-  window.addEventListener('orientationchange',()=>setTimeout(resetViewportPosition,120));
-  resetViewportPosition();
-  const has=await dbGet('payload');
-  $('#unlockHint').textContent=has?'Daten vorhanden – mit deinem Passwort öffnen.':'Erster Start: Dieses Passwort verschlüsselt deine Daten. Merke es dir; es kann nicht wiederhergestellt werden.';
 })();
