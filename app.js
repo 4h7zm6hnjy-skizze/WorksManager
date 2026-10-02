@@ -65,10 +65,13 @@ async function save(successMessage='Gespeichert'){
   }
 }
 
-async function unlock(){const pass=$('#unlockPassword').value;if(!pass){$('#unlockHint').textContent='Bitte Passwort eingeben.';return;}try{let saltB64=await dbGet('salt');if(!saltB64){const salt=crypto.getRandomValues(new Uint8Array(16));saltB64=b64(salt);await dbPut('salt',saltB64);}cryptoKey=await deriveKey(pass,new Uint8Array(unb64(saltB64)));const payload=await dbGet('payload');if(payload){state=normalizeState(await decryptPayload(payload,cryptoKey));}else{state=blankState();await save('');}$('#unlock').classList.add('hidden');$('#app').classList.remove('hidden');$('#unlockPassword').value='';$('#unlockHint').textContent='';renderAll();}catch(e){cryptoKey=null;$('#unlockHint').textContent='Passwort falsch oder Daten beschädigt.';}}
+async function unlock(){const pass=$('#unlockPassword').value;if(!pass){$('#unlockHint').textContent='Bitte Passwort eingeben.';return;}try{let saltB64=await dbGet('salt');if(!saltB64){const salt=crypto.getRandomValues(new Uint8Array(16));saltB64=b64(salt);await dbPut('salt',saltB64);}cryptoKey=await deriveKey(pass,new Uint8Array(unb64(saltB64)));const payload=await dbGet('payload');if(payload){state=normalizeState(await decryptPayload(payload,cryptoKey));}else{state=blankState();await save('');}$('#unlock').classList.add('hidden');$('#app').classList.remove('hidden');$('#unlockPassword').value='';$('#unlockHint').textContent='';renderAll();resetViewportPosition();setTimeout(resetViewportPosition,60);}catch(e){cryptoKey=null;$('#unlockHint').textContent='Passwort falsch oder Daten beschädigt.';}}
 function lock(){cryptoKey=null;state=blankState();$('#app').classList.add('hidden');$('#unlock').classList.remove('hidden');}
 
-function go(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id===name));$$('.nav-btn[data-go]').forEach(b=>b.classList.toggle('active',b.dataset.go===name));$('#moreMenu').classList.add('hidden');window.scrollTo({top:0,behavior:'smooth'});}
+function resetViewportPosition(){
+  try{document.documentElement.scrollLeft=0;document.body.scrollLeft=0;window.scrollTo({top:0,left:0,behavior:'auto'});}catch{}
+}
+function go(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id===name));$$('.nav-btn[data-go]').forEach(b=>b.classList.toggle('active',b.dataset.go===name));$('#moreMenu').classList.add('hidden');window.scrollTo({top:0,left:0,behavior:'smooth'});}
 
 function renderAll(){renderDashboard();renderCompany();renderShifts();renderMeetings();renderNotices();renderDocs();renderAUs();renderChild();renderRehab();renderStairs();renderAttachments();renderAnnualReport();}
 function renderDashboard(){const auDays=state.aus.reduce((sum,a)=>sum+daysInclusive(a.from,a.to),0);const extraDocs=Object.values(state.attachments||{}).reduce((n,a)=>n+(Array.isArray(a)?a.length:0),0);$('#statAuDays').textContent=auDays;$('#statAuCases').textContent=state.aus.length;$('#statChildCases').textContent=state.childSick.length;$('#statShifts').textContent=state.shifts.length;$('#statDocs').textContent=state.documents.length+state.company.contracts.length+state.notices.filter(n=>n.file).length+extraDocs;$('#welcomeText').textContent=state.company.employeeName?`${state.company.employeeName}${state.company.name?' · '+state.company.name:''}`:'Noch kein Mitarbeitername hinterlegt.';const today=localDateValue();const stairsToday=(state.stairs||[]).filter(x=>x.date===today).reduce((n,x)=>n+(Number(x.count)||0),0);const stairStat=$('#statStairsToday');if(stairStat)stairStat.textContent=stairsToday;}
@@ -109,22 +112,25 @@ function auStatsForPeriod(items,start,end){
   return {cases:rows.length,days:rows.reduce((n,x)=>{const d=auDates(x);return n+daysInPeriod(d.from,d.to,start,end);},0)};
 }
 function renderAUs(){
-  const arr=[...state.aus].sort((a,b)=>(b.from||b.to||b.createdAt||'').localeCompare(a.from||a.to||a.createdAt||''));
-  const allDays=arr.reduce((s,a)=>{const d=auDates(a);return s+daysInclusive(d.from,d.to);},0);
-  $('#statAuDays').textContent=allDays;$('#statAuCases').textContent=arr.length;
+  // IDs werden bei älteren Datensätzen beim Laden ergänzt. Die Liste behält zusätzlich
+  // den Originalindex als Fallback, damit auch alte Einträge zuverlässig löschbar sind.
+  const arr=state.aus.map((a,index)=>({a,index})).sort((x,y)=>(y.a.from||y.a.to||y.a.createdAt||'').localeCompare(x.a.from||x.a.to||x.a.createdAt||''));
+  const records=arr.map(x=>x.a);
+  const allDays=records.reduce((sum,a)=>{const d=auDates(a);return sum+daysInclusive(d.from,d.to);},0);
+  $('#statAuDays').textContent=allDays;$('#statAuCases').textContent=records.length;
 
   const today=localDateValue(),currentMonth=today.slice(0,7),currentYear=today.slice(0,4);
   const monthEl=$('#auStatsMonth'),yearEl=$('#auStatsYear');
   if(monthEl&&!monthEl.value)monthEl.value=currentMonth;
   const years=new Set([currentYear]);
-  arr.forEach(a=>{const d=auDates(a);if(/^\d{4}/.test(d.from))years.add(d.from.slice(0,4));if(/^\d{4}/.test(d.to))years.add(d.to.slice(0,4));});
+  records.forEach(a=>{const d=auDates(a);if(/^\d{4}/.test(d.from))years.add(d.from.slice(0,4));if(/^\d{4}/.test(d.to))years.add(d.to.slice(0,4));});
   const yearValues=[...years].sort().reverse();
   const keepYear=yearEl?.value||currentYear;
   if(yearEl){yearEl.innerHTML=yearValues.map(y=>`<option value="${y}">${y}</option>`).join('');yearEl.value=yearValues.includes(keepYear)?keepYear:currentYear;}
   const month=monthEl?.value||currentMonth,year=yearEl?.value||currentYear;
   const mb=monthBounds(month),yb=yearBounds(year);
-  const ms=mb?auStatsForPeriod(arr,mb.start,mb.end):{cases:0,days:0};
-  const ys=yb?auStatsForPeriod(arr,yb.start,yb.end):{cases:0,days:0};
+  const ms=mb?auStatsForPeriod(records,mb.start,mb.end):{cases:0,days:0};
+  const ys=yb?auStatsForPeriod(records,yb.start,yb.end):{cases:0,days:0};
   if($('#auMonthCases'))$('#auMonthCases').textContent=ms.cases;
   if($('#auMonthDays'))$('#auMonthDays').textContent=ms.days;
   if($('#auYearCases'))$('#auYearCases').textContent=ys.cases;
@@ -132,17 +138,21 @@ function renderAUs(){
   if($('#auStatsYearLabel'))$('#auStatsYearLabel').textContent=year;
 
   if($('#auMonthlyStats'))$('#auMonthlyStats').innerHTML=Array.from({length:12},(_,i)=>{
-    const key=`${year}-${String(i+1).padStart(2,'0')}`,b=monthBounds(key),st=auStatsForPeriod(arr,b.start,b.end);
+    const key=`${year}-${String(i+1).padStart(2,'0')}`,b=monthBounds(key),st=auStatsForPeriod(records,b.start,b.end);
     return `<div class="item"><div class="item-top"><div><div class="item-title">${esc(monthLabel(key))}</div><div class="item-meta">${st.cases} Krankschreibung${st.cases===1?'':'en'}</div></div><strong>${st.days} Tage</strong></div></div>`;
   }).join('');
 
-  $('#auList').innerHTML=arr.map(a=>{
+  const list=$('#auList');
+  list.innerHTML=arr.map(({a,index})=>{
     const d=auDates(a),hasDates=d.from&&d.to;
     const title=hasDates?(d.from===d.to?fmtDate(d.from):`${fmtDate(d.from)}–${fmtDate(d.to)}`):'Krankschreibung ohne Datumsangabe';
     const meta=a.name?esc(a.name):'Foto gespeichert';
-    const originalIndex=state.aus.indexOf(a);
-    return itemHtml(title,meta,a.createdAt,[(a.data||a.image)?`<button onclick="viewAuAt(${originalIndex})">Foto ansehen</button>`:'',`<button onclick="delAuAt(${originalIndex})">Löschen</button>`]);
+    const key=esc(String(a.id||''));
+    return itemHtml(title,meta,a.createdAt,[(a.data||a.image)?`<button type="button" data-au-view="${key}" data-au-index="${index}">Foto ansehen</button>`:'',`<button type="button" data-au-delete="${key}" data-au-index="${index}">Löschen</button>`]);
   }).join('')||empty('Noch keine Krankschreibung gespeichert.');
+
+  list.querySelectorAll('[data-au-view]').forEach(btn=>btn.addEventListener('click',()=>viewAuRecord(btn.dataset.auView,btn.dataset.auIndex)));
+  list.querySelectorAll('[data-au-delete]').forEach(btn=>btn.addEventListener('click',()=>deleteAuRecord(btn.dataset.auDelete,btn.dataset.auIndex)));
 }
 function localDateValue(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
 function localTimeValue(d=new Date()){return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
@@ -234,9 +244,28 @@ window.delShift=async ident=>{if(confirm('Schichteintrag wirklich löschen?'))aw
 window.delMeeting=async ident=>{if(confirm('Gesprächseintrag wirklich löschen?'))await deleteById('meetings',ident,'Eintrag gelöscht');};
 window.delNotice=async ident=>{if(confirm('Aushang wirklich löschen?'))await deleteById('notices',ident,'Aushang gelöscht');};
 window.delDoc=async ident=>{if(confirm('Dokument wirklich löschen?'))await deleteById('documents',ident,'Dokument gelöscht');};
-window.viewAuAt=index=>{const i=Number(index);const obj=Number.isInteger(i)?state.aus?.[i]:null;if(!obj){alert('Die Krankschreibung konnte nicht gefunden werden. Bitte die Ansicht neu öffnen.');return;}openStoredData(obj.data||obj.image||'',obj.name||'Krankschreibung');};
-window.delAuAt=async index=>{const i=Number(index);if(!Number.isInteger(i)||i<0||i>=state.aus.length){alert('Die Krankschreibung konnte nicht gefunden werden. Bitte die Ansicht neu öffnen.');return;}if(!confirm('Krankschreibung wirklich löschen?'))return;state.aus.splice(i,1);await save('Krankschreibung gelöscht');};
-window.delAu=async ident=>{if(!confirm('Krankschreibung wirklich löschen?'))return;const key=String(ident??'');const i=state.aus.findIndex(x=>String(x?.id??'')===key);if(i<0){alert('Die Krankschreibung konnte nicht über ihre alte Kennung gefunden werden. Bitte die aktuelle Ansicht verwenden.');return;}state.aus.splice(i,1);await save('Krankschreibung gelöscht');};
+function findAuRecordIndex(ident,indexFallback){
+  const key=String(ident??'');
+  let i=key?state.aus.findIndex(x=>String(x?.id??'')===key):-1;
+  if(i<0){const fallback=Number(indexFallback);if(Number.isInteger(fallback)&&fallback>=0&&fallback<state.aus.length)i=fallback;}
+  return i;
+}
+function viewAuRecord(ident,indexFallback){
+  const i=findAuRecordIndex(ident,indexFallback),obj=i>=0?state.aus[i]:null;
+  if(!obj){alert('Die Krankschreibung konnte nicht gefunden werden.');return;}
+  openStoredData(obj.data||obj.image||'',obj.name||'Krankschreibung');
+}
+async function deleteAuRecord(ident,indexFallback){
+  if(!confirm('Krankschreibung wirklich löschen?'))return;
+  const i=findAuRecordIndex(ident,indexFallback);
+  if(i<0){alert('Die Krankschreibung konnte nicht gefunden werden.');return;}
+  // Neue Array-Referenz statt splice: vermeidet Probleme mit alten/sortierten Listenständen.
+  state.aus=state.aus.filter((_,idx)=>idx!==i);
+  await save('Krankschreibung gelöscht');
+}
+window.viewAuAt=index=>viewAuRecord('',index);
+window.delAuAt=index=>deleteAuRecord('',index);
+window.delAu=ident=>deleteAuRecord(ident,-1);
 window.delChild=async ident=>{if(confirm('Kind-krank-Eintrag wirklich löschen?'))await deleteById('childSick',ident,'Eintrag gelöscht');};
 window.delRehab=async ident=>{if(confirm('Reha-Eintrag wirklich löschen?'))await deleteById('rehabs',ident,'Reha-Eintrag gelöscht');};
 async function saveMeeting(){state.meetings.push({id:id(),type:$('#meetingType').value,date:$('#meetingDate').value,time:$('#meetingTime').value,partner:$('#meetingPartner').value.trim(),place:$('#meetingPlace').value.trim(),note:$('#meetingNote').value.trim(),createdAt:now()});await save();['meetingDate','meetingTime','meetingPartner','meetingPlace','meetingNote'].forEach(i=>$('#'+i).value='');}
@@ -544,9 +573,13 @@ function bind(){
 (async function init(){
   db=await openDB();bind();
   if('serviceWorker' in navigator){
+    try{sessionStorage.removeItem('wm-sw-reload');}catch{}
     navigator.serviceWorker.addEventListener('controllerchange',()=>{try{if(!sessionStorage.getItem('wm-sw-reload')){sessionStorage.setItem('wm-sw-reload','1');location.reload();}}catch{}});
-    navigator.serviceWorker.register('./sw.js').then(r=>r.update()).catch(()=>{});
+    navigator.serviceWorker.register('./sw.js?v=1.4.3',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
   }
+  window.addEventListener('pageshow',()=>setTimeout(resetViewportPosition,0));
+  window.addEventListener('orientationchange',()=>setTimeout(resetViewportPosition,120));
+  resetViewportPosition();
   const has=await dbGet('payload');
   $('#unlockHint').textContent=has?'Daten vorhanden – mit deinem Passwort öffnen.':'Erster Start: Dieses Passwort verschlüsselt deine Daten. Merke es dir; es kann nicht wiederhergestellt werden.';
 })();

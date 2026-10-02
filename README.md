@@ -1,4 +1,4 @@
-# WorksManager v1.4.2
+# WorksManager v1.4.3
 
 Private Arbeits- und Dokumentenverwaltung.
 
@@ -37,3 +37,10 @@ Copyright Marcel Hentschel.
 - Ältere Einträge ohne interne ID erhalten beim Laden automatisch eine ID und können wieder gelöscht werden.
 - Arbeitsvertrag-Dateispeicherung repariert.
 - PWA-Cache auf v1.4.2 aktualisiert.
+
+## Änderung in v1.4.3
+
+- AU-Löschung vollständig neu angebunden: Löschen erfolgt über die aktuelle interne ID mit Index-Fallback und ist nicht mehr von alten Inline-Handlern abhängig.
+- Alte Krankschreibungen ohne Datum oder frühere ID können ebenfalls gelöscht werden.
+- iPhone/PWA-Startansicht korrigiert: kein horizontales Überlaufen, Startposition links oben, responsive Statistik-Kacheln und fester 1:1-Viewport.
+- PWA-Cache auf v1.4.3 aktualisiert.

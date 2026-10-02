@@ -49,3 +49,24 @@ label .media-source-hint{font-weight:700}
 
 /* v1.3.0 – Jahresstatistik PDF */
 .annual-report-controls{align-items:end}.annual-report-action{display:flex;align-items:flex-end}.annual-report-action .primary{width:100%;min-height:45px}.annual-report-note{padding:11px 12px;border:1px solid #d9e6ee;border-radius:12px;background:#f7fafc;color:var(--muted);font-size:12px;font-weight:650;line-height:1.45}.annual-summary-grid{margin:15px 0}.annual-preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.annual-preview-grid>div{border:1px solid var(--line);border-radius:13px;padding:11px 12px;background:#fbfdfe}.annual-preview-grid strong{display:block;font-size:13px}.annual-preview-grid span{display:block;margin-top:3px;color:var(--muted);font-size:12px;line-height:1.35}@media(max-width:700px){.annual-preview-grid{grid-template-columns:1fr}.annual-report-action{align-items:stretch}}
+
+/* v1.4.3 – iPhone/PWA: immer passend zur Bildschirmbreite */
+html,body{width:100%;max-width:100%;overflow-x:hidden;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.app,.topbar,main,.page,.card,.stats-grid,.module-grid,.bottom-nav{min-width:0;max-width:100%}
+main{width:100%}
+.stats-grid,.dashboard-stats,.stats-grid.compact,.bottom-nav{grid-template-columns:repeat(var(--wm-cols,4),minmax(0,1fr))}
+.stat,.module-card,.nav-btn,.item,.item-top>*{min-width:0}
+.stat span,.stat small,.module-card small,.item-title,.item-meta{overflow-wrap:anywhere;word-break:normal}
+.bottom-nav{--wm-cols:5;width:100%;overflow:hidden}
+.nav-btn{overflow:hidden}
+.nav-btn span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:900px){.dashboard-stats{--wm-cols:3}}
+@media(max-width:700px){
+  .dashboard-stats{--wm-cols:2}
+  .stats-grid:not(.dashboard-stats){--wm-cols:2}
+  .stats-grid.compact{--wm-cols:2}
+  .stair-summary{grid-template-columns:repeat(2,minmax(0,1fr))!important}
+  .topbar{width:100%;overflow:hidden}
+  .brand-row,.top-brand,.top-actions{min-width:0}
+}
+@media(max-width:390px){.dashboard-stats,.stats-grid.compact{--wm-cols:2}}
