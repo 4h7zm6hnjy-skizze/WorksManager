@@ -63,7 +63,7 @@
         <div class="module-grid">
           <button data-go="shift" class="module-card"><span class="module-icon">◷</span><span><strong>Schichtplan</strong><small>Plan fotografieren & Schichten verwalten</small></span><b>›</b></button>
           <button data-go="sickness" class="module-card"><span class="module-icon">✚</span><span><strong>Krankheit & AU</strong><small>AU-Scanner, ICD‑10 & Zähler</small></span><b>›</b></button>
-          <button data-go="payroll" class="module-card"><span class="module-icon">▤</span><span><strong>Abrechnung</strong><small>Lohnabrechnung & Stempelübersicht</small></span><b>›</b></button>
+          <button data-go="payroll" class="module-card"><span class="module-icon">▤</span><span><strong>Abrechnung</strong><small>Lohnabrechnung, Stempelübersicht & Arbeitsplan</small></span><b>›</b></button>
           <button data-go="health" class="module-card"><span class="module-icon">♥</span><span><strong>Gesundheit</strong><small>Lungenfunktion, Labor & Arztbriefe</small></span><b>›</b></button>
           <button data-go="meetings" class="module-card"><span class="module-icon">☷</span><span><strong>BEM · AMZ · Gespräche</strong><small>Termine, Gesprächspartner & Notizen</small></span><b>›</b></button>
           <button data-go="notices" class="module-card"><span class="module-icon">▱</span><span><strong>Aushänge</strong><small>Kurzarbeit & sonstige Mitteilungen</small></span><b>›</b></button>
@@ -142,7 +142,7 @@
       </section>
 
       <section id="payroll" class="page">
-        <h2>Abrechnung & Stempelübersicht</h2>
+        <h2>Abrechnung, Stempelübersicht & Arbeitsplan</h2>
         <div class="two-col">
           <div class="card scanner-card">
             <h3>Lohnabrechnung</h3>
@@ -156,7 +156,17 @@
             <input id="stampImage" type="file" accept="image/*,.pdf" capture="environment" />
             <button data-docscan="stamp" class="primary">Scannen & speichern</button>
           </div>
+          <div class="card scanner-card workplan-card">
+            <h3>Arbeitsplan</h3>
+            <p class="muted">Arbeitsplan fotografieren. WorksManager sucht automatisch nach deinem Namen, Datumsangaben, Schichtkürzeln und Uhrzeiten. Erkannte Schichten kannst du direkt in den Schichtplan übernehmen.</p>
+            <label>Monat <small>(optional)</small><input id="workplanMonth" type="month" /></label>
+            <input id="workplanImage" type="file" accept="image/*,.pdf" capture="environment" />
+            <button id="scanWorkplan" class="primary">Arbeitsplan scannen & analysieren</button>
+            <div id="workplanOcrStatus" class="hint"></div>
+            <details class="ocr-details"><summary>Erkannten Text anzeigen</summary><textarea id="workplanOcrText" rows="7" placeholder="Erkannter Text erscheint hier"></textarea></details>
+          </div>
         </div>
+        <div id="workplanReview" class="card hidden"></div>
         <div class="card"><h3>Gespeicherte Unterlagen</h3><div id="payrollList" class="list"></div></div>
       </section>
 
@@ -185,9 +195,19 @@
         <h2>Gesundheit</h2>
         <p class="muted">Gesundheitsunterlagen werden wie die übrigen WorksManager-Daten lokal verschlüsselt gespeichert.</p>
 
-        <div class="card">
-          <div class="section-head"><h3>Lungenfunktionstest</h3><button id="addLungTest">+ Eintrag</button></div>
-          <p class="muted">Messwerte und Originalbefund gemeinsam ablegen.</p>
+        <div class="card scanner-card">
+          <div class="section-head"><h3>Lungenfunktionstest</h3><button id="addLungTest">+ Manuell</button></div>
+          <p class="muted">Befund fotografieren oder als Bild auswählen. WorksManager liest Datum, Praxis/Testart sowie FEV1, FVC, FEV1/FVC und weitere gängige Messwerte automatisch aus. Vor dem Speichern kannst du alles prüfen und korrigieren.</p>
+          <input id="lungImage" type="file" accept="image/*" capture="environment" />
+          <button id="scanLung" class="primary">Lungenfunktion scannen & analysieren</button>
+          <div id="lungOcrStatus" class="hint"></div>
+          <details>
+            <summary>Erkannten Text anzeigen / korrigieren</summary>
+            <textarea id="lungOcrText" rows="7" placeholder="Erkannter Text erscheint hier"></textarea>
+            <button id="parseLung" class="secondary">Erkannten Text erneut auswerten</button>
+          </details>
+          <div id="lungReview" class="card hidden"></div>
+          <h3>Gespeicherte Lungenfunktionstests</h3>
           <div id="lungTestList" class="list"></div>
         </div>
 
