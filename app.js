@@ -39,7 +39,7 @@ async function ocrFile(file,statusEl){if(!file)throw new Error('Kein Bild ausgew
 function go(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id===name));$$('.nav-btn[data-go]').forEach(b=>b.classList.toggle('active',b.dataset.go===name));$('#moreMenu').classList.add('hidden');window.scrollTo({top:0,behavior:'smooth'});}
 
 function renderAll(){renderDashboard();renderCompany();renderShifts();renderMeetings();renderNotices();renderDocs();renderAUs();renderHealth();renderChild();renderRehab();}
-function renderDashboard(){const auDays=state.aus.reduce((s,a)=>s+daysInclusive(a.from,a.to),0);const healthDocs=[...state.health.lungTests,...state.health.labResults,...state.health.doctorLetters].filter(x=>x.data).length;$('#statAuDays').textContent=auDays;$('#statAuCases').textContent=state.aus.length;$('#statShifts').textContent=state.shifts.length;$('#statDocs').textContent=state.documents.length+state.company.contracts.length+state.notices.filter(n=>n.file).length+healthDocs;$('#welcomeText').textContent=state.company.employeeName?`${state.company.employeeName}${state.company.name?' · '+state.company.name:''}`:'Noch kein Mitarbeitername hinterlegt.';}
+function renderDashboard(){const auDays=state.aus.reduce((s,a)=>s+daysInclusive(a.from,a.to),0);const healthEntries=state.health.lungTests.length+state.health.labResults.length+state.health.doctorLetters.length;const healthDocs=[...state.health.lungTests,...state.health.labResults,...state.health.doctorLetters].filter(x=>x.data).length;$('#statAuDays').textContent=auDays;$('#statAuCases').textContent=state.aus.length;$('#statChildCases').textContent=state.childSick.length;$('#statShifts').textContent=state.shifts.length;$('#statDocs').textContent=state.documents.length+state.company.contracts.length+state.notices.filter(n=>n.file).length+healthDocs;$('#statHealthEntries').textContent=healthEntries;$('#welcomeText').textContent=state.company.employeeName?`${state.company.employeeName}${state.company.name?' · '+state.company.name:''}`:'Noch kein Mitarbeitername hinterlegt.';}
 function renderCompany(){const c=state.company;$('#companyName').value=c.name||'';$('#employeeName').value=c.employeeName||'';$('#contractStart').value=c.contractStart||'';$('#employeeNo').value=c.employeeNo||'';$('#companyNotes').value=c.notes||'';$('#contractList').innerHTML=(c.contracts||[]).map(x=>itemHtml('Arbeitsvertrag',x.name||'Dokument',x.createdAt,[`<button onclick="viewDoc('${x.id}','contract')">Öffnen</button>`,`<button onclick="delContract('${x.id}')">Löschen</button>`])).join('')||empty('Noch kein Arbeitsvertrag gespeichert.');}
 function renderShifts(){const arr=[...state.shifts].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#shiftList').innerHTML=arr.map(s=>itemHtml(`${fmtDate(s.date)} · ${esc(s.shift||'Schicht')}`,`${esc(s.start||'—')}–${esc(s.end||'—')}${s.note?' · '+esc(s.note):''}`,s.createdAt,[`<button onclick="delShift('${s.id}')">Löschen</button>`])).join('')||empty('Noch keine Schichten gespeichert.');}
 function renderMeetings(){const arr=[...state.meetings].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#meetingList').innerHTML=arr.map(m=>itemHtml(`${esc(m.type)} · ${fmtDate(m.date)}`,`${esc(m.time||'')} ${esc(m.partner||'')}${m.place?' · '+esc(m.place):''}${m.note?' · '+esc(m.note):''}`,m.createdAt,[`<button onclick="delMeeting('${m.id}')">Löschen</button>`])).join('')||empty('Noch keine Einträge.');}
@@ -62,7 +62,51 @@ function empty(t){return `<div class="muted">${esc(t)}</div>`;}
 function modal(html){$('#modalCard').innerHTML=html;$('#modal').classList.remove('hidden');}
 function closeModal(){$('#modal').classList.add('hidden');}
 
-function parseAuText(text){const lower=text.toLowerCase();const kind=/folge|folgebescheinigung/.test(lower)?'Folgebescheinigung':'Erstbescheinigung';const dates=[...text.matchAll(/\b\d{1,2}[.\/\-]\d{1,2}[.\/\-]\d{2,4}\b/g)].map(m=>normalizeDate(m[0])).filter(Boolean);const unique=[...new Set(dates)];const codes=[...text.toUpperCase().matchAll(/\b[A-TV-Z]\d{2}(?:\.\d{1,2})?\b/g)].map(m=>m[0]);return {kind,from:unique[0]||'',to:unique[1]||unique[0]||'',codes:[...new Set(codes)].slice(0,8)};}
+function extractPrintedIcdCodes(text){
+  let t=String(text||'').toUpperCase()
+    .replace(/([A-TV-Z])\s+([0-9O]{2})/g,'$1$2')
+    .replace(/([A-TV-Z][0-9O]{2})\s*[,\.]\s*([0-9O]{1,2})/g,'$1.$2')
+    .replace(/\b([A-TV-Z])([0-9O]{2})([0-9O]{2})\b/g,'$1$2.$3')
+    .replace(/\b([A-TV-Z][0-9O]{2})\s+([0-9O]{1,2})\b/g,'$1.$2');
+  const matches=t.match(/\b[A-TV-Z][0-9O]{2}(?:\.[0-9O]{1,2})?\b/g)||[];
+  return [...new Set(matches.map(raw=>raw[0]+raw.slice(1).replace(/O/g,'0')))].slice(0,8);
+}
+function inferIcdFromDiagnosisText(text){
+  const s=String(text||'').toLowerCase().replace(/\s+/g,' ');
+  const found=[];
+  const add=(code,label,match)=>{if(!found.some(x=>x.code===code))found.push({code,label,match});};
+
+  if(/status asthmaticus|akutes schweres asthma bronchiale/.test(s)) add('J46','Status asthmaticus / akutes schweres Asthma','Asthma');
+  else if(/(?:allergisch|atopisch|extrinsisch).{0,30}asthma|asthma.{0,30}(?:allergisch|atopisch|extrinsisch)/.test(s)) add('J45.09','Vorwiegend allergisches Asthma bronchiale, Kontrollstatus/Schweregrad nicht angegeben','Asthma');
+  else if(/(?:nichtallergisch|intrinsisch).{0,30}asthma|asthma.{0,30}(?:nichtallergisch|intrinsisch)/.test(s)) add('J45.19','Nichtallergisches Asthma bronchiale, Kontrollstatus/Schweregrad nicht angegeben','Asthma');
+  else if(/asthma bronchiale|asthmatische bronchitis/.test(s)) add('J45.99','Asthma bronchiale, nicht näher bezeichnet; Kontrollstatus/Schweregrad nicht angegeben','Asthma');
+
+  const rules=[
+    {re:/grippaler infekt|akute infektion (?:der )?oberen atemwege/,code:'J06.9',label:'Akute Infektion der oberen Atemwege, nicht näher bezeichnet'},
+    {re:/akute bronchitis/,code:'J20.9',label:'Akute Bronchitis, nicht näher bezeichnet'},
+    {re:/akute infektion (?:der )?unteren atemwege/,code:'J22',label:'Akute Infektion der unteren Atemwege, nicht näher bezeichnet'},
+    {re:/akute sinusitis|akute nasennebenhöhlenentzündung/,code:'J01.9',label:'Akute Sinusitis, nicht näher bezeichnet'},
+    {re:/akute pharyngitis|akute rachenentzündung/,code:'J02.9',label:'Akute Pharyngitis, nicht näher bezeichnet'},
+    {re:/akute tonsillitis|akute mandelentzündung/,code:'J03.9',label:'Akute Tonsillitis, nicht näher bezeichnet'},
+    {re:/pollenallergie|heuschnupfen|pollinose/,code:'J30.1',label:'Allergische Rhinopathie durch Pollen'},
+    {re:/allergische (?:rhinitis|rhinopathie)/,code:'J30.4',label:'Allergische Rhinopathie, nicht näher bezeichnet'},
+    {re:/chronische rhinitis/,code:'J31.0',label:'Chronische Rhinitis'},
+    {re:/chronische sinusitis/,code:'J32.9',label:'Chronische Sinusitis, nicht näher bezeichnet'}
+  ];
+  for(const r of rules){if(r.re.test(s))add(r.code,r.label,r.re.source);}
+  if(/covid[- ]?19|sars[- ]?cov[- ]?2/.test(s) && /(?:virus\s*)?(?:nachgewiesen|positiv)/.test(s)) add('U07.1','COVID-19, Virus nachgewiesen','COVID-19');
+  return found.slice(0,4);
+}
+function parseAuText(text){
+  const lower=String(text||'').toLowerCase();
+  const kind=/folge|folgebescheinigung/.test(lower)?'Folgebescheinigung':'Erstbescheinigung';
+  const dates=[...String(text||'').matchAll(/\b\d{1,2}[.\/\-]\d{1,2}[.\/\-]\d{2,4}\b/g)].map(m=>normalizeDate(m[0])).filter(Boolean);
+  const unique=[...new Set(dates)];
+  const printedCodes=extractPrintedIcdCodes(text);
+  const inferred=printedCodes.length?[]:inferIcdFromDiagnosisText(text);
+  const codes=printedCodes.length?printedCodes:inferred.map(x=>x.code);
+  return {kind,from:unique[0]||'',to:unique[1]||unique[0]||'',codes:[...new Set(codes)].slice(0,8),printedCodes,inferred};
+}
 function parseShiftText(text){const emp=(state.company.employeeName||'').trim().toLowerCase();const lines=text.split(/\r?\n/).map(x=>x.trim()).filter(Boolean);let chosen=emp?lines.find(l=>l.toLowerCase().includes(emp)):'';if(!chosen&&emp){const parts=emp.split(/\s+/);chosen=lines.find(l=>parts.some(p=>p.length>3&&l.toLowerCase().includes(p)))||'';}chosen=chosen||lines.join(' ');const times=[...chosen.matchAll(/\b([01]?\d|2[0-3])[:.]([0-5]\d)\b/g)].map(m=>`${m[1].padStart(2,'0')}:${m[2]}`);const shifts=[];const dateMatches=[...text.matchAll(/\b\d{1,2}[.]\d{1,2}(?:[.]\d{2,4})?\b/g)].map(m=>m[0]);if(times.length>=2){shifts.push({date:'',shift:guessShift(times[0]),start:times[0],end:times[1],note:chosen});}else{const codes=[...chosen.matchAll(/\b(F|S|N|FRÜH|SPAET|SPÄT|NACHT)\b/gi)].map(m=>m[0]);if(codes.length)shifts.push({date:'',shift:codes[0],start:'',end:'',note:chosen});}return {row:chosen,dates:dateMatches,shifts};}
 function guessShift(start){const h=parseInt(start.split(':')[0],10);if(h>=20||h<5)return 'Nacht';if(h<12)return 'Früh';return 'Spät';}
 
@@ -88,7 +132,36 @@ async function scanShift(){const f=$('#shiftImage').files[0];const status=$('#sh
 function reviewShift(){const parsed=parseShiftText($('#shiftOcrText').value);const first=parsed.shifts[0]||{date:'',shift:'',start:'',end:'',note:parsed.row};$('#shiftReview').classList.remove('hidden');$('#shiftReview').innerHTML=`<h3>Erkennung prüfen</h3><div class="review-grid"><label>Datum<input id="rShiftDate" type="date" value="${esc(first.date)}"></label><label>Schicht<input id="rShiftName" value="${esc(first.shift)}"></label><label>Von<input id="rShiftStart" type="time" value="${esc(first.start)}"></label><label>Bis<input id="rShiftEnd" type="time" value="${esc(first.end)}"></label><label class="wide">Erkannte Zeile<textarea id="rShiftNote">${esc(first.note)}</textarea></label><div class="wide muted">Erkannte Datumsangaben im Plan: ${esc(parsed.dates.join(', ')||'keine')}</div><button class="primary wide" id="commitShiftReview">Geprüfte Schicht speichern</button></div>`;$('#commitShiftReview').onclick=async()=>{state.shifts.push({id:id(),date:$('#rShiftDate').value,shift:$('#rShiftName').value.trim(),start:$('#rShiftStart').value,end:$('#rShiftEnd').value,note:$('#rShiftNote').value.trim(),sourceImage:$('#shiftOcrText').dataset.image||'',createdAt:now()});await save();$('#shiftReview').classList.add('hidden');};}
 
 async function scanAu(){const f=$('#auImage').files[0];const status=$('#auOcrStatus');try{const r=await ocrFile(f,status);$('#auOcrText').value=r.text;$('#auOcrText').dataset.image=r.image;reviewAu();}catch(e){status.textContent=e.message;}}
-function reviewAu(){const p=parseAuText($('#auOcrText').value);$('#auReview').classList.remove('hidden');$('#auReview').innerHTML=`<h3>AU-Daten prüfen</h3><div class="review-grid"><label>Art<select id="rAuKind"><option ${p.kind==='Erstbescheinigung'?'selected':''}>Erstbescheinigung</option><option ${p.kind==='Folgebescheinigung'?'selected':''}>Folgebescheinigung</option></select></label><label>ICD‑10-Code(s)<input id="rAuCodes" value="${esc(p.codes.join(', '))}" placeholder="z. B. J45.9"></label><label>Von<input id="rAuFrom" type="date" value="${esc(p.from)}"></label><label>Bis<input id="rAuTo" type="date" value="${esc(p.to)}"></label><label class="wide">Notiz<textarea id="rAuNote"></textarea></label><button class="primary wide" id="commitAuReview">Geprüfte AU speichern</button></div>`;$('#commitAuReview').onclick=async()=>{const codes=$('#rAuCodes').value.toUpperCase().match(/[A-TV-Z]\d{2}(?:\.\d{1,2})?/g)||[];state.aus.push({id:id(),kind:$('#rAuKind').value,from:$('#rAuFrom').value,to:$('#rAuTo').value,codes:[...new Set(codes)],note:$('#rAuNote').value.trim(),ocrText:$('#auOcrText').value,image:$('#auOcrText').dataset.image||'',createdAt:now()});await save();$('#auReview').classList.add('hidden');};}
+function reviewAu(){
+  const p=parseAuText($('#auOcrText').value);
+  const sourceText=p.printedCodes.length
+    ? 'ICD-10-Code(s) direkt auf der AU erkannt.'
+    : p.inferred.length
+      ? 'ICD-10 automatisch aus dem erkannten Diagnosetext ermittelt. Bitte vor dem Speichern prüfen.'
+      : 'Kein ICD-10-Code sicher ermittelt. Bitte den OCR-Text prüfen oder den Code manuell ergänzen.';
+  const inferredText=p.inferred.length?p.inferred.map(x=>`${x.code} – ${x.label}`).join(' · '):'';
+  $('#auReview').classList.remove('hidden');
+  $('#auReview').innerHTML=`<h3>AU-Daten prüfen</h3><div class="review-grid">
+    <label>Art<select id="rAuKind"><option ${p.kind==='Erstbescheinigung'?'selected':''}>Erstbescheinigung</option><option ${p.kind==='Folgebescheinigung'?'selected':''}>Folgebescheinigung</option></select></label>
+    <label>ICD‑10-Code(s)<input id="rAuCodes" value="${esc(p.codes.join(', '))}" placeholder="wird automatisch ermittelt"></label>
+    <label>Von<input id="rAuFrom" type="date" value="${esc(p.from)}"></label>
+    <label>Bis<input id="rAuTo" type="date" value="${esc(p.to)}"></label>
+    <div class="wide hint"><strong>ICD-Erkennung:</strong> ${esc(sourceText)}${inferredText?'<br>'+esc(inferredText):''}</div>
+    <label class="wide">Notiz<textarea id="rAuNote"></textarea></label>
+    <button class="primary wide" id="commitAuReview">Geprüfte AU speichern</button>
+  </div>`;
+  $('#commitAuReview').onclick=async()=>{
+    const codes=extractPrintedIcdCodes($('#rAuCodes').value);
+    state.aus.push({
+      id:id(),kind:$('#rAuKind').value,from:$('#rAuFrom').value,to:$('#rAuTo').value,
+      codes:[...new Set(codes)],note:$('#rAuNote').value.trim(),
+      codeSource:p.printedCodes.length?'AU-OCR':(p.inferred.length?'Diagnosetext-Vorschlag':'manuell'),
+      inferredIcd:p.inferred,ocrText:$('#auOcrText').value,image:$('#auOcrText').dataset.image||'',createdAt:now()
+    });
+    await save();
+    $('#auReview').classList.add('hidden');
+  };
+}
 
 async function saveScannedDoc(type){const fileEl=type==='payroll'?$('#payrollImage'):$('#stampImage');const monthEl=type==='payroll'?$('#payrollMonth'):$('#stampMonth');const f=fileEl.files[0];if(!f){alert('Bitte zuerst eine Datei auswählen.');return;}let data,ocrText='';if(f.type.startsWith('image/')){data=await compressImage(f);try{const status=document.createElement('div');const r=await ocrFile(f,status);ocrText=r.text;}catch{} }else{data=await fileToDataURL(f);}state.documents.push({id:id(),type,month:monthEl.value,name:f.name,mime:f.type,data,ocrText,createdAt:now()});fileEl.value='';await save();}
 

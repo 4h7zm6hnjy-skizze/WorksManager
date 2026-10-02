@@ -36,29 +36,46 @@
 
     <main>
       <section id="dashboard" class="page active">
-        <div class="hero">
-          <div>
+        <div class="dashboard-hero">
+          <div class="hero-copy">
+            <span class="eyebrow">WORKSMANAGER</span>
             <h2>Meine Arbeitsübersicht</h2>
             <p id="welcomeText" class="muted">Noch kein Mitarbeitername hinterlegt.</p>
           </div>
           <span class="privacy-badge">🔒 Lokal & verschlüsselt</span>
         </div>
-        <div class="stats-grid">
-          <div class="stat"><span>AU-Tage</span><strong id="statAuDays">0</strong></div>
-          <div class="stat"><span>AU-Fälle</span><strong id="statAuCases">0</strong></div>
-          <div class="stat"><span>Schichten</span><strong id="statShifts">0</strong></div>
-          <div class="stat"><span>Dokumente</span><strong id="statDocs">0</strong></div>
+
+        <div class="stats-grid dashboard-stats">
+          <button data-go="sickness" class="stat stat-button"><span>AU-Tage</span><strong id="statAuDays">0</strong><small>Krankheit</small></button>
+          <button data-go="sickness" class="stat stat-button"><span>AU-Fälle</span><strong id="statAuCases">0</strong><small>Bescheinigungen</small></button>
+          <button data-go="family" class="stat stat-button"><span>Kind krank</span><strong id="statChildCases">0</strong><small>Einträge</small></button>
+          <button data-go="shift" class="stat stat-button"><span>Schichten</span><strong id="statShifts">0</strong><small>Gespeichert</small></button>
+          <button data-go="payroll" class="stat stat-button"><span>Dokumente</span><strong id="statDocs">0</strong><small>Arbeitsunterlagen</small></button>
+          <button data-go="health" class="stat stat-button"><span>Gesundheit</span><strong id="statHealthEntries">0</strong><small>Befunde</small></button>
         </div>
-        <div class="quick-grid">
-          <button data-go="shift" class="quick">📷 Schichtplan einlesen</button>
-          <button data-go="sickness" class="quick">🩺 AU einscannen</button>
-          <button data-go="payroll" class="quick">🧾 Abrechnung scannen</button>
-          <button data-go="meetings" class="quick">🗣 Gespräch eintragen</button>
-          <button data-go="health" class="quick">❤ Gesundheit</button>
+
+        <div class="dashboard-section-head">
+          <div>
+            <span class="eyebrow">SCHNELLZUGRIFF</span>
+            <h3>Bereiche</h3>
+          </div>
         </div>
-        <div class="card warning-card">
-          <h3>Datenschutz</h3>
-          <p>Scans, ICD‑10-Codes und Arbeitsdaten werden nicht an einen eigenen Server der App übertragen. Sie liegen verschlüsselt auf diesem Gerät. Die optionale OCR-Bibliothek wird aus dem Internet geladen, die Bildauswertung selbst erfolgt im Browser.</p>
+        <div class="module-grid">
+          <button data-go="shift" class="module-card"><span class="module-icon">◷</span><span><strong>Schichtplan</strong><small>Plan fotografieren & Schichten verwalten</small></span><b>›</b></button>
+          <button data-go="sickness" class="module-card"><span class="module-icon">✚</span><span><strong>Krankheit & AU</strong><small>AU-Scanner, ICD‑10 & Zähler</small></span><b>›</b></button>
+          <button data-go="payroll" class="module-card"><span class="module-icon">▤</span><span><strong>Abrechnung</strong><small>Lohnabrechnung & Stempelübersicht</small></span><b>›</b></button>
+          <button data-go="health" class="module-card"><span class="module-icon">♥</span><span><strong>Gesundheit</strong><small>Lungenfunktion, Labor & Arztbriefe</small></span><b>›</b></button>
+          <button data-go="meetings" class="module-card"><span class="module-icon">☷</span><span><strong>BEM · AMZ · Gespräche</strong><small>Termine, Gesprächspartner & Notizen</small></span><b>›</b></button>
+          <button data-go="notices" class="module-card"><span class="module-icon">▱</span><span><strong>Aushänge</strong><small>Kurzarbeit & sonstige Mitteilungen</small></span><b>›</b></button>
+          <button data-go="company" class="module-card"><span class="module-icon">⌂</span><span><strong>Firma & Vertrag</strong><small>Firmendaten & Arbeitsvertrag</small></span><b>›</b></button>
+          <button data-go="family" class="module-card"><span class="module-icon">♙</span><span><strong>Kind krank</strong><small>Zeiträume & Einträge verwalten</small></span><b>›</b></button>
+          <button data-go="rehab" class="module-card"><span class="module-icon">↗</span><span><strong>Reha</strong><small>Status, Einrichtung & Zeitraum</small></span><b>›</b></button>
+          <button data-go="backup" class="module-card"><span class="module-icon">⌁</span><span><strong>Sicherheit & Backup</strong><small>Verschlüsselte Sicherung verwalten</small></span><b>›</b></button>
+        </div>
+
+        <div class="card privacy-card">
+          <div class="privacy-card-icon">🔒</div>
+          <div><h3>Private Daten</h3><p>Scans, ICD‑10-Codes und Arbeitsdaten liegen verschlüsselt auf diesem Gerät. OCR-Auswertungen werden vor dem Speichern zur Prüfung angezeigt.</p></div>
         </div>
       </section>
 
