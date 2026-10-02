@@ -9,7 +9,7 @@ let cryptoKey = null;
 let db = null;
 
 function blankState(){return {version:5,company:{name:'',employeeName:'',contractStart:'',employeeNo:'',notes:'',contracts:[]},shifts:[],meetings:[],notices:[],documents:[],aus:[],childSick:[],rehabs:[],stairs:[],attachments:{company:[],shift:[],meetings:[],notices:[],family:[],rehab:[]}};}
-function normalizeState(v){const base=blankState();const x=v&&typeof v==='object'?v:{};x.company={...base.company,...(x.company||{})};x.company.contracts=Array.isArray(x.company.contracts)?x.company.contracts:[];for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])x[k]=Array.isArray(x[k])?x[k]:[];delete x.health;x.attachments=x.attachments&&typeof x.attachments==='object'?x.attachments:{};for(const k of ['company','shift','meetings','notices','family','rehab'])x.attachments[k]=Array.isArray(x.attachments[k])?x.attachments[k]:[];const ensureIds=arr=>arr.forEach(item=>{if(item&&typeof item==='object'&&!item.id)item.id=id();});ensureIds(x.company.contracts);for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])ensureIds(x[k]);for(const k of ['company','shift','meetings','notices','family','rehab'])ensureIds(x.attachments[k]);x.version=5;return x;}
+function normalizeState(v){const base=blankState();const x=v&&typeof v==='object'?v:{};x.company={...base.company,...(x.company||{})};x.company.contracts=Array.isArray(x.company.contracts)?x.company.contracts:[];for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])x[k]=Array.isArray(x[k])?x[k]:[];delete x.health;x.attachments=x.attachments&&typeof x.attachments==='object'?x.attachments:{};for(const k of ['company','shift','meetings','notices','family','rehab'])x.attachments[k]=Array.isArray(x.attachments[k])?x.attachments[k]:[];const ensureIds=arr=>arr.forEach(item=>{if(!item||typeof item!=='object')return;if(item.id===undefined||item.id===null||String(item.id).trim()==='')item.id=id();else item.id=String(item.id);});ensureIds(x.company.contracts);for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])ensureIds(x[k]);for(const k of ['company','shift','meetings','notices','family','rehab'])ensureIds(x.attachments[k]);x.version=5;return x;}
 function id(){return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2);}
 function now(){return new Date().toISOString();}
 function fmtDate(v){if(!v)return '—';const d=new Date(v+'T12:00:00');return d.toLocaleDateString('de-DE');}
@@ -140,7 +140,8 @@ function renderAUs(){
     const d=auDates(a),hasDates=d.from&&d.to;
     const title=hasDates?(d.from===d.to?fmtDate(d.from):`${fmtDate(d.from)}–${fmtDate(d.to)}`):'Krankschreibung ohne Datumsangabe';
     const meta=a.name?esc(a.name):'Foto gespeichert';
-    return itemHtml(title,meta,a.createdAt,[(a.data||a.image)?`<button onclick="viewDoc('${a.id}','au')">Foto ansehen</button>`:'',`<button onclick="delAu('${a.id}')">Löschen</button>`]);
+    const originalIndex=state.aus.indexOf(a);
+    return itemHtml(title,meta,a.createdAt,[(a.data||a.image)?`<button onclick="viewAuAt(${originalIndex})">Foto ansehen</button>`:'',`<button onclick="delAuAt(${originalIndex})">Löschen</button>`]);
   }).join('')||empty('Noch keine Krankschreibung gespeichert.');
 }
 function localDateValue(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
@@ -233,7 +234,9 @@ window.delShift=async ident=>{if(confirm('Schichteintrag wirklich löschen?'))aw
 window.delMeeting=async ident=>{if(confirm('Gesprächseintrag wirklich löschen?'))await deleteById('meetings',ident,'Eintrag gelöscht');};
 window.delNotice=async ident=>{if(confirm('Aushang wirklich löschen?'))await deleteById('notices',ident,'Aushang gelöscht');};
 window.delDoc=async ident=>{if(confirm('Dokument wirklich löschen?'))await deleteById('documents',ident,'Dokument gelöscht');};
-window.delAu=async ident=>{if(confirm('Krankschreibung wirklich löschen?'))await deleteById('aus',ident,'Krankschreibung gelöscht');};
+window.viewAuAt=index=>{const i=Number(index);const obj=Number.isInteger(i)?state.aus?.[i]:null;if(!obj){alert('Die Krankschreibung konnte nicht gefunden werden. Bitte die Ansicht neu öffnen.');return;}openStoredData(obj.data||obj.image||'',obj.name||'Krankschreibung');};
+window.delAuAt=async index=>{const i=Number(index);if(!Number.isInteger(i)||i<0||i>=state.aus.length){alert('Die Krankschreibung konnte nicht gefunden werden. Bitte die Ansicht neu öffnen.');return;}if(!confirm('Krankschreibung wirklich löschen?'))return;state.aus.splice(i,1);await save('Krankschreibung gelöscht');};
+window.delAu=async ident=>{if(!confirm('Krankschreibung wirklich löschen?'))return;const key=String(ident??'');const i=state.aus.findIndex(x=>String(x?.id??'')===key);if(i<0){alert('Die Krankschreibung konnte nicht über ihre alte Kennung gefunden werden. Bitte die aktuelle Ansicht verwenden.');return;}state.aus.splice(i,1);await save('Krankschreibung gelöscht');};
 window.delChild=async ident=>{if(confirm('Kind-krank-Eintrag wirklich löschen?'))await deleteById('childSick',ident,'Eintrag gelöscht');};
 window.delRehab=async ident=>{if(confirm('Reha-Eintrag wirklich löschen?'))await deleteById('rehabs',ident,'Reha-Eintrag gelöscht');};
 async function saveMeeting(){state.meetings.push({id:id(),type:$('#meetingType').value,date:$('#meetingDate').value,time:$('#meetingTime').value,partner:$('#meetingPartner').value.trim(),place:$('#meetingPlace').value.trim(),note:$('#meetingNote').value.trim(),createdAt:now()});await save();['meetingDate','meetingTime','meetingPartner','meetingPlace','meetingNote'].forEach(i=>$('#'+i).value='');}
