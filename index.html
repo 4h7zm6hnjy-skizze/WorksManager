@@ -1,26 +1,26 @@
 <!doctype html>
-<html lang="de" data-app-version="1.5.1">
+<html lang="de" data-app-version="1.6.0">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#062f4f" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <title>WorksManager v1.5.1</title>
-  <link rel="manifest" href="manifest.json?v=1.5.1" />
+  <title>WorksManager v1.6.0</title>
+  <link rel="manifest" href="manifest.json?v=1.6.0" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <link rel="stylesheet" href="styles.css?v=1.5.1" />
+  <link rel="stylesheet" href="styles.css?v=1.6.0" />
 </head>
 <body>
   <div id="unlock" class="unlock-screen">
     <div class="unlock-card">
       <div class="unlock-brand">
         <img class="unlock-logo" src="worksmanager-logo.png" alt="WorksManager" />
-        <span class="version-badge unlock-version" aria-label="Version 1.5.1">v1.5.1</span>
+        <span class="version-badge unlock-version" aria-label="Version 1.6.0">v1.6.0</span>
       </div>
-      <h1 class="sr-only">WorksManager v1.5.1</h1>
-      <div class="unlock-version-text">Version 1.5.1</div>
+      <h1 class="sr-only">WorksManager v1.6.0</h1>
+      <div class="unlock-version-text">Version 1.6.0</div>
       <p class="muted">Private Arbeitsverwaltung · lokale, verschlüsselte Datenspeicherung</p>
       <label>Passwort / PIN</label>
       <input id="unlockPassword" type="password" autocomplete="current-password" placeholder="Passwort eingeben" />
@@ -34,9 +34,9 @@
       <div class="top-brand">
         <div class="brand-row">
           <img class="top-logo" src="worksmanager-logo.png" alt="WorksManager" />
-          <span class="version-badge" aria-label="Version 1.5.1">v1.5.1</span>
+          <span class="version-badge" aria-label="Version 1.6.0">v1.6.0</span>
         </div>
-        <div class="app-version">Version 1.5.1</div>
+        <div class="app-version">Version 1.6.0</div>
         <div class="subtitle">Copyright Marcel Hentschel</div>
       </div>
       <div class="top-actions">
@@ -102,18 +102,18 @@
         </div>
         <div class="card">
           <h3>Arbeitsvertrag</h3>
-          <p class="muted">Foto, PDF oder Datei auswählen und unverändert in WorksManager ablegen.</p>
+          <p class="muted">Ein oder mehrere Fotos/PDFs auswählen und unverändert in WorksManager ablegen.</p>
           <div class="upload-row">
-            <input id="contractFile" type="file" accept="image/*,.pdf" />
-            <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
+            <input id="contractFile" type="file" accept="image/*,.pdf" multiple />
+            <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien · Mehrfachauswahl möglich</div>
             <button id="saveContractFile" class="primary">Dokument speichern</button>
           </div>
           <div id="contractList" class="list"></div>
         </div>
         <div class="card">
           <h3>Weitere Fotos / Dokumente</h3>
-          <input id="companyPhoto" type="file" accept="image/*,.pdf" />
-          <div class="media-source-hint">Keine Analyse – Datei wird nur gespeichert.</div>
+          <input id="companyPhoto" type="file" accept="image/*,.pdf" multiple />
+          <div class="media-source-hint">Keine Analyse – mehrere ausgewählte Dateien werden gemeinsam gespeichert.</div>
           <button class="primary" data-attachment-section="company" data-attachment-input="companyPhoto">Foto / Datei speichern</button>
           <div id="companyPhotoList" class="list"></div>
         </div>
@@ -123,9 +123,9 @@
         <div class="section-head"><h2>Schichtplan</h2><button id="addShiftManual">+ Schicht manuell</button></div>
         <div class="card">
           <h3>Schichtplan als Foto / Dokument</h3>
-          <p class="muted">Foto aufnehmen oder aus Fotomediathek/Dateien auswählen. Das Bild wird nur gespeichert und nicht analysiert.</p>
-          <input id="shiftPhoto" type="file" accept="image/*,.pdf" />
-          <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
+          <p class="muted">Ein oder mehrere Fotos aufnehmen bzw. aus Fotomediathek/Dateien auswählen. Die Dateien werden nur gespeichert und nicht analysiert.</p>
+          <input id="shiftPhoto" type="file" accept="image/*,.pdf" multiple />
+          <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien · Mehrfachauswahl möglich</div>
           <button class="primary" data-attachment-section="shift" data-attachment-input="shiftPhoto">Schichtplan speichern</button>
           <div id="shiftPhotoList" class="list"></div>
         </div>
@@ -145,8 +145,8 @@
         </div>
         <div class="card">
           <h3>Foto / Dokument hinzufügen</h3>
-          <input id="meetingPhoto" type="file" accept="image/*,.pdf" />
-          <div class="media-source-hint">Keine Analyse – Datei wird nur gespeichert.</div>
+          <input id="meetingPhoto" type="file" accept="image/*,.pdf" multiple />
+          <div class="media-source-hint">Keine Analyse – mehrere ausgewählte Dateien werden gemeinsam gespeichert.</div>
           <button class="primary" data-attachment-section="meetings" data-attachment-input="meetingPhoto">Foto / Datei speichern</button>
           <div id="meetingPhotoList" class="list"></div>
         </div>
@@ -160,13 +160,13 @@
           <label>Datum<input id="noticeDate" type="date" /></label>
           <label class="wide">Titel<input id="noticeTitle" /></label>
           <label class="wide">Notiz<textarea id="noticeNote" rows="3"></textarea></label>
-          <label class="wide">Foto / Dokument<input id="noticeFile" type="file" accept="image/*,.pdf" /><span class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</span></label>
+          <label class="wide">Foto / Dokument<input id="noticeFile" type="file" accept="image/*,.pdf" multiple /><span class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien · Mehrfachauswahl möglich</span></label>
           <div class="wide"><button id="saveNotice" class="primary">Eintrag speichern</button></div>
         </div>
         <div class="card">
           <h3>Nur Foto / Dokument speichern</h3>
-          <input id="noticePhoto" type="file" accept="image/*,.pdf" />
-          <div class="media-source-hint">Keine Zusatzangaben nötig. Keine Analyse.</div>
+          <input id="noticePhoto" type="file" accept="image/*,.pdf" multiple />
+          <div class="media-source-hint">Keine Zusatzangaben nötig. Mehrfachauswahl möglich. Keine Analyse.</div>
           <button class="primary" data-attachment-section="notices" data-attachment-input="noticePhoto">Foto / Datei speichern</button>
           <div id="noticePhotoList" class="list"></div>
         </div>
@@ -180,22 +180,22 @@
           <div class="card">
             <h3>Lohnabrechnung</h3>
             <label>Monat <small>(optional)</small><input id="payrollMonth" type="month" /></label>
-            <input id="payrollImage" type="file" accept="image/*,.pdf" />
-            <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
+            <input id="payrollImage" type="file" accept="image/*,.pdf" multiple />
+            <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien · Mehrfachauswahl möglich</div>
             <button data-docsave="payroll" class="primary">Lohnabrechnung speichern</button>
           </div>
           <div class="card">
             <h3>Stempelübersicht</h3>
             <label>Monat <small>(optional)</small><input id="stampMonth" type="month" /></label>
-            <input id="stampImage" type="file" accept="image/*,.pdf" />
-            <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
+            <input id="stampImage" type="file" accept="image/*,.pdf" multiple />
+            <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien · Mehrfachauswahl möglich</div>
             <button data-docsave="stamp" class="primary">Stempelübersicht speichern</button>
           </div>
           <div class="card">
             <h3>Arbeitsplan</h3>
             <label>Monat <small>(optional)</small><input id="workplanMonth" type="month" /></label>
-            <input id="workplanImage" type="file" accept="image/*,.pdf" />
-            <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
+            <input id="workplanImage" type="file" accept="image/*,.pdf" multiple />
+            <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien · Mehrfachauswahl möglich</div>
             <button data-docsave="workplan" class="primary">Arbeitsplan speichern</button>
           </div>
         </div>
@@ -206,11 +206,11 @@
         <div class="section-head"><h2>Krankheit & AU</h2></div>
         <div class="card form-grid">
           <h3 class="wide">Krankschreibung hinzufügen</h3>
-          <p class="muted wide">Foto der Krankschreibung auswählen oder aufnehmen und nur den Zeitraum im Kalender eintragen. Es findet keine Analyse statt.</p>
+          <p class="muted wide">Ein oder mehrere Fotos der Krankschreibung auswählen oder aufnehmen und nur den Zeitraum im Kalender eintragen. Es findet keine Analyse statt.</p>
           <label>Von<input id="auFrom" type="date" /></label>
           <label>Bis<input id="auTo" type="date" /></label>
-          <label class="wide">Foto der Krankschreibung<input id="auImage" type="file" accept="image/*" /></label>
-          <div class="media-source-hint wide">📷 Kamera · 🖼 Fotomediathek</div>
+          <label class="wide">Foto(s) der Krankschreibung<input id="auImage" type="file" accept="image/*" multiple /></label>
+          <div class="media-source-hint wide">📷 Kamera · 🖼 Fotomediathek · Mehrfachauswahl möglich</div>
           <div class="wide"><button id="saveAuPhoto" class="primary" type="button">Krankschreibung speichern</button><div id="auSaveStatus" class="save-status" aria-live="polite"></div></div>
         </div>
 
@@ -243,8 +243,8 @@
         </div>
         <div class="card">
           <h3>Foto / Dokument hinzufügen</h3>
-          <input id="familyPhoto" type="file" accept="image/*,.pdf" />
-          <div class="media-source-hint">Keine Analyse – Datei wird nur gespeichert.</div>
+          <input id="familyPhoto" type="file" accept="image/*,.pdf" multiple />
+          <div class="media-source-hint">Keine Analyse – mehrere ausgewählte Dateien werden gemeinsam gespeichert.</div>
           <button class="primary" data-attachment-section="family" data-attachment-input="familyPhoto">Foto / Datei speichern</button>
           <div id="familyPhotoList" class="list"></div>
         </div>
@@ -263,8 +263,8 @@
         </div>
         <div class="card">
           <h3>Foto / Dokument hinzufügen</h3>
-          <input id="rehabPhoto" type="file" accept="image/*,.pdf" />
-          <div class="media-source-hint">Keine Analyse – Datei wird nur gespeichert.</div>
+          <input id="rehabPhoto" type="file" accept="image/*,.pdf" multiple />
+          <div class="media-source-hint">Keine Analyse – mehrere ausgewählte Dateien werden gemeinsam gespeichert.</div>
           <button class="primary" data-attachment-section="rehab" data-attachment-input="rehabPhoto">Foto / Datei speichern</button>
           <div id="rehabPhotoList" class="list"></div>
         </div>
@@ -375,6 +375,6 @@
 
   <div id="modal" class="sheet hidden"><div id="modalCard" class="sheet-card"></div></div>
 
-  <script src="app.js?v=1.5.1"></script>
+  <script src="app.js?v=1.6.0"></script>
 </body>
 </html>

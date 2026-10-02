@@ -4,7 +4,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const enc = new TextEncoder();
 const dec = new TextDecoder();
-const APP_VERSION='1.5.1';
+const APP_VERSION='1.6.0';
 let state = blankState();
 let cryptoKey = null;
 let db = null;
@@ -128,8 +128,55 @@ function dataUrlToBlob(data){
 }
 async function storeEncryptedBlob(fileKey,blob,name){const encrypted=await encryptFileBlob(blob,name);await dbFilePut(fileKey,encrypted);}
 async function storeAuBlob(fileKey,blob,name){return storeEncryptedBlob(fileKey,blob,name);}
+function selectedUploadFiles(input,{imagesOnly=false}={}){
+  const files=[...(input?.files||[])];
+  if(!files.length)return [];
+  const invalid=files.filter(f=>imagesOnly?!isImageFile(f):!isSupportedDocument(f));
+  if(invalid.length){
+    const names=invalid.slice(0,3).map(f=>f.name||'Datei').join(', ');
+    throw new Error(imagesOnly?`Bitte nur Fotos auswählen. Nicht unterstützt: ${names}`:`Bitte nur Fotos oder PDF-Dateien auswählen. Nicht unterstützt: ${names}`);
+  }
+  return files;
+}
+function recordFileMetas(record){
+  if(!record||typeof record!=='object')return [];
+  if(Array.isArray(record.files)&&record.files.length)return record.files.filter(Boolean);
+  if(record.file&&typeof record.file==='object')return recordFileMetas(record.file);
+  if(record.fileKey||record.data||record.image)return [record];
+  return [];
+}
+function recordFileCount(record){return recordFileMetas(record).length;}
+function recordFileSummary(record,fallback='Foto / Dokument'){
+  const files=recordFileMetas(record);
+  if(files.length===1)return files[0].name||record.name||fallback;
+  if(files.length>1)return `${files.length} Dateien`;
+  return record?.name||fallback;
+}
+async function storeUploadFiles(prefix,files,{compressImages=false,max=1800,q=.78}={}){
+  const metas=[],storedKeys=[];
+  try{
+    for(const file of files){
+      let blob=file;
+      if(compressImages&&isImageFile(file)){
+        try{blob=await compressImageBlob(file,max,q);}catch(e){console.warn('Bildkomprimierung fehlgeschlagen, Original wird gespeichert:',e);blob=file;}
+      }
+      const fileKey=`${prefix}:${id()}`;
+      await storeEncryptedBlob(fileKey,blob,file.name||'Datei');
+      storedKeys.push(fileKey);
+      metas.push({name:file.name||'Datei',mime:blob.type||file.type||'',size:blob.size||file.size||0,fileKey});
+    }
+    return metas;
+  }catch(e){
+    await Promise.all(storedKeys.map(k=>dbFileDelete(k).catch(()=>{})));
+    throw e;
+  }
+}
+async function deleteRecordFiles(record){
+  const keys=[...new Set(recordFileMetas(record).map(x=>x?.fileKey).filter(Boolean))];
+  await Promise.all(keys.map(k=>dbFileDelete(k).catch(e=>console.warn('Datei konnte nicht gelöscht werden:',k,e))));
+}
 async function migrateDataUrlRecord(target,prefix,legacyFields=['data']){
-  if(!target||target.fileKey)return false;
+  if(!target||target.fileKey||(Array.isArray(target.files)&&target.files.length))return false;
   const oldField=legacyFields.find(k=>target[k]);
   if(!oldField)return false;
   try{
@@ -166,12 +213,12 @@ async function migrateLegacyStoredFiles(){
   return changed;
 }
 function referencedFileKeys(source=state){
-  const keys=new Set(),add=k=>{if(k)keys.add(String(k));};
-  for(const x of source.company?.contracts||[])add(x.fileKey);
-  for(const n of source.notices||[])add(n.file?.fileKey);
-  for(const d of source.documents||[])add(d.fileKey);
-  for(const a of source.aus||[])add(a.fileKey);
-  for(const arr of Object.values(source.attachments||{}))for(const x of arr||[])add(x.fileKey);
+  const keys=new Set(),addRecord=record=>{for(const meta of recordFileMetas(record)){if(meta?.fileKey)keys.add(String(meta.fileKey));}};
+  for(const x of source.company?.contracts||[])addRecord(x);
+  for(const n of source.notices||[])addRecord(n);
+  for(const d of source.documents||[])addRecord(d);
+  for(const a of source.aus||[])addRecord(a);
+  for(const arr of Object.values(source.attachments||{}))for(const x of arr||[])addRecord(x);
   return keys;
 }
 async function cleanupOrphanFiles(){
@@ -212,6 +259,17 @@ async function openStoredFile(meta,title='WorksManager Dokument'){
     }
   }catch(e){console.error('Datei öffnen fehlgeschlagen:',e);alert('Die Datei konnte nicht geöffnet werden: '+(e?.message||e));}
 }
+async function openRecordFiles(record,title='WorksManager Dokument'){
+  const files=recordFileMetas(record);
+  if(!files.length){alert('Zu diesem Eintrag ist keine Datei gespeichert.');return;}
+  if(files.length===1){await openStoredFile(files[0],title);return;}
+  window._wmFileGroup={files,title};
+  modal(`<div class="sheet-head"><strong>${esc(title)} · ${files.length} Dateien</strong><button type="button" onclick="closeModal()">✕</button></div><div class="list">${files.map((f,i)=>itemHtml(`${i+1}. ${esc(f.name||'Datei')}`,esc(f.mime||''),'',[`<button type="button" onclick="openGroupedFile(${i})">Öffnen</button>`])).join('')}</div>`);
+}
+window.openGroupedFile=async index=>{
+  const group=window._wmFileGroup,i=Number(index);if(!group||!Number.isInteger(i)||i<0||i>=group.files.length){alert('Datei nicht gefunden.');return;}
+  const meta=group.files[i];await openStoredFile(meta,`${group.title} · ${i+1}/${group.files.length}`);
+};
 function unb64(s){const x=atob(s);const a=new Uint8Array(x.length);for(let i=0;i<x.length;i++)a[i]=x.charCodeAt(i);return a.buffer;}
 async function deriveKey(password,salt){const base=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:210000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
 async function encryptState(){await ensureCryptoKey();const iv=crypto.getRandomValues(new Uint8Array(12));const plain=enc.encode(JSON.stringify(state));const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},cryptoKey,plain);return {iv:b64(iv),cipher:b64(cipher),updatedAt:now()};}
@@ -289,14 +347,18 @@ function renderAll(){
   if(errors.length)showToast(`Anzeigeproblem: ${errors.join(', ')}`,'error');
 }
 
-function renderDashboard(){const auDays=countUniqueRangeDays(state.aus);const extraDocs=Object.values(state.attachments||{}).reduce((n,a)=>n+(Array.isArray(a)?a.length:0),0);$('#statAuDays').textContent=auDays;$('#statAuCases').textContent=state.aus.length;$('#statChildCases').textContent=state.childSick.length;$('#statShifts').textContent=state.shifts.length;$('#statDocs').textContent=state.documents.length+state.company.contracts.length+state.notices.filter(n=>n.file).length+extraDocs;$('#welcomeText').textContent=state.company.employeeName?`${state.company.employeeName}${state.company.name?' · '+state.company.name:''}`:'Noch kein Mitarbeitername hinterlegt.';const today=localDateValue();const stairsToday=(state.stairs||[]).filter(x=>x.date===today).reduce((n,x)=>n+(Number(x.count)||0),0);const stairStat=$('#statStairsToday');if(stairStat)stairStat.textContent=stairsToday;}
-function renderCompany(){const c=state.company;$('#companyName').value=c.name||'';$('#employeeName').value=c.employeeName||'';$('#contractStart').value=c.contractStart||'';$('#employeeNo').value=c.employeeNo||'';$('#companyNotes').value=c.notes||'';$('#contractList').innerHTML=(c.contracts||[]).map(x=>itemHtml('Arbeitsvertrag',esc(x.name||'Dokument'),x.createdAt,[`<button onclick="viewDoc('${x.id}','contract')">Öffnen</button>`,`<button onclick="delContract('${x.id}')">Löschen</button>`])).join('')||empty('Noch kein Arbeitsvertrag gespeichert.');}
+function renderDashboard(){
+  const auDays=countUniqueRangeDays(state.aus);const extraDocs=Object.values(state.attachments||{}).reduce((n,a)=>n+(Array.isArray(a)?a.reduce((m,x)=>m+recordFileCount(x),0):0),0);
+  const fileDocs=state.documents.reduce((n,x)=>n+recordFileCount(x),0)+(state.company.contracts||[]).reduce((n,x)=>n+recordFileCount(x),0)+state.notices.reduce((n,x)=>n+recordFileCount(x),0)+extraDocs;
+  $('#statAuDays').textContent=auDays;$('#statAuCases').textContent=state.aus.length;$('#statChildCases').textContent=state.childSick.length;$('#statShifts').textContent=state.shifts.length;$('#statDocs').textContent=fileDocs;$('#welcomeText').textContent=state.company.employeeName?`${state.company.employeeName}${state.company.name?' · '+state.company.name:''}`:'Noch kein Mitarbeitername hinterlegt.';const today=localDateValue();const stairsToday=(state.stairs||[]).filter(x=>x.date===today).reduce((n,x)=>n+(Number(x.count)||0),0);const stairStat=$('#statStairsToday');if(stairStat)stairStat.textContent=stairsToday;
+}
+function renderCompany(){const c=state.company;$('#companyName').value=c.name||'';$('#employeeName').value=c.employeeName||'';$('#contractStart').value=c.contractStart||'';$('#employeeNo').value=c.employeeNo||'';$('#companyNotes').value=c.notes||'';$('#contractList').innerHTML=(c.contracts||[]).map(x=>itemHtml('Arbeitsvertrag',esc(recordFileSummary(x,'Dokument')),x.createdAt,[`<button onclick="viewDoc('${x.id}','contract')">Öffnen${recordFileCount(x)>1?' ('+recordFileCount(x)+')':''}</button>`,`<button onclick="delContract('${x.id}')">Löschen</button>`])).join('')||empty('Noch kein Arbeitsvertrag gespeichert.');}
 function renderShifts(){const arr=[...state.shifts].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#shiftList').innerHTML=arr.map(s=>itemHtml(`${fmtDate(s.date)} · ${esc(s.shift||'Schicht')}`,`${esc(s.start||'—')}–${esc(s.end||'—')}${s.note?' · '+esc(s.note):''}`,s.createdAt,[`<button onclick="delShift('${s.id}')">Löschen</button>`])).join('')||empty('Noch keine Schichten gespeichert.');}
 function renderMeetings(){const arr=[...state.meetings].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#meetingList').innerHTML=arr.map(m=>itemHtml(`${esc(m.type)} · ${fmtDate(m.date)}`,`${esc(m.time||'')} ${esc(m.partner||'')}${m.place?' · '+esc(m.place):''}${m.note?' · '+esc(m.note):''}`,m.createdAt,[`<button onclick="delMeeting('${m.id}')">Löschen</button>`])).join('')||empty('Noch keine Einträge.');}
-function renderNotices(){const arr=[...state.notices].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#noticeList').innerHTML=arr.map(n=>itemHtml(`${esc(n.type)} · ${esc(n.title||'Aushang')}`,`${fmtDate(n.date)}${n.note?' · '+esc(n.note):''}`,n.createdAt,[n.file?`<button onclick="viewDoc('${n.id}','notice')">Dokument</button>`:'',`<button onclick="delNotice('${n.id}')">Löschen</button>`])).join('')||empty('Noch keine Aushänge.');}
+function renderNotices(){const arr=[...state.notices].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#noticeList').innerHTML=arr.map(n=>itemHtml(`${esc(n.type)} · ${esc(n.title||'Aushang')}`,`${fmtDate(n.date)}${n.note?' · '+esc(n.note):''}${recordFileCount(n)?' · '+recordFileCount(n)+' Datei'+(recordFileCount(n)===1?'':'en'):''}`,n.createdAt,[recordFileCount(n)?`<button onclick="viewDoc('${n.id}','notice')">Datei${recordFileCount(n)===1?'':'en'} (${recordFileCount(n)})</button>`:'',`<button onclick="delNotice('${n.id}')">Löschen</button>`])).join('')||empty('Noch keine Aushänge.');}
 function renderDocs(){
   const arr=[...state.documents].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
-  $('#payrollList').innerHTML=arr.map(d=>{const label=d.type==='payroll'?'Lohnabrechnung':d.type==='stamp'?'Stempelübersicht':'Arbeitsplan';return itemHtml(`${label}${d.month?' · '+esc(d.month):''}`,esc(d.name||'Dokument gespeichert'),d.createdAt,[`<button onclick="viewDoc('${d.id}','doc')">Öffnen</button>`,`<button onclick="delDoc('${d.id}')">Löschen</button>`]);}).join('')||empty('Noch keine Abrechnungen, Stempelübersichten oder Arbeitspläne gespeichert.');
+  $('#payrollList').innerHTML=arr.map(d=>{const label=d.type==='payroll'?'Lohnabrechnung':d.type==='stamp'?'Stempelübersicht':'Arbeitsplan';const count=recordFileCount(d);return itemHtml(`${label}${d.month?' · '+esc(d.month):''}`,esc(recordFileSummary(d,'Dokument gespeichert')),d.createdAt,[`<button onclick="viewDoc('${d.id}','doc')">Öffnen${count>1?' ('+count+')':''}</button>`,`<button onclick="delDoc('${d.id}')">Löschen</button>`]);}).join('')||empty('Noch keine Abrechnungen, Stempelübersichten oder Arbeitspläne gespeichert.');
 }
 function auDates(item){
   const from=String(item?.from||item?.to||'').slice(0,10);
@@ -378,9 +440,9 @@ function renderAUs(){
   list.innerHTML=arr.map(({a,index})=>{
     const d=auDates(a),hasDates=d.from&&d.to;
     const title=hasDates?(d.from===d.to?fmtDate(d.from):`${fmtDate(d.from)}–${fmtDate(d.to)}`):'Krankschreibung ohne Datumsangabe';
-    const meta=a.name?esc(a.name):'Foto gespeichert';
+    const count=recordFileCount(a);const meta=count?`${count} Foto${count===1?'':'s'} gespeichert`:'Kein Foto gespeichert';
     const key=esc(String(a.id||''));
-    return itemHtml(title,meta,a.createdAt,[(a.fileKey||a.data||a.image)?`<button type="button" data-au-view="${key}" data-au-index="${index}">Foto ansehen</button>`:'',`<button type="button" data-au-delete="${key}" data-au-index="${index}">Löschen</button>`]);
+    return itemHtml(title,meta,a.createdAt,[count?`<button type="button" data-au-view="${key}" data-au-index="${index}">Foto${count===1?'':'s'} ansehen${count>1?' ('+count+')':''}</button>`:'',`<button type="button" data-au-delete="${key}" data-au-index="${index}">Löschen</button>`]);
   }).join('')||empty('Noch keine Krankschreibung gespeichert.');
 
   list.querySelectorAll('[data-au-view]').forEach(btn=>btn.addEventListener('click',()=>viewAuRecord(btn.dataset.auView,btn.dataset.auIndex)));
@@ -426,23 +488,27 @@ window.delStairEntry=ident=>runAction(async()=>{if(confirm('Treppeneintrag lösc
 function renderChild(){const arr=[...state.childSick].sort((a,b)=>(b.from||'').localeCompare(a.from||''));$('#childList').innerHTML=arr.map(x=>itemHtml(`${esc(x.child||'Kind')} · ${fmtDate(x.from)}–${fmtDate(x.to)}`,esc(x.note||''),x.createdAt,[`<button onclick="delChild('${x.id}')">Löschen</button>`])).join('')||empty('Noch keine Einträge.');}
 function renderRehab(){const arr=[...state.rehabs].sort((a,b)=>(b.from||'').localeCompare(a.from||''));$('#rehabList').innerHTML=arr.map(x=>itemHtml(`${esc(x.status)} · ${esc(x.clinic||'Reha')}`,`${fmtDate(x.from)}–${fmtDate(x.to)}${x.note?' · '+esc(x.note):''}`,x.createdAt,[`<button onclick="delRehab('${x.id}')">Löschen</button>`])).join('')||empty('Noch keine Reha-Einträge.');}
 const attachmentUi={company:'companyPhotoList',shift:'shiftPhotoList',meetings:'meetingPhotoList',notices:'noticePhotoList',family:'familyPhotoList',rehab:'rehabPhotoList'};
-function renderAttachments(){for(const [section,listId] of Object.entries(attachmentUi)){const el=$('#'+listId);if(!el)continue;const arr=[...(state.attachments?.[section]||[])].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));el.innerHTML=arr.map(x=>itemHtml(esc(x.name||'Foto / Dokument'),'Nur gespeichert · keine Analyse',x.createdAt,[`<button onclick="viewAttachment('${section}','${x.id}')">Öffnen</button>`,`<button onclick="delAttachment('${section}','${x.id}')">Löschen</button>`])).join('')||empty('Noch keine Fotos oder Dokumente gespeichert.');}}
+function renderAttachments(){for(const [section,listId] of Object.entries(attachmentUi)){const el=$('#'+listId);if(!el)continue;const arr=[...(state.attachments?.[section]||[])].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));el.innerHTML=arr.map(x=>{const count=recordFileCount(x);return itemHtml(esc(recordFileSummary(x,'Foto / Dokument')),`${count} Datei${count===1?'':'en'} · nur gespeichert · keine Analyse`,x.createdAt,[`<button onclick="viewAttachment('${section}','${x.id}')">Öffnen${count>1?' ('+count+')':''}</button>`,`<button onclick="delAttachment('${section}','${x.id}')">Löschen</button>`]);}).join('')||empty('Noch keine Fotos oder Dokumente gespeichert.');}}
 async function saveGenericAttachment(section,inputId){
-  const input=$('#'+inputId),f=input?.files?.[0];if(!f){alert('Bitte zuerst ein Foto oder eine Datei auswählen.');return;}if(!isSupportedDocument(f)){alert('Bitte ein Foto oder eine PDF-Datei auswählen.');return;}
-  const recordId=id(),fileKey=`attachment:${section}:${recordId}`;
+  const input=$('#'+inputId);let files;
+  try{files=selectedUploadFiles(input);}catch(e){alert(e.message);return;}
+  if(!files.length){alert('Bitte zuerst mindestens ein Foto oder eine Datei auswählen.');return;}
+  const recordId=id();let metas=[],record=null;
   try{
-    await storeEncryptedBlob(fileKey,f,f.name||'Foto / Dokument');
+    metas=await storeUploadFiles(`attachment:${section}:${recordId}`,files);
     if(!state.attachments[section])state.attachments[section]=[];
-    state.attachments[section].push({id:recordId,name:f.name||'Foto / Dokument',mime:f.type||'',fileKey,createdAt:now()});
-    await save('Foto / Dokument gespeichert');input.value='';
-  }catch(e){await dbFileDelete(fileKey).catch(()=>{});console.error('Anhang speichern fehlgeschlagen:',e);showFileError('Foto / Dokument speichern',e);}
+    record={id:recordId,name:files.length===1?(files[0].name||'Foto / Dokument'):`${files.length} Dateien`,files:metas,createdAt:now()};
+    state.attachments[section].push(record);
+    try{await save(`${files.length} Datei${files.length===1?'':'en'} gespeichert`);}catch(e){state.attachments[section]=state.attachments[section].filter(x=>x.id!==recordId);throw e;}
+    input.value='';
+  }catch(e){await deleteRecordFiles(record||{files:metas});console.error('Anhang speichern fehlgeschlagen:',e);showFileError('Foto / Dokument speichern',e);}
 }
-window.viewAttachment=async(section,ident)=>{const obj=(state.attachments?.[section]||[]).find(x=>x.id===ident);if(!obj){alert('Datei nicht gefunden.');return;}await openStoredFile(obj,obj.name||'WorksManager Dokument');};
+window.viewAttachment=async(section,ident)=>{const obj=(state.attachments?.[section]||[]).find(x=>x.id===ident);if(!obj){alert('Datei nicht gefunden.');return;}await openRecordFiles(obj,obj.name||'WorksManager Dokument');};
 window.delAttachment=async(section,ident)=>{
   if(!confirm('Foto / Dokument löschen?'))return;
   const arr=state.attachments?.[section]||[],obj=arr.find(x=>x.id===ident);if(!obj){alert('Der Eintrag konnte nicht gefunden werden.');return;}
   state.attachments[section]=arr.filter(x=>x.id!==ident);
-  try{await save('Foto / Dokument gelöscht');if(obj.fileKey)await dbFileDelete(obj.fileKey).catch(()=>{});}catch(e){console.error('Anhang löschen fehlgeschlagen:',e);}
+  try{await save('Foto / Dokument gelöscht');await deleteRecordFiles(obj);}catch(e){console.error('Anhang löschen fehlgeschlagen:',e);}
 };
 
 function itemHtml(title,meta,created,actions=[]){return `<div class="item"><div class="item-top"><div><div class="item-title">${title}</div><div class="item-meta">${meta||''}</div></div></div><div class="item-actions">${actions.filter(Boolean).join('')}</div></div>`;}
@@ -453,22 +519,26 @@ function closeModal(){if(window._wmObjectUrl){URL.revokeObjectURL(window._wmObje
 
 async function saveCompany(){state.company={...state.company,name:$('#companyName').value.trim(),employeeName:$('#employeeName').value.trim(),contractStart:$('#contractStart').value,employeeNo:$('#employeeNo').value.trim(),notes:$('#companyNotes').value.trim()};await save();}
 async function saveContractFile(){
-  const input=$('#contractFile'),f=input?.files?.[0];if(!f){alert('Bitte zuerst ein Foto oder eine Datei auswählen.');return;}if(!isSupportedDocument(f)){alert('Bitte ein Foto oder eine PDF-Datei auswählen.');return;}
-  const recordId=id(),fileKey=`contract:${recordId}`;
+  const input=$('#contractFile');let files;
+  try{files=selectedUploadFiles(input);}catch(e){alert(e.message);return;}
+  if(!files.length){alert('Bitte zuerst mindestens ein Foto oder eine Datei auswählen.');return;}
+  const recordId=id();let metas=[],record=null;
   try{
-    await storeEncryptedBlob(fileKey,f,f.name||'Arbeitsvertrag');
-    state.company.contracts.push({id:recordId,name:f.name||'Arbeitsvertrag',mime:f.type||'',fileKey,createdAt:now()});
-    await save('Arbeitsvertrag gespeichert');input.value='';
-  }catch(e){await dbFileDelete(fileKey).catch(()=>{});console.error('Arbeitsvertrag speichern fehlgeschlagen:',e);showFileError('Arbeitsvertrag speichern',e);}
+    metas=await storeUploadFiles(`contract:${recordId}`,files);
+    record={id:recordId,name:files.length===1?(files[0].name||'Arbeitsvertrag'):`Arbeitsvertrag · ${files.length} Dateien`,files:metas,createdAt:now()};
+    state.company.contracts.push(record);
+    try{await save('Arbeitsvertrag gespeichert');}catch(e){state.company.contracts=state.company.contracts.filter(x=>x.id!==recordId);throw e;}
+    input.value='';
+  }catch(e){await deleteRecordFiles(record||{files:metas});console.error('Arbeitsvertrag speichern fehlgeschlagen:',e);showFileError('Arbeitsvertrag speichern',e);}
 }
 window.viewDoc=async(ident,type)=>{
   let obj=null,title='WorksManager Dokument';
-  if(type==='contract'){obj=(state.company.contracts||[]).find(x=>x.id===ident);title=obj?.name||'Arbeitsvertrag';}
-  else if(type==='notice'){const n=(state.notices||[]).find(x=>x.id===ident);obj=n?.file||null;title=obj?.name||n?.title||'Aushang';}
+  if(type==='contract'){obj=(state.company.contracts||[]).find(x=>x.id===ident);title='Arbeitsvertrag';}
+  else if(type==='notice'){obj=(state.notices||[]).find(x=>x.id===ident);title=obj?.title||'Aushang';}
   else if(type==='doc'){obj=(state.documents||[]).find(x=>x.id===ident);title=obj?.name||'Dokument';}
-  else if(type==='au'){obj=(state.aus||[]).find(x=>x.id===ident);title=obj?.name||'Krankschreibung';}
+  else if(type==='au'){obj=(state.aus||[]).find(x=>x.id===ident);title='Krankschreibung';}
   if(!obj){alert('Der Eintrag konnte nicht gefunden werden.');return;}
-  await openStoredFile(obj,title);
+  await openRecordFiles(obj,title);
 };
 async function deleteById(listName,ident,message){
   const list=state[listName];
@@ -480,17 +550,17 @@ async function deleteById(listName,ident,message){
 }
 window.delContract=async ident=>{
   if(!confirm('Arbeitsvertrag wirklich löschen?'))return;const obj=(state.company.contracts||[]).find(x=>x.id===ident);if(!obj){alert('Der Eintrag konnte nicht gefunden werden.');return;}
-  state.company.contracts=state.company.contracts.filter(x=>x.id!==ident);try{await save('Arbeitsvertrag gelöscht');if(obj.fileKey)await dbFileDelete(obj.fileKey).catch(()=>{});}catch(e){}
+  state.company.contracts=state.company.contracts.filter(x=>x.id!==ident);try{await save('Arbeitsvertrag gelöscht');await deleteRecordFiles(obj);}catch(e){}
 };
 window.delShift=ident=>runAction(async()=>{if(confirm('Schichteintrag wirklich löschen?'))await deleteById('shifts',ident,'Schicht gelöscht');},'Schicht löschen')();
 window.delMeeting=ident=>runAction(async()=>{if(confirm('Gesprächseintrag wirklich löschen?'))await deleteById('meetings',ident,'Eintrag gelöscht');},'Gespräch löschen')();
 window.delNotice=async ident=>{
   if(!confirm('Aushang wirklich löschen?'))return;const obj=(state.notices||[]).find(x=>x.id===ident);if(!obj){alert('Der Eintrag konnte nicht gefunden werden.');return;}
-  state.notices=state.notices.filter(x=>x.id!==ident);try{await save('Aushang gelöscht');if(obj.file?.fileKey)await dbFileDelete(obj.file.fileKey).catch(()=>{});}catch(e){}
+  state.notices=state.notices.filter(x=>x.id!==ident);try{await save('Aushang gelöscht');await deleteRecordFiles(obj);}catch(e){}
 };
 window.delDoc=async ident=>{
   if(!confirm('Dokument wirklich löschen?'))return;const obj=(state.documents||[]).find(x=>x.id===ident);if(!obj){alert('Der Eintrag konnte nicht gefunden werden.');return;}
-  state.documents=state.documents.filter(x=>x.id!==ident);try{await save('Dokument gelöscht');if(obj.fileKey)await dbFileDelete(obj.fileKey).catch(()=>{});}catch(e){}
+  state.documents=state.documents.filter(x=>x.id!==ident);try{await save('Dokument gelöscht');await deleteRecordFiles(obj);}catch(e){}
 };
 function findAuRecordIndex(ident,indexFallback){
   const key=String(ident??'');
@@ -500,7 +570,7 @@ function findAuRecordIndex(ident,indexFallback){
 }
 async function viewAuRecord(ident,indexFallback){
   const i=findAuRecordIndex(ident,indexFallback),obj=i>=0?state.aus[i]:null;if(!obj){alert('Die Krankschreibung konnte nicht gefunden werden.');return;}
-  await openStoredFile(obj,obj.name||'Krankschreibung');
+  await openRecordFiles(obj,'Krankschreibung');
 }
 async function deleteAuRecord(ident,indexFallback){
   if(!confirm('Krankschreibung wirklich löschen?'))return;
@@ -510,7 +580,7 @@ async function deleteAuRecord(ident,indexFallback){
   state.aus=state.aus.filter((_,idx)=>idx!==i);
   try{
     await save('Krankschreibung gelöscht');
-    if(removed?.fileKey)await dbFileDelete(removed.fileKey).catch(e=>console.warn('Verwaistes AU-Foto konnte nicht entfernt werden:',e));
+    await deleteRecordFiles(removed);
   }catch(e){console.error('AU löschen fehlgeschlagen:',e);}
 }
 window.viewAuAt=index=>viewAuRecord('',index);
@@ -520,13 +590,16 @@ window.delChild=ident=>runAction(async()=>{if(confirm('Kind-krank-Eintrag wirkli
 window.delRehab=ident=>runAction(async()=>{if(confirm('Reha-Eintrag wirklich löschen?'))await deleteById('rehabs',ident,'Reha-Eintrag gelöscht');},'Reha-Eintrag löschen')();
 async function saveMeeting(){const date=$('#meetingDate').value;if(!date){alert('Bitte ein Datum auswählen.');return;}state.meetings.push({id:id(),type:$('#meetingType').value,date,time:$('#meetingTime').value,partner:$('#meetingPartner').value.trim(),place:$('#meetingPlace').value.trim(),note:$('#meetingNote').value.trim(),createdAt:now()});await save('Gespräch gespeichert');['meetingDate','meetingTime','meetingPartner','meetingPlace','meetingNote'].forEach(i=>$('#'+i).value='');}
 async function saveNotice(){
-  const f=$('#noticeFile').files[0],recordId=id();let file=null,fileKey='';
-  if(f&&!isSupportedDocument(f)){alert('Bitte ein Foto oder eine PDF-Datei auswählen.');return;}
+  const input=$('#noticeFile');let files=[];
+  try{files=selectedUploadFiles(input);}catch(e){alert(e.message);return;}
+  const recordId=id();let metas=[],record=null;
   try{
-    if(f){fileKey=`notice:${recordId}`;await storeEncryptedBlob(fileKey,f,f.name||'Aushang');file={name:f.name,type:f.type,mime:f.type||'',fileKey};}
-    state.notices.push({id:recordId,type:$('#noticeType').value,date:$('#noticeDate').value,title:$('#noticeTitle').value.trim(),note:$('#noticeNote').value.trim(),file,createdAt:now()});
-    await save('Aushang gespeichert');$('#noticeTitle').value='';$('#noticeNote').value='';$('#noticeFile').value='';
-  }catch(e){if(fileKey)await dbFileDelete(fileKey).catch(()=>{});console.error('Aushang speichern fehlgeschlagen:',e);showFileError('Aushang speichern',e);}
+    if(files.length)metas=await storeUploadFiles(`notice:${recordId}`,files);
+    record={id:recordId,type:$('#noticeType').value,date:$('#noticeDate').value,title:$('#noticeTitle').value.trim(),note:$('#noticeNote').value.trim(),files:metas,createdAt:now()};
+    state.notices.push(record);
+    try{await save('Aushang gespeichert');}catch(e){state.notices=state.notices.filter(x=>x.id!==recordId);throw e;}
+    $('#noticeTitle').value='';$('#noticeNote').value='';input.value='';
+  }catch(e){await deleteRecordFiles(record||{files:metas});console.error('Aushang speichern fehlgeschlagen:',e);showFileError('Aushang speichern',e);}
 }
 async function saveChild(){const from=$('#childFrom').value,to=$('#childTo').value;if(!from||!to){alert('Bitte Von- und Bis-Datum auswählen.');return;}if(to<from){alert('Das Bis-Datum darf nicht vor dem Von-Datum liegen.');return;}state.childSick.push({id:id(),child:$('#childName').value.trim(),from,to,note:$('#childNote').value.trim(),createdAt:now()});await save('Kind-krank-Eintrag gespeichert');$('#childName').value='';$('#childFrom').value='';$('#childTo').value='';$('#childNote').value='';}
 async function saveRehab(){const from=$('#rehabFrom').value,to=$('#rehabTo').value;if(from&&to&&to<from){alert('Das Bis-Datum darf nicht vor dem Von-Datum liegen.');return;}state.rehabs.push({id:id(),status:$('#rehabStatus').value,clinic:$('#rehabClinic').value.trim(),from,to,note:$('#rehabNote').value.trim(),createdAt:now()});await save('Reha-Eintrag gespeichert');$('#rehabClinic').value='';$('#rehabFrom').value='';$('#rehabTo').value='';$('#rehabNote').value='';}
@@ -535,43 +608,42 @@ async function addManualShift(){modal(`<div class="sheet-head"><strong>Schicht h
 window.commitManualShift=async()=>{const date=$('#mShiftDate').value,shift=$('#mShiftName').value.trim();if(!date){alert('Bitte ein Datum auswählen.');return;}if(!shift){alert('Bitte eine Schicht eintragen.');return;}try{state.shifts.push({id:id(),date,shift,start:$('#mShiftStart').value,end:$('#mShiftEnd').value,note:$('#mShiftNote').value.trim(),createdAt:now()});await save('Schicht gespeichert');closeModal();}catch(e){if(!e?._wmAlerted)console.error('Schicht speichern fehlgeschlagen:',e);}};
 async function saveSimpleDoc(type){
   const map={payroll:['payrollImage','payrollMonth'],stamp:['stampImage','stampMonth'],workplan:['workplanImage','workplanMonth']},cfg=map[type];if(!cfg)return;
-  const fileEl=$('#'+cfg[0]),monthEl=$('#'+cfg[1]),f=fileEl?.files?.[0];if(!f){alert('Bitte zuerst ein Foto oder eine Datei auswählen.');return;}if(!isSupportedDocument(f)){alert('Bitte ein Foto oder eine PDF-Datei auswählen.');return;}
-  const recordId=id(),fileKey=`doc:${recordId}`;
+  const fileEl=$('#'+cfg[0]),monthEl=$('#'+cfg[1]);let files;
+  try{files=selectedUploadFiles(fileEl);}catch(e){alert(e.message);return;}
+  if(!files.length){alert('Bitte zuerst mindestens ein Foto oder eine Datei auswählen.');return;}
+  const recordId=id();let metas=[],record=null;
   try{
-    await storeEncryptedBlob(fileKey,f,f.name||'Dokument');
-    state.documents.push({id:recordId,type,month:monthEl?.value||'',name:f.name||'Dokument',mime:f.type||'',fileKey,createdAt:now()});
-    await save('Dokument gespeichert');fileEl.value='';
-  }catch(e){await dbFileDelete(fileKey).catch(()=>{});console.error('Dokument speichern fehlgeschlagen:',e);showFileError('Dokument speichern',e);}
+    metas=await storeUploadFiles(`doc:${recordId}`,files);
+    record={id:recordId,type,month:monthEl?.value||'',name:files.length===1?(files[0].name||'Dokument'):`${files.length} Dateien`,files:metas,createdAt:now()};
+    state.documents.push(record);
+    try{await save('Dokument gespeichert');}catch(e){state.documents=state.documents.filter(x=>x.id!==recordId);throw e;}
+    fileEl.value='';
+  }catch(e){await deleteRecordFiles(record||{files:metas});console.error('Dokument speichern fehlgeschlagen:',e);showFileError('Dokument speichern',e);}
 }
 async function saveAuPhoto(){
-  const btn=$('#saveAuPhoto');
-  const f=$('#auImage')?.files?.[0],from=$('#auFrom')?.value||'',to=$('#auTo')?.value||from;
+  const btn=$('#saveAuPhoto'),input=$('#auImage'),from=$('#auFrom')?.value||'',to=$('#auTo')?.value||from;let files;
   if(!from){alert('Bitte den ersten Krankheitstag im Kalender auswählen.');return;}
   if(to<from){alert('Das Bis-Datum darf nicht vor dem Von-Datum liegen.');return;}
-  if(!f){alert('Bitte zuerst ein Foto der Krankschreibung auswählen.');return;}
-  if(!isImageFile(f)){alert('Bitte ein Foto auswählen.');return;}
+  try{files=selectedUploadFiles(input,{imagesOnly:true});}catch(e){alert(e.message);return;}
+  if(!files.length){alert('Bitte zuerst mindestens ein Foto der Krankschreibung auswählen.');return;}
 
   const oldText=btn?.textContent||'Krankschreibung speichern';
   if(btn){btn.disabled=true;btn.textContent='Wird gespeichert …';}
   const status=$('#auSaveStatus');
-  if(status){status.textContent='Foto wird sicher gespeichert …';status.className='save-status working';}
-  let fileKey='';
+  if(status){status.textContent=`${files.length} Foto${files.length===1?'':'s'} werden sicher gespeichert …`;status.className='save-status working';}
+  const recordId=id();let metas=[];
   try{
-    const recordId=id();fileKey=`au:${recordId}`;
-    let blob;try{blob=await compressImageBlob(f,1800,.78);}catch(e){console.warn('Komprimierung fehlgeschlagen, Originalfoto wird verschlüsselt gespeichert.',e);blob=f;}
-    await storeAuBlob(fileKey,blob,f.name||'Krankschreibung');
-    const record={id:recordId,from,to,name:f.name||'Krankschreibung',mime:blob.type||f.type||'image/jpeg',fileKey,createdAt:now()};
+    metas=await storeUploadFiles(`au:${recordId}`,files,{compressImages:true,max:1800,q:.78});
+    const record={id:recordId,from,to,name:files.length===1?(files[0].name||'Krankschreibung'):`Krankschreibung · ${files.length} Fotos`,files:metas,createdAt:now()};
     state.aus.push(record);
-    try{await save('Krankschreibung gespeichert');}catch(e){state.aus=state.aus.filter(x=>x.id!==recordId);await dbFileDelete(fileKey).catch(()=>{});throw e;}
-    $('#auImage').value='';$('#auFrom').value='';$('#auTo').value='';
-    if(status){status.textContent='Krankschreibung wurde gespeichert.';status.className='save-status success';}
+    try{await save('Krankschreibung gespeichert');}catch(e){state.aus=state.aus.filter(x=>x.id!==recordId);await deleteRecordFiles(record);throw e;}
+    input.value='';$('#auFrom').value='';$('#auTo').value='';
+    if(status){status.textContent=`Krankschreibung mit ${files.length} Foto${files.length===1?'':'s'} wurde gespeichert.`;status.className='save-status success';}
   }catch(e){
-    console.error('AU speichern fehlgeschlagen:',e);
-    if(fileKey)await dbFileDelete(fileKey).catch(()=>{});
+    console.error('AU speichern fehlgeschlagen:',e);await deleteRecordFiles({files:metas});
     if(status){status.textContent='Speichern fehlgeschlagen: '+(e?.message||'unbekannter Fehler')+' – die Eingaben wurden nicht gelöscht.';status.className='save-status error';}
-  }finally{
-    if(btn){btn.disabled=false;btn.textContent=oldText;}
-  }
+    throw e;
+  }finally{if(btn){btn.disabled=false;btn.textContent=oldText;}}
 }
 
 function reportYearFromValue(value){
@@ -624,10 +696,10 @@ function reportSummary(year){
   const auDays=countUniqueRangeDays(d.aus,`${d.year}-01-01`,`${d.year}-12-31`);
   const childDays=countUniqueRangeDays(d.childSick,`${d.year}-01-01`,`${d.year}-12-31`);
   const stair=stairStats(d.stairs);
-  const attached=Object.values(d.attachments).reduce((n,a)=>n+a.length,0);
-  const noticeDocs=d.notices.filter(x=>x.file).length;
-  const auDocs=d.aus.filter(x=>x.fileKey||x.data||x.image||x.name).length;
-  const docs=d.documents.length+d.contracts.length+attached+noticeDocs+auDocs;
+  const attached=Object.values(d.attachments).reduce((n,a)=>n+a.reduce((m,x)=>m+recordFileCount(x),0),0);
+  const noticeDocs=d.notices.reduce((n,x)=>n+recordFileCount(x),0);
+  const auDocs=d.aus.reduce((n,x)=>n+recordFileCount(x),0);
+  const docs=d.documents.reduce((n,x)=>n+recordFileCount(x),0)+d.contracts.reduce((n,x)=>n+recordFileCount(x),0)+attached+noticeDocs+auDocs;
   return {...d,auDays,childDays,stair,docs};
 }
 function renderAnnualReport(){
@@ -659,6 +731,7 @@ function renderAnnualReport(){
 }
 function reportText(v,fallback='—'){const s=String(v??'').trim();return s||fallback;}
 function reportOneLine(v){return reportText(v,'').replace(/\s+/g,' ').trim();}
+function reportFormatDateTime(v){if(!v)return 'ohne Zeitangabe';const d=new Date(v);return Number.isNaN(d.getTime())?reportText(v,'ohne Zeitangabe'):d.toLocaleString('de-DE');}
 function buildAnnualReportLines(year){
   const d=reportSummary(year),lines=[];
   const title=t=>lines.push({kind:'title',text:t});
@@ -704,22 +777,22 @@ function buildAnnualReportLines(year){
   empty();
 
   section('Schichten',d.shifts,x=>`${fmtDate(x.date)} · ${reportText(x.shift,'Schicht')} · ${reportText(x.start,'—')}–${reportText(x.end,'—')}${x.note?' · '+reportOneLine(x.note):''}`);
-  section('Krankheit & AU',d.aus,x=>`${x.from?fmtDate(x.from):'ohne Von-Datum'}${x.to?' bis '+fmtDate(x.to):''}${x.name?' · Foto: '+reportOneLine(x.name):''}`);
+  section('Krankheit & AU',d.aus,x=>`${x.from?fmtDate(x.from):'ohne Von-Datum'}${x.to?' bis '+fmtDate(x.to):''} · ${recordFileCount(x)} Foto${recordFileCount(x)===1?'':'s'}`);
   section('Kind krank',d.childSick,x=>`${reportText(x.child,'Kind')} · ${x.from?fmtDate(x.from):'ohne Von-Datum'}${x.to?' bis '+fmtDate(x.to):''}${x.note?' · '+reportOneLine(x.note):''}`);
   section('BEM · AMZ · Gespräche',d.meetings,x=>`${reportText(x.type,'Gespräch')} · ${x.date?fmtDate(x.date):'ohne Datum'}${x.time?' '+x.time:''}${x.partner?' · '+reportOneLine(x.partner):''}${x.place?' · '+reportOneLine(x.place):''}${x.note?' · '+reportOneLine(x.note):''}`);
-  section('Aushänge',d.notices,x=>`${reportText(x.type,'Aushang')} · ${x.date?fmtDate(x.date):'ohne Datum'} · ${reportText(x.title,'ohne Titel')}${x.note?' · '+reportOneLine(x.note):''}${x.file?.name?' · Datei: '+reportOneLine(x.file.name):''}`);
-  section('Abrechnung · Stempelübersicht · Arbeitsplan',d.documents,x=>`${x.month?monthLabel(x.month):'ohne Monat'} · ${x.type==='payroll'?'Lohnabrechnung':x.type==='stamp'?'Stempelübersicht':x.type==='workplan'?'Arbeitsplan':reportText(x.type,'Dokument')} · Datei: ${reportText(x.name,'Dokument')}`);
+  section('Aushänge',d.notices,x=>`${reportText(x.type,'Aushang')} · ${x.date?fmtDate(x.date):'ohne Datum'} · ${reportText(x.title,'ohne Titel')}${x.note?' · '+reportOneLine(x.note):''}${recordFileCount(x)?' · '+recordFileCount(x)+' Datei'+(recordFileCount(x)===1?'':'en'):''}`);
+  section('Abrechnung · Stempelübersicht · Arbeitsplan',d.documents,x=>`${x.month?monthLabel(x.month):'ohne Monat'} · ${x.type==='payroll'?'Lohnabrechnung':x.type==='stamp'?'Stempelübersicht':x.type==='workplan'?'Arbeitsplan':reportText(x.type,'Dokument')} · ${recordFileCount(x)} Datei${recordFileCount(x)===1?'':'en'}`);
 
   section('Reha',d.rehabs,x=>`${reportText(x.status,'Reha')} · ${reportText(x.clinic,'ohne Einrichtung')} · ${x.from?fmtDate(x.from):'ohne Von-Datum'}${x.to?' bis '+fmtDate(x.to):''}${x.note?' · '+reportOneLine(x.note):''}`);
   section('Treppenzähler - Einzeleinträge',d.stairs,x=>`${x.date?fmtDate(x.date):'ohne Datum'}${x.time?' '+x.time:''} · ${Number(x.count)||0} Treppen${x.reason?' · '+reportOneLine(x.reason):''}`);
 
   h2('Weitere Fotos / Dokumente');
-  if(d.contracts.length){h3('Arbeitsverträge / Vertragsdokumente');d.contracts.forEach(x=>bullet(`${reportFormatDateTime(x.createdAt)} · ${reportText(x.name,'Dokument')}`));}
+  if(d.contracts.length){h3('Arbeitsverträge / Vertragsdokumente');d.contracts.forEach(x=>bullet(`${reportFormatDateTime(x.createdAt)} · ${recordFileCount(x)} Datei${recordFileCount(x)===1?'':'en'} · ${reportText(recordFileSummary(x,'Dokument'))}`));}
   const attachmentLabels={company:'Firma & Vertrag',shift:'Schichtplan',meetings:'BEM / AMZ / Gespräche',notices:'Aushänge',family:'Kind krank',rehab:'Reha'};
   let anyAttachment=d.contracts.length>0;
   for(const [key,arr] of Object.entries(d.attachments)){
     if(!arr.length)continue;anyAttachment=true;h3(attachmentLabels[key]||key);
-    arr.forEach(x=>bullet(`${reportFormatDateTime(x.createdAt)} · ${reportText(x.name,'Foto / Dokument')}`));
+    arr.forEach(x=>bullet(`${reportFormatDateTime(x.createdAt)} · ${recordFileCount(x)} Datei${recordFileCount(x)===1?'':'en'} · ${reportText(recordFileSummary(x,'Foto / Dokument'))}`));
   }
   if(!anyAttachment)bullet('Keine weiteren Dateien im gewählten Jahr.');
   empty();

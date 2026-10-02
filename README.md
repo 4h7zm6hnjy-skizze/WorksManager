@@ -1,4 +1,4 @@
-# WorksManager v1.5.1
+# WorksManager v1.6.0
 
 Private, lokal verschlüsselte Arbeits- und Dokumentenverwaltung.
 
@@ -36,6 +36,14 @@ Es findet keine OCR, Texterkennung oder automatische Fotoanalyse statt. Der Haup
 
 Copyright Marcel Hentschel.
 
+
+## v1.6.0 – Mehrere Fotos / Dateien pro Upload
+
+- Alle Foto-/Dokument-Uploads unterstützen Mehrfachauswahl.
+- Mehrere AU-Fotos werden als eine Krankschreibung mit einem gemeinsamen Zeitraum gespeichert.
+- Mehrseitige Arbeitsverträge, Abrechnungen, Stempelübersichten, Arbeitspläne, Aushänge und weitere Anhänge können gemeinsam abgelegt werden.
+- Alte Einträge mit nur einer Datei bleiben kompatibel.
+- Öffnen, Löschen, Backup und Jahresstatistik berücksichtigen alle Dateien eines Eintrags.
 
 ## v1.5.1 – Komplettprüfung und Fehlerkorrekturen
 - Versionsabgleich zwischen HTML und JavaScript ergänzt, damit gemischte Cache-Versionen erkannt werden.
