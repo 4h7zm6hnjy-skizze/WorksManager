@@ -4,19 +4,19 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const enc = new TextEncoder();
 const dec = new TextDecoder();
-const APP_VERSION='1.6.0';
+const APP_VERSION='1.7.0';
 let state = blankState();
 let cryptoKey = null;
 let db = null;
 
-function blankState(){return {version:6,company:{name:'',employeeName:'',contractStart:'',employeeNo:'',notes:'',contracts:[]},shifts:[],meetings:[],notices:[],documents:[],aus:[],childSick:[],rehabs:[],stairs:[],attachments:{company:[],shift:[],meetings:[],notices:[],family:[],rehab:[]}};}
+function blankState(){return {version:7,company:{name:'',employeeName:'',contractStart:'',employeeNo:'',notes:'',contracts:[]},shifts:[],meetings:[],notices:[],documents:[],aus:[],vacations:[],childSick:[],rehabs:[],stairs:[],attachments:{company:[],shift:[],meetings:[],notices:[],family:[],rehab:[]}};}
 function normalizeState(v){
   const base=blankState();
   const x=v&&typeof v==='object'&&!Array.isArray(v)?v:{};
   const rawCompany=x.company&&typeof x.company==='object'&&!Array.isArray(x.company)?x.company:{};
   x.company={...base.company,...rawCompany};
   x.company.contracts=Array.isArray(x.company.contracts)?x.company.contracts:[];
-  for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])x[k]=Array.isArray(x[k])?x[k]:[];
+  for(const k of ['shifts','meetings','notices','documents','aus','vacations','childSick','rehabs','stairs'])x[k]=Array.isArray(x[k])?x[k]:[];
   delete x.health;
   const incomingAttachments=x.attachments&&typeof x.attachments==='object'?x.attachments:{};
   x.attachments={};
@@ -32,9 +32,9 @@ function normalizeState(v){
     }
   };
   ensureIds(x.company.contracts);
-  for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])ensureIds(x[k]);
+  for(const k of ['shifts','meetings','notices','documents','aus','vacations','childSick','rehabs','stairs'])ensureIds(x[k]);
   for(const k of ['company','shift','meetings','notices','family','rehab'])ensureIds(x.attachments[k]);
-  x.version=6;
+  x.version=7;
   return x;
 }
 function id(){return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2);}
@@ -218,6 +218,7 @@ function referencedFileKeys(source=state){
   for(const n of source.notices||[])addRecord(n);
   for(const d of source.documents||[])addRecord(d);
   for(const a of source.aus||[])addRecord(a);
+  for(const v of source.vacations||[])addRecord(v);
   for(const arr of Object.values(source.attachments||{}))for(const x of arr||[])addRecord(x);
   return keys;
 }
@@ -341,7 +342,7 @@ function resetViewportPosition(){
 function go(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id===name));$$('.nav-btn[data-go]').forEach(b=>b.classList.toggle('active',b.dataset.go===name));$('#moreMenu').classList.add('hidden');window.scrollTo({top:0,left:0,behavior:'smooth'});}
 
 function renderAll(){
-  const renderers=[['Dashboard',renderDashboard],['Firma',renderCompany],['Schichten',renderShifts],['Gespräche',renderMeetings],['Aushänge',renderNotices],['Dokumente',renderDocs],['AU',renderAUs],['Kind krank',renderChild],['Reha',renderRehab],['Treppen',renderStairs],['Anhänge',renderAttachments],['Jahresbericht',renderAnnualReport]];
+  const renderers=[['Dashboard',renderDashboard],['Firma',renderCompany],['Schichten',renderShifts],['Gespräche',renderMeetings],['Aushänge',renderNotices],['Dokumente',renderDocs],['AU',renderAUs],['Urlaub',renderVacations],['Kind krank',renderChild],['Reha',renderRehab],['Treppen',renderStairs],['Anhänge',renderAttachments],['Jahresbericht',renderAnnualReport]];
   const errors=[];
   for(const [name,fn] of renderers){try{fn();}catch(e){errors.push(name);console.error(`Renderfehler in ${name}:`,e);}}
   if(errors.length)showToast(`Anzeigeproblem: ${errors.join(', ')}`,'error');
@@ -349,8 +350,8 @@ function renderAll(){
 
 function renderDashboard(){
   const auDays=countUniqueRangeDays(state.aus);const extraDocs=Object.values(state.attachments||{}).reduce((n,a)=>n+(Array.isArray(a)?a.reduce((m,x)=>m+recordFileCount(x),0):0),0);
-  const fileDocs=state.documents.reduce((n,x)=>n+recordFileCount(x),0)+(state.company.contracts||[]).reduce((n,x)=>n+recordFileCount(x),0)+state.notices.reduce((n,x)=>n+recordFileCount(x),0)+extraDocs;
-  $('#statAuDays').textContent=auDays;$('#statAuCases').textContent=state.aus.length;$('#statChildCases').textContent=state.childSick.length;$('#statShifts').textContent=state.shifts.length;$('#statDocs').textContent=fileDocs;$('#welcomeText').textContent=state.company.employeeName?`${state.company.employeeName}${state.company.name?' · '+state.company.name:''}`:'Noch kein Mitarbeitername hinterlegt.';const today=localDateValue();const stairsToday=(state.stairs||[]).filter(x=>x.date===today).reduce((n,x)=>n+(Number(x.count)||0),0);const stairStat=$('#statStairsToday');if(stairStat)stairStat.textContent=stairsToday;
+  const fileDocs=state.documents.reduce((n,x)=>n+recordFileCount(x),0)+(state.company.contracts||[]).reduce((n,x)=>n+recordFileCount(x),0)+state.notices.reduce((n,x)=>n+recordFileCount(x),0)+(state.vacations||[]).reduce((n,x)=>n+recordFileCount(x),0)+extraDocs;
+  $('#statAuDays').textContent=auDays;$('#statAuCases').textContent=state.aus.length;$('#statChildCases').textContent=state.childSick.length;$('#statShifts').textContent=state.shifts.length;$('#statDocs').textContent=fileDocs;$('#welcomeText').textContent=state.company.employeeName?`${state.company.employeeName}${state.company.name?' · '+state.company.name:''}`:'Noch kein Mitarbeitername hinterlegt.';const today=localDateValue();const stairsToday=(state.stairs||[]).filter(x=>x.date===today).reduce((n,x)=>n+(Number(x.count)||0),0);const stairStat=$('#statStairsToday');if(stairStat)stairStat.textContent=stairsToday;const currentYear=today.slice(0,4),vacationStat=$('#statVacationDays');if(vacationStat)vacationStat.textContent=vacationDaysForRecords(state.vacations||[],`${currentYear}-01-01`,`${currentYear}-12-31`);
 }
 function renderCompany(){const c=state.company;$('#companyName').value=c.name||'';$('#employeeName').value=c.employeeName||'';$('#contractStart').value=c.contractStart||'';$('#employeeNo').value=c.employeeNo||'';$('#companyNotes').value=c.notes||'';$('#contractList').innerHTML=(c.contracts||[]).map(x=>itemHtml('Arbeitsvertrag',esc(recordFileSummary(x,'Dokument')),x.createdAt,[`<button onclick="viewDoc('${x.id}','contract')">Öffnen${recordFileCount(x)>1?' ('+recordFileCount(x)+')':''}</button>`,`<button onclick="delContract('${x.id}')">Löschen</button>`])).join('')||empty('Noch kein Arbeitsvertrag gespeichert.');}
 function renderShifts(){const arr=[...state.shifts].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#shiftList').innerHTML=arr.map(s=>itemHtml(`${fmtDate(s.date)} · ${esc(s.shift||'Schicht')}`,`${esc(s.start||'—')}–${esc(s.end||'—')}${s.note?' · '+esc(s.note):''}`,s.createdAt,[`<button onclick="delShift('${s.id}')">Löschen</button>`])).join('')||empty('Noch keine Schichten gespeichert.');}
@@ -448,6 +449,118 @@ function renderAUs(){
   list.querySelectorAll('[data-au-view]').forEach(btn=>btn.addEventListener('click',()=>viewAuRecord(btn.dataset.auView,btn.dataset.auIndex)));
   list.querySelectorAll('[data-au-delete]').forEach(btn=>btn.addEventListener('click',()=>deleteAuRecord(btn.dataset.auDelete,btn.dataset.auIndex)));
 }
+
+function isoFromParts(y,m,d){return `${String(y).padStart(4,'0')}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`;}
+function addIsoDays(iso,days){
+  const n=isoDayNumber(iso);if(n===null)return '';
+  const dt=new Date((n+Number(days||0))*86400000);
+  return isoFromParts(dt.getUTCFullYear(),dt.getUTCMonth()+1,dt.getUTCDate());
+}
+function easterSundayIso(year){
+  const y=Number(year);
+  if(!Number.isInteger(y)||y<1583||y>9999)return '';
+  const a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3);
+  const h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
+  const month=Math.floor((h+l-7*m+114)/31),day=((h+l-7*m+114)%31)+1;
+  return isoFromParts(y,month,day);
+}
+function nrwHolidays(year){
+  const y=Number(year),easter=easterSundayIso(y);if(!easter)return [];
+  return [
+    {date:`${y}-01-01`,name:'Neujahr'},
+    {date:addIsoDays(easter,-2),name:'Karfreitag'},
+    {date:addIsoDays(easter,1),name:'Ostermontag'},
+    {date:`${y}-05-01`,name:'Tag der Arbeit'},
+    {date:addIsoDays(easter,39),name:'Christi Himmelfahrt'},
+    {date:addIsoDays(easter,50),name:'Pfingstmontag'},
+    {date:addIsoDays(easter,60),name:'Fronleichnam'},
+    {date:`${y}-10-03`,name:'Tag der Deutschen Einheit'},
+    {date:`${y}-11-01`,name:'Allerheiligen'},
+    {date:`${y}-12-25`,name:'1. Weihnachtstag'},
+    {date:`${y}-12-26`,name:'2. Weihnachtstag'}
+  ].sort((a,b)=>a.date.localeCompare(b.date));
+}
+function vacationWorkdayDetails(from,to,clipStart='',clipEnd=''){
+  let a=isoDayNumber(from),b=isoDayNumber(to||from);if(a===null||b===null)return {days:0,weekends:0,holidays:[],dates:[]};
+  let lo=Math.min(a,b),hi=Math.max(a,b),cs=isoDayNumber(clipStart),ce=isoDayNumber(clipEnd);
+  if(cs!==null)lo=Math.max(lo,cs);if(ce!==null)hi=Math.min(hi,ce);
+  if(hi<lo)return {days:0,weekends:0,holidays:[],dates:[]};
+  const holidayMap=new Map();
+  const startYear=new Date(lo*86400000).getUTCFullYear(),endYear=new Date(hi*86400000).getUTCFullYear();
+  for(let y=startYear;y<=endYear;y++)for(const h of nrwHolidays(y))holidayMap.set(h.date,h.name);
+  let days=0,weekends=0;const holidays=[],dates=[];
+  for(let n=lo;n<=hi;n++){
+    const dt=new Date(n*86400000),iso=isoFromParts(dt.getUTCFullYear(),dt.getUTCMonth()+1,dt.getUTCDate()),dow=dt.getUTCDay();
+    if(dow===0||dow===6){weekends++;continue;}
+    if(holidayMap.has(iso)){holidays.push({date:iso,name:holidayMap.get(iso)});continue;}
+    days++;dates.push(iso);
+  }
+  return {days,weekends,holidays,dates};
+}
+function vacationDaysForRecords(items,start='',end=''){
+  const unique=new Set();
+  for(const x of items||[])for(const d of vacationWorkdayDetails(x.from,x.to,start,end).dates)unique.add(d);
+  return unique.size;
+}
+function renderVacationPreview(){
+  const el=$('#vacationPreview');if(!el)return;
+  const from=$('#vacationFrom')?.value||'',to=$('#vacationTo')?.value||from;
+  const currentYear=new Date().getFullYear();
+  const holidayList=$('#vacationHolidayList');
+  const renderHolidayYears=(startYear,endYear)=>{
+    if(!holidayList)return;
+    const parts=[];
+    for(let y=startYear;y<=endYear;y++){
+      parts.push(`<div class="item"><div class="item-title">Gesetzliche Feiertage NRW ${y}</div><div class="item-meta">${nrwHolidays(y).map(h=>`${fmtDate(h.date)} · ${esc(h.name)}`).join('<br>')}</div></div>`);
+    }
+    holidayList.innerHTML=parts.join('');
+  };
+  if(!from){
+    el.innerHTML='<span class="muted">Von- und Bis-Datum auswählen. Die Urlaubstage werden automatisch berechnet.</span>';
+    renderHolidayYears(currentYear,currentYear);
+    return;
+  }
+  if(to&&to<from){el.innerHTML='<span class="save-status error">Das Bis-Datum darf nicht vor dem Von-Datum liegen.</span>';return;}
+  const d=vacationWorkdayDetails(from,to);
+  const holidayText=d.holidays.length?d.holidays.map(h=>`${fmtDate(h.date)} ${esc(h.name)}`).join(' · '):'keine';
+  el.innerHTML=`<strong>${d.days} Urlaubstag${d.days===1?'':'e'}</strong><br><span class="muted">${d.weekends} Samstag/Sonntag ausgeschlossen · zusätzlich ausgeschlossene NRW-Feiertage: ${holidayText}</span>`;
+  const sy=Number(from.slice(0,4))||currentYear,ey=Number((to||from).slice(0,4))||sy;
+  renderHolidayYears(Math.min(sy,ey),Math.max(sy,ey));
+}
+function renderVacations(){
+  const arr=[...(state.vacations||[])].sort((a,b)=>(b.from||b.createdAt||'').localeCompare(a.from||a.createdAt||''));
+  renderVacationPreview();
+  const list=$('#vacationList');if(!list)return;
+  list.innerHTML=arr.map(v=>{
+    const d=vacationWorkdayDetails(v.from,v.to),count=recordFileCount(v);
+    const excluded=[];if(d.weekends)excluded.push(`${d.weekends} Wochenende`);if(d.holidays.length)excluded.push(`${d.holidays.length} Feiertag${d.holidays.length===1?'':'e'}`);
+    return itemHtml(`${fmtDate(v.from)}–${fmtDate(v.to)} · ${d.days} Urlaubstag${d.days===1?'':'e'}`,`${excluded.length?excluded.join(' · ')+' ausgeschlossen · ':''}${count} Foto${count===1?'':'s'}`,v.createdAt,[count?`<button type="button" onclick="viewVacation('${v.id}')">Foto${count===1?'':'s'} ansehen${count>1?' ('+count+')':''}</button>`:'',`<button type="button" onclick="delVacation('${v.id}')">Löschen</button>`]);
+  }).join('')||empty('Noch kein Urlaub gespeichert.');
+}
+async function saveVacation(){
+  const from=$('#vacationFrom')?.value||'',to=$('#vacationTo')?.value||from,input=$('#vacationImages');let files;
+  if(!from||!to){alert('Bitte Von- und Bis-Datum auswählen.');return;}
+  if(to<from){alert('Das Bis-Datum darf nicht vor dem Von-Datum liegen.');return;}
+  try{files=selectedUploadFiles(input,{imagesOnly:true});}catch(e){alert(e.message);return;}
+  if(!files.length){alert('Bitte mindestens ein Foto zum Urlaub auswählen.');return;}
+  const recordId=id();let metas=[],record=null;
+  try{
+    metas=await storeUploadFiles(`vacation:${recordId}`,files,{compressImages:true,max:1800,q:.78});
+    record={id:recordId,from,to,files:metas,createdAt:now()};
+    state.vacations.push(record);
+    try{await save('Urlaub gespeichert');}catch(e){state.vacations=state.vacations.filter(x=>x.id!==recordId);throw e;}
+    $('#vacationFrom').value='';$('#vacationTo').value='';input.value='';renderVacationPreview();
+  }catch(e){await deleteRecordFiles(record||{files:metas});console.error('Urlaub speichern fehlgeschlagen:',e);showFileError('Urlaub speichern',e);}
+}
+window.viewVacation=async ident=>{const obj=(state.vacations||[]).find(x=>x.id===ident);if(!obj){alert('Urlaubseintrag nicht gefunden.');return;}await openRecordFiles(obj,'Urlaub');};
+window.delVacation=ident=>runAction(async()=>{
+  if(!confirm('Urlaubseintrag wirklich löschen?'))return;
+  const obj=(state.vacations||[]).find(x=>x.id===ident);if(!obj){alert('Urlaubseintrag nicht gefunden.');return;}
+  state.vacations=state.vacations.filter(x=>x.id!==ident);
+  try{await save('Urlaub gelöscht');await deleteRecordFiles(obj);}catch(e){}
+},'Urlaub löschen')();
+
+
 function localDateValue(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
 function localTimeValue(d=new Date()){return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
 function monthLabel(key){if(!/^\d{4}-\d{2}$/.test(key||''))return key||'';const [y,m]=key.split('-');return new Intl.DateTimeFormat('de-DE',{month:'long',year:'numeric'}).format(new Date(Number(y),Number(m)-1,1));}
@@ -669,6 +782,7 @@ function reportAvailableYears(){
   for(const x of state.notices)add(x.date||x.createdAt);
   for(const x of state.documents)add(x.month||x.createdAt);
   for(const x of state.aus){add(x.from||x.to||x.createdAt);add(x.to);}
+  for(const x of state.vacations||[]){add(x.from||x.to||x.createdAt);add(x.to);}
   for(const x of state.childSick){add(x.from||x.to||x.createdAt);add(x.to);}
   for(const x of state.rehabs){add(x.from||x.to||x.createdAt);add(x.to);}
   for(const x of state.stairs)add(x.date||x.createdAt);
@@ -683,24 +797,27 @@ function reportYearData(year){
   const notices=state.notices.filter(x=>reportInYear(x,['date'],y));
   const documents=state.documents.filter(x=>reportInYear(x,['month'],y));
   const aus=state.aus.filter(x=>reportRangeOverlapsYear(x.from,x.to,y,x.createdAt));
+  const vacations=(state.vacations||[]).filter(x=>reportRangeOverlapsYear(x.from,x.to,y,x.createdAt));
   const childSick=state.childSick.filter(x=>reportRangeOverlapsYear(x.from,x.to,y,x.createdAt));
   const rehabs=state.rehabs.filter(x=>reportRangeOverlapsYear(x.from,x.to,y,x.createdAt));
   const stairs=state.stairs.filter(x=>reportInYear(x,['date'],y));
   const contracts=(state.company.contracts||[]).filter(x=>reportInYear(x,[],y));
   const attachments={};
   for(const [key,arr] of Object.entries(state.attachments||{}))attachments[key]=(arr||[]).filter(x=>reportInYear(x,[],y));
-  return {year:y,shifts,meetings,notices,documents,aus,childSick,rehabs,stairs,contracts,attachments};
+  return {year:y,shifts,meetings,notices,documents,aus,vacations,childSick,rehabs,stairs,contracts,attachments};
 }
 function reportSummary(year){
   const d=reportYearData(year);
   const auDays=countUniqueRangeDays(d.aus,`${d.year}-01-01`,`${d.year}-12-31`);
   const childDays=countUniqueRangeDays(d.childSick,`${d.year}-01-01`,`${d.year}-12-31`);
+  const vacationDays=vacationDaysForRecords(d.vacations,`${d.year}-01-01`,`${d.year}-12-31`);
   const stair=stairStats(d.stairs);
   const attached=Object.values(d.attachments).reduce((n,a)=>n+a.reduce((m,x)=>m+recordFileCount(x),0),0);
   const noticeDocs=d.notices.reduce((n,x)=>n+recordFileCount(x),0);
   const auDocs=d.aus.reduce((n,x)=>n+recordFileCount(x),0);
-  const docs=d.documents.reduce((n,x)=>n+recordFileCount(x),0)+d.contracts.reduce((n,x)=>n+recordFileCount(x),0)+attached+noticeDocs+auDocs;
-  return {...d,auDays,childDays,stair,docs};
+  const vacationDocs=d.vacations.reduce((n,x)=>n+recordFileCount(x),0);
+  const docs=d.documents.reduce((n,x)=>n+recordFileCount(x),0)+d.contracts.reduce((n,x)=>n+recordFileCount(x),0)+attached+noticeDocs+auDocs+vacationDocs;
+  return {...d,auDays,childDays,vacationDays,stair,docs};
 }
 function renderAnnualReport(){
   const select=$('#annualYear');if(!select)return;
@@ -713,6 +830,7 @@ function renderAnnualReport(){
   if($('#annualStatShifts'))$('#annualStatShifts').textContent=s.shifts.length;
   if($('#annualStatAuCases'))$('#annualStatAuCases').textContent=s.aus.length;
   if($('#annualStatAuDays'))$('#annualStatAuDays').textContent=`${s.auDays} Tage`;
+  if($('#annualStatVacation'))$('#annualStatVacation').textContent=s.vacationDays;
   if($('#annualStatStairs'))$('#annualStatStairs').textContent=s.stair.total;
   if($('#annualStatStairDays'))$('#annualStatStairDays').textContent=`${s.stair.days} aktive Tage`;
   if($('#annualStatDocs'))$('#annualStatDocs').textContent=s.docs;
@@ -720,6 +838,7 @@ function renderAnnualReport(){
   const preview=$('#annualPreview');
   if(preview)preview.innerHTML=`<div class="annual-preview-grid">
     <div><strong>AU</strong><span>${s.aus.length} Fälle · ${s.auDays} Kalendertage</span></div>
+    <div><strong>Urlaub</strong><span>${s.vacations.length} Einträge · ${s.vacationDays} Urlaubstage (Mo–Fr, ohne NRW-Feiertage)</span></div>
     <div><strong>Kind krank</strong><span>${s.childSick.length} Einträge · ${s.childDays} Kalendertage</span></div>
     <div><strong>Schichten</strong><span>${s.shifts.length} Einträge</span></div>
     <div><strong>Treppen</strong><span>${s.stair.total} gesamt · ${s.stair.entries} Einträge · ${s.stair.days} aktive Tage</span></div>
@@ -755,6 +874,8 @@ function buildAnnualReportLines(year){
   row('Schichten',d.shifts.length);
   row('AU-Fälle',d.aus.length);
   row('AU-Kalendertage im Jahr',d.auDays);
+  row('Urlaubseinträge',d.vacations.length);
+  row('Urlaubstage im Jahr (Mo–Fr, ohne NRW-Feiertage)',d.vacationDays);
   row('Kind-krank-Einträge',d.childSick.length);
   row('Kind-krank-Kalendertage im Jahr',d.childDays);
   row('Gespräche / BEM / AMZ',d.meetings.length);
@@ -778,6 +899,7 @@ function buildAnnualReportLines(year){
 
   section('Schichten',d.shifts,x=>`${fmtDate(x.date)} · ${reportText(x.shift,'Schicht')} · ${reportText(x.start,'—')}–${reportText(x.end,'—')}${x.note?' · '+reportOneLine(x.note):''}`);
   section('Krankheit & AU',d.aus,x=>`${x.from?fmtDate(x.from):'ohne Von-Datum'}${x.to?' bis '+fmtDate(x.to):''} · ${recordFileCount(x)} Foto${recordFileCount(x)===1?'':'s'}`);
+  section('Urlaub',d.vacations,x=>{const v=vacationWorkdayDetails(x.from,x.to,`${d.year}-01-01`,`${d.year}-12-31`);return `${x.from?fmtDate(x.from):'ohne Von-Datum'}${x.to?' bis '+fmtDate(x.to):''} · ${v.days} Urlaubstag${v.days===1?'':'e'} · ${recordFileCount(x)} Foto${recordFileCount(x)===1?'':'s'}`;});
   section('Kind krank',d.childSick,x=>`${reportText(x.child,'Kind')} · ${x.from?fmtDate(x.from):'ohne Von-Datum'}${x.to?' bis '+fmtDate(x.to):''}${x.note?' · '+reportOneLine(x.note):''}`);
   section('BEM · AMZ · Gespräche',d.meetings,x=>`${reportText(x.type,'Gespräch')} · ${x.date?fmtDate(x.date):'ohne Datum'}${x.time?' '+x.time:''}${x.partner?' · '+reportOneLine(x.partner):''}${x.place?' · '+reportOneLine(x.place):''}${x.note?' · '+reportOneLine(x.note):''}`);
   section('Aushänge',d.notices,x=>`${reportText(x.type,'Aushang')} · ${x.date?fmtDate(x.date):'ohne Datum'} · ${reportText(x.title,'ohne Titel')}${x.note?' · '+reportOneLine(x.note):''}${recordFileCount(x)?' · '+recordFileCount(x)+' Datei'+(recordFileCount(x)===1?'':'en'):''}`);
@@ -968,6 +1090,7 @@ function bind(){
   $('#saveCompany').onclick=runAction(saveCompany,'Firmendaten speichern');$('#saveContractFile').onclick=runAction(saveContractFile,'Arbeitsvertrag speichern');$('#saveMeeting').onclick=runAction(saveMeeting,'Gespräch speichern');$('#saveNotice').onclick=runAction(saveNotice,'Aushang speichern');$('#saveChild').onclick=runAction(saveChild,'Kind-krank-Eintrag speichern');$('#saveRehab').onclick=runAction(saveRehab,'Reha-Eintrag speichern');
   $('#addShiftManual').onclick=addManualShift;
   $('#saveAuPhoto').onclick=runAction(saveAuPhoto,'Krankschreibung speichern');$('#auStatsMonth').onchange=renderAUs;$('#auStatsYear').onchange=renderAUs;
+  $('#saveVacation').onclick=runAction(saveVacation,'Urlaub speichern');$('#vacationFrom').onchange=renderVacationPreview;$('#vacationTo').onchange=renderVacationPreview;
   $$('[data-docsave]').forEach(b=>b.onclick=runAction(()=>saveSimpleDoc(b.dataset.docsave),'Dokument speichern'));
   $$('[data-attachment-section]').forEach(b=>b.onclick=runAction(()=>saveGenericAttachment(b.dataset.attachmentSection,b.dataset.attachmentInput),'Foto / Dokument speichern'));
   $('#exportBackup').onclick=runAction(exportBackup,'Backup exportieren');$('#importBackup').onchange=e=>{if(e.target.files[0])runAction(()=>importBackup(e.target.files[0]),'Backup importieren')();};

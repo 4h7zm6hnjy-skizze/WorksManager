@@ -62,3 +62,14 @@ Copyright Marcel Hentschel.
 - IndexedDB-Blockierungen und abgebrochene Schreibtransaktionen liefern jetzt klare Fehler statt still hängen zu bleiben.
 - Backup-Import prüft zusätzlich doppelte Dateischlüssel und fehlende referenzierte Dateien, bevor bestehende Daten überschrieben werden.
 - Backup-Nachbereinigung kann einen bereits erfolgreichen Import nicht mehr fälschlich als fehlgeschlagen melden.
+
+
+## v1.7.0 – Urlaub
+
+- Neue Rubrik „Urlaub“ mit Von-/Bis-Datum und Mehrfach-Foto-Upload.
+- Urlaubstage werden automatisch als Montag bis Freitag gezählt.
+- Samstage und Sonntage werden nicht gezählt.
+- Gesetzliche Feiertage in Nordrhein-Westfalen werden für jedes gewählte Jahr dynamisch berechnet und nicht als Urlaubstage gezählt.
+- Bewegliche Feiertage werden anhand des Osterdatums des jeweiligen Jahres berechnet.
+- Urlaub wird im Dashboard und in der Jahresstatistik/PDF berücksichtigt.
+- Originalfotos bleiben verschlüsselt in WorksManager und im verschlüsselten Backup enthalten.
