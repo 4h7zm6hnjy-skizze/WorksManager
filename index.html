@@ -4,21 +4,21 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#062f4f" />
-  <title>WorksManager v1.3.0</title>
-  <link rel="manifest" href="manifest.json?v=1.3.0" />
+  <title>WorksManager v1.4.0</title>
+  <link rel="manifest" href="manifest.json?v=1.4.0" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <link rel="stylesheet" href="styles.css?v=1.3.0" />
+  <link rel="stylesheet" href="styles.css?v=1.4.0" />
 </head>
 <body>
   <div id="unlock" class="unlock-screen">
     <div class="unlock-card">
       <div class="unlock-brand">
         <img class="unlock-logo" src="worksmanager-logo.png" alt="WorksManager" />
-        <span class="version-badge unlock-version" aria-label="Version 1.3.0">v1.3.0</span>
+        <span class="version-badge unlock-version" aria-label="Version 1.4.0">v1.4.0</span>
       </div>
-      <h1 class="sr-only">WorksManager v1.3.0</h1>
-      <div class="unlock-version-text">Version 1.3.0</div>
+      <h1 class="sr-only">WorksManager v1.4.0</h1>
+      <div class="unlock-version-text">Version 1.4.0</div>
       <p class="muted">Private Arbeitsverwaltung · lokale, verschlüsselte Datenspeicherung</p>
       <label>Passwort / PIN</label>
       <input id="unlockPassword" type="password" autocomplete="current-password" placeholder="Passwort eingeben" />
@@ -32,9 +32,9 @@
       <div class="top-brand">
         <div class="brand-row">
           <img class="top-logo" src="worksmanager-logo.png" alt="WorksManager" />
-          <span class="version-badge" aria-label="Version 1.3.0">v1.3.0</span>
+          <span class="version-badge" aria-label="Version 1.4.0">v1.4.0</span>
         </div>
-        <div class="app-version">Version 1.3.0</div>
+        <div class="app-version">Version 1.4.0</div>
         <div class="subtitle">Copyright Marcel Hentschel</div>
       </div>
       <div class="top-actions">
@@ -59,7 +59,6 @@
           <button data-go="family" class="stat stat-button"><span>Kind krank</span><strong id="statChildCases">0</strong><small>Einträge</small></button>
           <button data-go="shift" class="stat stat-button"><span>Schichten</span><strong id="statShifts">0</strong><small>Gespeichert</small></button>
           <button data-go="payroll" class="stat stat-button"><span>Dokumente</span><strong id="statDocs">0</strong><small>Arbeitsunterlagen</small></button>
-          <button data-go="health" class="stat stat-button"><span>Gesundheit</span><strong id="statHealthEntries">0</strong><small>Befunde</small></button>
           <button data-go="stairs" class="stat stat-button"><span>Treppen heute</span><strong id="statStairsToday">0</strong><small>Treppen</small></button>
         </div>
 
@@ -71,9 +70,8 @@
         </div>
         <div class="module-grid">
           <button data-go="shift" class="module-card"><span class="module-icon">◷</span><span><strong>Schichtplan</strong><small>Fotos/Dokumente & Schichten verwalten</small></span><b>›</b></button>
-          <button data-go="sickness" class="module-card"><span class="module-icon">✚</span><span><strong>Krankheit & AU</strong><small>AU-Fotos speichern & optionale Daten</small></span><b>›</b></button>
+          <button data-go="sickness" class="module-card"><span class="module-icon">✚</span><span><strong>Krankheit & AU</strong><small>Foto hochladen & Zeitraum im Kalender</small></span><b>›</b></button>
           <button data-go="payroll" class="module-card"><span class="module-icon">▤</span><span><strong>Abrechnung</strong><small>Lohnabrechnung, Stempelübersicht & Arbeitsplan</small></span><b>›</b></button>
-          <button data-go="health" class="module-card"><span class="module-icon">♥</span><span><strong>Gesundheit</strong><small>Lungenfunktion, Labor & Arztbriefe</small></span><b>›</b></button>
           <button data-go="stairs" class="module-card"><span class="module-icon">⇅</span><span><strong>Treppenzähler</strong><small>Tägliche Einträge sowie Monats- & Jahresstatistik</small></span><b>›</b></button>
           <button data-go="meetings" class="module-card"><span class="module-icon">☷</span><span><strong>BEM · AMZ · Gespräche</strong><small>Termine, Gesprächspartner & Notizen</small></span><b>›</b></button>
           <button data-go="notices" class="module-card"><span class="module-icon">▱</span><span><strong>Aushänge</strong><small>Kurzarbeit & sonstige Mitteilungen</small></span><b>›</b></button>
@@ -203,50 +201,33 @@
       </section>
 
       <section id="sickness" class="page">
-        <div class="section-head"><h2>Krankheit & AU</h2><button id="addAuManual">+ Daten manuell</button></div>
-        <div class="card">
-          <h3>AU als Foto / Dokument speichern</h3>
-          <p class="muted">AU fotografieren oder aus der Fotomediathek auswählen. WorksManager liest oder analysiert den Inhalt nicht.</p>
-          <input id="auImage" type="file" accept="image/*,.pdf" />
-          <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
-          <button id="saveAuPhoto" class="primary">AU-Foto / Dokument speichern</button>
-        </div>
-        <div class="stats-grid compact">
-          <div class="stat"><span>AU-Fälle</span><strong id="auCases">0</strong></div>
-          <div class="stat"><span>Kalendertage</span><strong id="auDays">0</strong></div>
-          <div class="stat"><span>Folge-AU</span><strong id="auFollow">0</strong></div>
-        </div>
-        <div class="card"><h3>ICD‑10-Auswertung <small>(nur manuell eingetragene Codes)</small></h3><div id="icdStats" class="list"></div></div>
-        <div class="card"><h3>Krankschreibungen / AU-Fotos</h3><div id="auList" class="list"></div></div>
-      </section>
-
-      <section id="health" class="page">
-        <h2>Gesundheit</h2>
-        <p class="muted">Befunde und Arztunterlagen werden verschlüsselt gespeichert. Es findet keine automatische Analyse statt.</p>
-
-        <div class="card">
-          <div class="section-head"><h3>Lungenfunktionstest</h3><button id="addLungTest">+ Details manuell</button></div>
-          <input id="lungImage" type="file" accept="image/*,.pdf" />
-          <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
-          <button id="saveLungPhoto" class="primary">Lungenfunktion speichern</button>
-          <div id="lungTestList" class="list"></div>
+        <div class="section-head"><h2>Krankheit & AU</h2></div>
+        <div class="card form-grid">
+          <h3 class="wide">Krankschreibung hinzufügen</h3>
+          <p class="muted wide">Foto der Krankschreibung auswählen oder aufnehmen und nur den Zeitraum im Kalender eintragen. Es findet keine Analyse statt.</p>
+          <label>Von<input id="auFrom" type="date" /></label>
+          <label>Bis<input id="auTo" type="date" /></label>
+          <label class="wide">Foto der Krankschreibung<input id="auImage" type="file" accept="image/*" /></label>
+          <div class="media-source-hint wide">📷 Kamera · 🖼 Fotomediathek</div>
+          <div class="wide"><button id="saveAuPhoto" class="primary">Krankschreibung speichern</button></div>
         </div>
 
         <div class="card">
-          <div class="section-head"><h3>Laborwerte</h3><button id="addLabResult">+ Details manuell</button></div>
-          <input id="labPhoto" type="file" accept="image/*,.pdf" />
-          <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
-          <button id="saveLabPhoto" class="primary">Laborbefund speichern</button>
-          <div id="labResultList" class="list"></div>
+          <h3>Monatliche und jährliche Statistik</h3>
+          <div class="form-grid">
+            <label>Monat<input id="auStatsMonth" type="month" /></label>
+            <label>Jahr<select id="auStatsYear"></select></label>
+          </div>
+          <div class="stats-grid compact">
+            <div class="stat"><span>Fälle im Monat</span><strong id="auMonthCases">0</strong></div>
+            <div class="stat"><span>Tage im Monat</span><strong id="auMonthDays">0</strong></div>
+            <div class="stat"><span>Fälle im Jahr</span><strong id="auYearCases">0</strong></div>
+            <div class="stat"><span>Tage im Jahr</span><strong id="auYearDays">0</strong></div>
+          </div>
         </div>
 
-        <div class="card">
-          <div class="section-head"><h3>Arztbriefe</h3><button id="addDoctorLetter">+ Details manuell</button></div>
-          <input id="letterPhoto" type="file" accept="image/*,.pdf" />
-          <div class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</div>
-          <button id="saveLetterPhoto" class="primary">Arztbrief speichern</button>
-          <div id="doctorLetterList" class="list"></div>
-        </div>
+        <div class="card"><h3>Monatsübersicht <span id="auStatsYearLabel"></span></h3><div id="auMonthlyStats" class="list"></div></div>
+        <div class="card"><h3>Gespeicherte Krankschreibungen</h3><div id="auList" class="list"></div></div>
       </section>
 
       <section id="family" class="page">
@@ -340,7 +321,6 @@
           <div class="stat"><span>AU-Fälle</span><strong id="annualStatAuCases">0</strong><small id="annualStatAuDays">0 Tage</small></div>
           <div class="stat"><span>Treppen</span><strong id="annualStatStairs">0</strong><small id="annualStatStairDays">0 aktive Tage</small></div>
           <div class="stat"><span>Dokumente</span><strong id="annualStatDocs">0</strong><small>gespeichert</small></div>
-          <div class="stat"><span>Gesundheit</span><strong id="annualStatHealth">0</strong><small>Einträge</small></div>
           <div class="stat"><span>Gespräche</span><strong id="annualStatMeetings">0</strong><small>BEM / AMZ / sonstige</small></div>
         </div>
 
@@ -383,7 +363,6 @@
       <button data-go="company">Firma & Vertrag</button>
       <button data-go="meetings">BEM · AMZ · Gespräche</button>
       <button data-go="notices">Aushänge</button>
-      <button data-go="health">Gesundheit</button>
       <button data-go="stairs">Treppenzähler</button>
       <button data-go="family">Kind krank</button>
       <button data-go="rehab">Reha</button>
@@ -394,6 +373,6 @@
 
   <div id="modal" class="sheet hidden"><div id="modalCard" class="sheet-card"></div></div>
 
-  <script src="app.js?v=1.3.0"></script>
+  <script src="app.js?v=1.4.0"></script>
 </body>
 </html>

@@ -8,8 +8,8 @@ let state = blankState();
 let cryptoKey = null;
 let db = null;
 
-function blankState(){return {version:4,company:{name:'',employeeName:'',contractStart:'',employeeNo:'',notes:'',contracts:[]},shifts:[],meetings:[],notices:[],documents:[],aus:[],childSick:[],rehabs:[],stairs:[],health:{lungTests:[],labResults:[],doctorLetters:[]},attachments:{company:[],shift:[],meetings:[],notices:[],family:[],rehab:[]}};}
-function normalizeState(v){const base=blankState();const x=v&&typeof v==='object'?v:{};x.company={...base.company,...(x.company||{})};x.company.contracts=Array.isArray(x.company.contracts)?x.company.contracts:[];for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])x[k]=Array.isArray(x[k])?x[k]:[];x.health=x.health&&typeof x.health==='object'?x.health:{};x.health.lungTests=Array.isArray(x.health.lungTests)?x.health.lungTests:[];x.health.labResults=Array.isArray(x.health.labResults)?x.health.labResults:[];x.health.doctorLetters=Array.isArray(x.health.doctorLetters)?x.health.doctorLetters:[];x.attachments=x.attachments&&typeof x.attachments==='object'?x.attachments:{};for(const k of ['company','shift','meetings','notices','family','rehab'])x.attachments[k]=Array.isArray(x.attachments[k])?x.attachments[k]:[];x.version=4;return x;}
+function blankState(){return {version:5,company:{name:'',employeeName:'',contractStart:'',employeeNo:'',notes:'',contracts:[]},shifts:[],meetings:[],notices:[],documents:[],aus:[],childSick:[],rehabs:[],stairs:[],attachments:{company:[],shift:[],meetings:[],notices:[],family:[],rehab:[]}};}
+function normalizeState(v){const base=blankState();const x=v&&typeof v==='object'?v:{};x.company={...base.company,...(x.company||{})};x.company.contracts=Array.isArray(x.company.contracts)?x.company.contracts:[];for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])x[k]=Array.isArray(x[k])?x[k]:[];delete x.health;x.attachments=x.attachments&&typeof x.attachments==='object'?x.attachments:{};for(const k of ['company','shift','meetings','notices','family','rehab'])x.attachments[k]=Array.isArray(x.attachments[k])?x.attachments[k]:[];x.version=5;return x;}
 function id(){return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2);}
 function now(){return new Date().toISOString();}
 function fmtDate(v){if(!v)return '—';const d=new Date(v+'T12:00:00');return d.toLocaleDateString('de-DE');}
@@ -70,8 +70,8 @@ function lock(){cryptoKey=null;state=blankState();$('#app').classList.add('hidde
 
 function go(name){$$('.page').forEach(p=>p.classList.toggle('active',p.id===name));$$('.nav-btn[data-go]').forEach(b=>b.classList.toggle('active',b.dataset.go===name));$('#moreMenu').classList.add('hidden');window.scrollTo({top:0,behavior:'smooth'});}
 
-function renderAll(){renderDashboard();renderCompany();renderShifts();renderMeetings();renderNotices();renderDocs();renderAUs();renderHealth();renderChild();renderRehab();renderStairs();renderAttachments();renderAnnualReport();}
-function renderDashboard(){const auDays=state.aus.reduce((s,a)=>s+daysInclusive(a.from,a.to),0);const healthEntries=state.health.lungTests.length+state.health.labResults.length+state.health.doctorLetters.length;const healthDocs=[...state.health.lungTests,...state.health.labResults,...state.health.doctorLetters].filter(x=>x.data).length;const extraDocs=Object.values(state.attachments||{}).reduce((n,a)=>n+(Array.isArray(a)?a.length:0),0);$('#statAuDays').textContent=auDays;$('#statAuCases').textContent=state.aus.length;$('#statChildCases').textContent=state.childSick.length;$('#statShifts').textContent=state.shifts.length;$('#statDocs').textContent=state.documents.length+state.company.contracts.length+state.notices.filter(n=>n.file).length+healthDocs+extraDocs;$('#statHealthEntries').textContent=healthEntries;$('#welcomeText').textContent=state.company.employeeName?`${state.company.employeeName}${state.company.name?' · '+state.company.name:''}`:'Noch kein Mitarbeitername hinterlegt.';const today=localDateValue();const stairsToday=(state.stairs||[]).filter(x=>x.date===today).reduce((n,x)=>n+(Number(x.count)||0),0);const stairStat=$('#statStairsToday');if(stairStat)stairStat.textContent=stairsToday;}
+function renderAll(){renderDashboard();renderCompany();renderShifts();renderMeetings();renderNotices();renderDocs();renderAUs();renderChild();renderRehab();renderStairs();renderAttachments();renderAnnualReport();}
+function renderDashboard(){const auDays=state.aus.reduce((sum,a)=>sum+daysInclusive(a.from,a.to),0);const extraDocs=Object.values(state.attachments||{}).reduce((n,a)=>n+(Array.isArray(a)?a.length:0),0);$('#statAuDays').textContent=auDays;$('#statAuCases').textContent=state.aus.length;$('#statChildCases').textContent=state.childSick.length;$('#statShifts').textContent=state.shifts.length;$('#statDocs').textContent=state.documents.length+state.company.contracts.length+state.notices.filter(n=>n.file).length+extraDocs;$('#welcomeText').textContent=state.company.employeeName?`${state.company.employeeName}${state.company.name?' · '+state.company.name:''}`:'Noch kein Mitarbeitername hinterlegt.';const today=localDateValue();const stairsToday=(state.stairs||[]).filter(x=>x.date===today).reduce((n,x)=>n+(Number(x.count)||0),0);const stairStat=$('#statStairsToday');if(stairStat)stairStat.textContent=stairsToday;}
 function renderCompany(){const c=state.company;$('#companyName').value=c.name||'';$('#employeeName').value=c.employeeName||'';$('#contractStart').value=c.contractStart||'';$('#employeeNo').value=c.employeeNo||'';$('#companyNotes').value=c.notes||'';$('#contractList').innerHTML=(c.contracts||[]).map(x=>itemHtml('Arbeitsvertrag',x.name||'Dokument',x.createdAt,[`<button onclick="viewDoc('${x.id}','contract')">Öffnen</button>`,`<button onclick="delContract('${x.id}')">Löschen</button>`])).join('')||empty('Noch kein Arbeitsvertrag gespeichert.');}
 function renderShifts(){const arr=[...state.shifts].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#shiftList').innerHTML=arr.map(s=>itemHtml(`${fmtDate(s.date)} · ${esc(s.shift||'Schicht')}`,`${esc(s.start||'—')}–${esc(s.end||'—')}${s.note?' · '+esc(s.note):''}`,s.createdAt,[`<button onclick="delShift('${s.id}')">Löschen</button>`])).join('')||empty('Noch keine Schichten gespeichert.');}
 function renderMeetings(){const arr=[...state.meetings].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#meetingList').innerHTML=arr.map(m=>itemHtml(`${esc(m.type)} · ${fmtDate(m.date)}`,`${esc(m.time||'')} ${esc(m.partner||'')}${m.place?' · '+esc(m.place):''}${m.note?' · '+esc(m.note):''}`,m.createdAt,[`<button onclick="delMeeting('${m.id}')">Löschen</button>`])).join('')||empty('Noch keine Einträge.');}
@@ -80,14 +80,68 @@ function renderDocs(){
   const arr=[...state.documents].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
   $('#payrollList').innerHTML=arr.map(d=>{const label=d.type==='payroll'?'Lohnabrechnung':d.type==='stamp'?'Stempelübersicht':'Arbeitsplan';return itemHtml(`${label}${d.month?' · '+esc(d.month):''}`,esc(d.name||'Dokument gespeichert'),d.createdAt,[`<button onclick="viewDoc('${d.id}','doc')">Öffnen</button>`,`<button onclick="delDoc('${d.id}')">Löschen</button>`]);}).join('')||empty('Noch keine Abrechnungen, Stempelübersichten oder Arbeitspläne gespeichert.');
 }
-function renderAUs(){const arr=[...state.aus].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));const days=arr.reduce((s,a)=>s+daysInclusive(a.from,a.to),0),follow=arr.filter(a=>a.kind==='Folgebescheinigung').length;$('#auCases').textContent=arr.length;$('#auDays').textContent=days;$('#auFollow').textContent=follow;$('#statAuDays').textContent=days;$('#statAuCases').textContent=arr.length;$('#auList').innerHTML=arr.map(a=>{const hasDates=a.from||a.to;const title=hasDates?`${fmtDate(a.from)}–${fmtDate(a.to)} · ${esc(a.kind||'AU')}`:`AU-Dokument · ${esc(a.name||'Foto')}`;const meta=[a.codes?.length?'ICD‑10: '+esc(a.codes.join(', ')):'',a.note?esc(a.note):'',!hasDates?'Nur Foto/Dokument gespeichert':''].filter(Boolean).join(' · ');return itemHtml(title,meta||'AU gespeichert',a.createdAt,[(a.data||a.image)?`<button onclick="viewDoc('${a.id}','au')">Original ansehen</button>`:'',`<button onclick="delAu('${a.id}')">Löschen</button>`]);}).join('')||empty('Noch keine AU gespeichert.');const counts={};arr.forEach(a=>(a.codes||[]).forEach(c=>counts[c]=(counts[c]||0)+1));const rows=Object.entries(counts).sort((a,b)=>b[1]-a[1]);$('#icdStats').innerHTML=rows.map(([c,n])=>`<div class="item"><div class="item-top"><div><div class="item-title">${esc(c)}</div><div class="item-meta">manuell gespeicherte AU mit diesem Code</div></div><strong>${n}×</strong></div></div>`).join('')||empty('Keine manuell eingetragenen ICD‑10-Codes gespeichert.');}
-function renderHealth(){
-  const lung=[...state.health.lungTests].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
-  $('#lungTestList').innerHTML=lung.map(x=>{const manual=[x.fev1Percent&&`FEV1 ${esc(x.fev1Percent)} %`,x.fev1Liters&&`FEV1 ${esc(x.fev1Liters)} L`,x.fvcPercent&&`FVC ${esc(x.fvcPercent)} %`,x.ratio&&`FEV1/FVC ${esc(x.ratio)}`].filter(Boolean).join(' · ');return itemHtml(x.date?`Lungenfunktion · ${fmtDate(x.date)}`:`Lungenfunktion · ${esc(x.name||'Befund')}`,manual||x.note||'Originalbefund gespeichert',x.createdAt,[x.data?`<button onclick="viewDoc('${x.id}','lung')">Öffnen</button>`:'',`<button onclick="delHealth('${x.id}','lung')">Löschen</button>`]);}).join('')||empty('Noch keine Lungenfunktion gespeichert.');
-  const labs=[...state.health.labResults].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
-  $('#labResultList').innerHTML=labs.map(x=>itemHtml(x.date?`Labor · ${fmtDate(x.date)}`:`Laborbefund · ${esc(x.name||'Dokument')}`,x.values?esc(x.values).split('\n').join(' · '):(x.note?esc(x.note):'Originalbefund gespeichert'),x.createdAt,[x.data?`<button onclick="viewDoc('${x.id}','lab')">Öffnen</button>`:'',`<button onclick="delHealth('${x.id}','lab')">Löschen</button>`])).join('')||empty('Noch keine Laborbefunde gespeichert.');
-  const letters=[...state.health.doctorLetters].sort((a,b)=>(b.createdAt||'').localeCompare(a.createdAt||''));
-  $('#doctorLetterList').innerHTML=letters.map(x=>itemHtml(x.subject?`${esc(x.subject)}${x.date?' · '+fmtDate(x.date):''}`:`Arztbrief · ${esc(x.name||'Dokument')}`,x.note?esc(x.note):(x.doctor?esc(x.doctor):'Originaldokument gespeichert'),x.createdAt,[x.data?`<button onclick="viewDoc('${x.id}','letter')">Öffnen</button>`:'',`<button onclick="delHealth('${x.id}','letter')">Löschen</button>`])).join('')||empty('Noch keine Arztbriefe gespeichert.');
+function auDates(item){
+  const from=String(item?.from||item?.to||'').slice(0,10);
+  const to=String(item?.to||item?.from||'').slice(0,10);
+  return {from,to};
+}
+function isoDayNumber(v){
+  const m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m?Math.floor(Date.UTC(Number(m[1]),Number(m[2])-1,Number(m[3]))/86400000):null;
+}
+function daysInPeriod(from,to,start,end){
+  const f=isoDayNumber(from),t=isoDayNumber(to),s=isoDayNumber(start),e=isoDayNumber(end);
+  if([f,t,s,e].some(v=>v===null))return 0;
+  const lo=Math.max(Math.min(f,t),s),hi=Math.min(Math.max(f,t),e);
+  return hi>=lo?hi-lo+1:0;
+}
+function auOverlapsPeriod(item,start,end){
+  const {from,to}=auDates(item);return daysInPeriod(from,to,start,end)>0;
+}
+function monthBounds(key){
+  if(!/^\d{4}-\d{2}$/.test(key||''))return null;
+  const [y,m]=key.split('-').map(Number),last=new Date(Date.UTC(y,m,0)).getUTCDate();
+  return {start:`${y}-${String(m).padStart(2,'0')}-01`,end:`${y}-${String(m).padStart(2,'0')}-${String(last).padStart(2,'0')}`};
+}
+function yearBounds(year){const y=String(year||'');return /^\d{4}$/.test(y)?{start:`${y}-01-01`,end:`${y}-12-31`}:null;}
+function auStatsForPeriod(items,start,end){
+  const rows=items.filter(x=>auOverlapsPeriod(x,start,end));
+  return {cases:rows.length,days:rows.reduce((n,x)=>{const d=auDates(x);return n+daysInPeriod(d.from,d.to,start,end);},0)};
+}
+function renderAUs(){
+  const arr=[...state.aus].sort((a,b)=>(b.from||b.to||b.createdAt||'').localeCompare(a.from||a.to||a.createdAt||''));
+  const allDays=arr.reduce((s,a)=>{const d=auDates(a);return s+daysInclusive(d.from,d.to);},0);
+  $('#statAuDays').textContent=allDays;$('#statAuCases').textContent=arr.length;
+
+  const today=localDateValue(),currentMonth=today.slice(0,7),currentYear=today.slice(0,4);
+  const monthEl=$('#auStatsMonth'),yearEl=$('#auStatsYear');
+  if(monthEl&&!monthEl.value)monthEl.value=currentMonth;
+  const years=new Set([currentYear]);
+  arr.forEach(a=>{const d=auDates(a);if(/^\d{4}/.test(d.from))years.add(d.from.slice(0,4));if(/^\d{4}/.test(d.to))years.add(d.to.slice(0,4));});
+  const yearValues=[...years].sort().reverse();
+  const keepYear=yearEl?.value||currentYear;
+  if(yearEl){yearEl.innerHTML=yearValues.map(y=>`<option value="${y}">${y}</option>`).join('');yearEl.value=yearValues.includes(keepYear)?keepYear:currentYear;}
+  const month=monthEl?.value||currentMonth,year=yearEl?.value||currentYear;
+  const mb=monthBounds(month),yb=yearBounds(year);
+  const ms=mb?auStatsForPeriod(arr,mb.start,mb.end):{cases:0,days:0};
+  const ys=yb?auStatsForPeriod(arr,yb.start,yb.end):{cases:0,days:0};
+  if($('#auMonthCases'))$('#auMonthCases').textContent=ms.cases;
+  if($('#auMonthDays'))$('#auMonthDays').textContent=ms.days;
+  if($('#auYearCases'))$('#auYearCases').textContent=ys.cases;
+  if($('#auYearDays'))$('#auYearDays').textContent=ys.days;
+  if($('#auStatsYearLabel'))$('#auStatsYearLabel').textContent=year;
+
+  if($('#auMonthlyStats'))$('#auMonthlyStats').innerHTML=Array.from({length:12},(_,i)=>{
+    const key=`${year}-${String(i+1).padStart(2,'0')}`,b=monthBounds(key),st=auStatsForPeriod(arr,b.start,b.end);
+    return `<div class="item"><div class="item-top"><div><div class="item-title">${esc(monthLabel(key))}</div><div class="item-meta">${st.cases} Krankschreibung${st.cases===1?'':'en'}</div></div><strong>${st.days} Tage</strong></div></div>`;
+  }).join('');
+
+  $('#auList').innerHTML=arr.map(a=>{
+    const d=auDates(a),hasDates=d.from&&d.to;
+    const title=hasDates?(d.from===d.to?fmtDate(d.from):`${fmtDate(d.from)}–${fmtDate(d.to)}`):'Krankschreibung ohne Datumsangabe';
+    const meta=a.name?esc(a.name):'Foto gespeichert';
+    return itemHtml(title,meta,a.createdAt,[(a.data||a.image)?`<button onclick="viewDoc('${a.id}','au')">Foto ansehen</button>`:'',`<button onclick="delAu('${a.id}')">Löschen</button>`]);
+  }).join('')||empty('Noch keine Krankschreibung gespeichert.');
 }
 function localDateValue(d=new Date()){const y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return `${y}-${m}-${day}`;}
 function localTimeValue(d=new Date()){return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
@@ -147,42 +201,19 @@ async function saveChild(){state.childSick.push({id:id(),child:$('#childName').v
 async function saveRehab(){state.rehabs.push({id:id(),status:$('#rehabStatus').value,clinic:$('#rehabClinic').value.trim(),from:$('#rehabFrom').value,to:$('#rehabTo').value,note:$('#rehabNote').value.trim(),createdAt:now()});await save();}
 
 async function selectedFileData(inputId){const f=$(inputId).files[0];if(!f)return {name:'',mime:'',data:''};const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);return {name:f.name,mime:f.type,data};}
-function addLungTest(){modal(`<div class="sheet-head"><strong>Lungenfunktion manuell</strong><button onclick="closeModal()">✕</button></div><div class="review-grid"><label>Datum<input id="mLungDate" type="date"></label><label>Arzt / Praxis<input id="mLungDoctor" placeholder="optional"></label><label>Testart<input id="mLungType" placeholder="z. B. Spirometrie"></label><label>FEV1 (Liter)<input id="mLungFev1L" inputmode="decimal"></label><label>FEV1 (% Soll)<input id="mLungFev1P" inputmode="decimal"></label><label>FVC (Liter)<input id="mLungFvcL" inputmode="decimal"></label><label>FVC (% Soll)<input id="mLungFvcP" inputmode="decimal"></label><label>FEV1/FVC<input id="mLungRatio"></label><label class="wide">Weitere Werte<textarea id="mLungOther" rows="4"></textarea></label><label class="wide">Originalbefund (Foto/PDF)<input id="mLungFile" type="file" accept="image/*,.pdf"><span class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</span></label><label class="wide">Notiz<textarea id="mLungNote" rows="3"></textarea></label><button class="primary wide" onclick="commitLungTest()">Speichern</button></div>`);}
-window.commitLungTest=async()=>{const f=await selectedFileData('#mLungFile');state.health.lungTests.push({id:id(),date:$('#mLungDate').value,doctor:$('#mLungDoctor').value.trim(),testType:$('#mLungType').value.trim(),fev1Liters:$('#mLungFev1L').value.trim(),fev1Percent:$('#mLungFev1P').value.trim(),fvcLiters:$('#mLungFvcL').value.trim(),fvcPercent:$('#mLungFvcP').value.trim(),ratio:$('#mLungRatio').value.trim(),otherValues:$('#mLungOther').value.trim(),note:$('#mLungNote').value.trim(),...f,createdAt:now()});await save();closeModal();};
-
-function addLabResult(){modal(`<div class="sheet-head"><strong>Laborwerte</strong><button onclick="closeModal()">✕</button></div><div class="review-grid"><label>Datum<input id="mLabDate" type="date"></label><label>Arzt / Labor<input id="mLabProvider" placeholder="optional"></label><label class="wide">Laborwerte<textarea id="mLabValues" rows="6" placeholder="z. B. CRP: 3 mg/l&#10;Leukozyten: 7,2 /nl&#10;... "></textarea></label><label class="wide">Laborbefund (Foto/PDF)<input id="mLabFile" type="file" accept="image/*,.pdf"><span class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</span></label><label class="wide">Notiz<textarea id="mLabNote" rows="3"></textarea></label><button class="primary wide" onclick="commitLabResult()">Speichern</button></div>`);}
-window.commitLabResult=async()=>{const f=await selectedFileData('#mLabFile');state.health.labResults.push({id:id(),date:$('#mLabDate').value,provider:$('#mLabProvider').value.trim(),values:$('#mLabValues').value.trim(),note:$('#mLabNote').value.trim(),...f,createdAt:now()});await save();closeModal();};
-function addDoctorLetter(){modal(`<div class="sheet-head"><strong>Arztbrief</strong><button onclick="closeModal()">✕</button></div><div class="review-grid"><label>Datum<input id="mLetterDate" type="date"></label><label>Arzt / Praxis / Klinik<input id="mLetterDoctor"></label><label>Fachrichtung<input id="mLetterSpecialty" placeholder="z. B. Pneumologie"></label><label>Betreff<input id="mLetterSubject" placeholder="z. B. Befundbericht"></label><label class="wide">Arztbrief (Foto/PDF)<input id="mLetterFile" type="file" accept="image/*,.pdf"><span class="media-source-hint">📷 Kamera · 🖼 Fotomediathek · 📁 Dateien</span></label><label class="wide">Notiz<textarea id="mLetterNote" rows="3"></textarea></label><button class="primary wide" onclick="commitDoctorLetter()">Speichern</button></div>`);}
-window.commitDoctorLetter=async()=>{const f=await selectedFileData('#mLetterFile');state.health.doctorLetters.push({id:id(),date:$('#mLetterDate').value,doctor:$('#mLetterDoctor').value.trim(),specialty:$('#mLetterSpecialty').value.trim(),subject:$('#mLetterSubject').value.trim(),note:$('#mLetterNote').value.trim(),...f,createdAt:now()});await save();closeModal();};
 async function addManualShift(){modal(`<div class="sheet-head"><strong>Schicht hinzufügen</strong><button onclick="closeModal()">✕</button></div><div class="review-grid"><label>Datum<input id="mShiftDate" type="date"></label><label>Schicht<input id="mShiftName" placeholder="Früh / Spät / Nacht"></label><label>Von<input id="mShiftStart" type="time"></label><label>Bis<input id="mShiftEnd" type="time"></label><label class="wide">Notiz<input id="mShiftNote"></label><button class="primary wide" onclick="commitManualShift()">Speichern</button></div>`);}
 window.commitManualShift=async()=>{state.shifts.push({id:id(),date:$('#mShiftDate').value,shift:$('#mShiftName').value,start:$('#mShiftStart').value,end:$('#mShiftEnd').value,note:$('#mShiftNote').value,createdAt:now()});await save();closeModal();};
-async function addManualAu(){modal(`<div class="sheet-head"><strong>AU hinzufügen</strong><button onclick="closeModal()">✕</button></div><div class="review-grid"><label>Art<select id="mAuKind"><option>Erstbescheinigung</option><option>Folgebescheinigung</option></select></label><label>ICD‑10-Code(s)<input id="mAuCodes" placeholder="z. B. J45.9, J20.9"></label><label>Von<input id="mAuFrom" type="date"></label><label>Bis<input id="mAuTo" type="date"></label><label class="wide">Notiz<textarea id="mAuNote"></textarea></label><button class="primary wide" onclick="commitManualAu()">Speichern</button></div>`);}
-window.commitManualAu=async()=>{state.aus.push({id:id(),kind:$('#mAuKind').value,from:$('#mAuFrom').value,to:$('#mAuTo').value,codes:$('#mAuCodes').value.toUpperCase().split(/[,;\s]+/).filter(Boolean),note:$('#mAuNote').value.trim(),createdAt:now()});await save();closeModal();};
-
 async function saveSimpleDoc(type){const map={payroll:['payrollImage','payrollMonth'],stamp:['stampImage','stampMonth'],workplan:['workplanImage','workplanMonth']};const cfg=map[type];if(!cfg)return;const fileEl=$('#'+cfg[0]),monthEl=$('#'+cfg[1]);const f=fileEl?.files?.[0];if(!f){alert('Bitte zuerst ein Foto oder eine Datei auswählen.');return;}const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);state.documents.push({id:id(),type,month:monthEl?.value||'',name:f.name||'Dokument',mime:f.type||'',data,createdAt:now()});fileEl.value='';await save('Dokument gespeichert');}
-async function saveAuPhoto(){const f=$('#auImage')?.files?.[0];if(!f){alert('Bitte zuerst eine AU als Foto oder Datei auswählen.');return;}const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);state.aus.push({id:id(),kind:'AU-Dokument',from:'',to:'',codes:[],note:'',name:f.name||'AU',mime:f.type||'',data,createdAt:now()});$('#auImage').value='';await save('AU gespeichert');}
-async function saveLungPhoto(){const f=$('#lungImage')?.files?.[0];if(!f){alert('Bitte zuerst einen Lungenfunktionsbefund auswählen.');return;}const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);state.health.lungTests.push({id:id(),date:'',doctor:'',testType:'',fev1Liters:'',fev1Percent:'',fvcLiters:'',fvcPercent:'',ratio:'',otherValues:'',note:'',name:f.name||'Lungenfunktion',mime:f.type||'',data,createdAt:now()});$('#lungImage').value='';await save('Lungenfunktion gespeichert');}
-async function saveLabPhoto(){const f=$('#labPhoto')?.files?.[0];if(!f){alert('Bitte zuerst einen Laborbefund auswählen.');return;}const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);state.health.labResults.push({id:id(),date:'',provider:'',values:'',note:'',name:f.name||'Laborbefund',mime:f.type||'',data,createdAt:now()});$('#labPhoto').value='';await save('Laborbefund gespeichert');}
-async function saveLetterPhoto(){const f=$('#letterPhoto')?.files?.[0];if(!f){alert('Bitte zuerst einen Arztbrief auswählen.');return;}const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);state.health.doctorLetters.push({id:id(),date:'',doctor:'',specialty:'',subject:'',note:'',name:f.name||'Arztbrief',mime:f.type||'',data,createdAt:now()});$('#letterPhoto').value='';await save('Arztbrief gespeichert');}
-
-async function saveContractFile(){const f=$('#contractFile').files[0];if(!f)return alert('Bitte Datei auswählen.');const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);state.company.contracts.push({id:id(),name:f.name,type:f.type,data,createdAt:now()});$('#contractFile').value='';await save();}
-
-window.viewDoc=(ident,kind)=>{let obj;if(kind==='contract')obj=state.company.contracts.find(x=>x.id===ident);if(kind==='notice')obj=state.notices.find(x=>x.id===ident)?.file;if(kind==='doc')obj=state.documents.find(x=>x.id===ident);if(kind==='au')obj=state.aus.find(x=>x.id===ident);if(kind==='lung')obj=state.health.lungTests.find(x=>x.id===ident);if(kind==='lab')obj=state.health.labResults.find(x=>x.id===ident);if(kind==='letter')obj=state.health.doctorLetters.find(x=>x.id===ident);const data=obj?.data||obj?.image;if(!data)return;const w=window.open();if(!w)return alert('Popup wurde blockiert.');if(data.startsWith('data:application/pdf'))w.location=data;else w.document.write(`<title>WorksManager Dokument</title><img src="${data}" style="max-width:100%;height:auto">`);};
-window.delShift=async x=>{if(confirm('Schicht löschen?')){state.shifts=state.shifts.filter(y=>y.id!==x);await save();}};
-window.delMeeting=async x=>{if(confirm('Eintrag löschen?')){state.meetings=state.meetings.filter(y=>y.id!==x);await save();}};
-window.delNotice=async x=>{if(confirm('Aushang löschen?')){state.notices=state.notices.filter(y=>y.id!==x);await save();}};
-window.delDoc=async x=>{if(confirm('Dokument löschen?')){state.documents=state.documents.filter(y=>y.id!==x);await save();}};
-window.delAu=async x=>{if(confirm('AU löschen?')){state.aus=state.aus.filter(y=>y.id!==x);await save();}};
-window.delHealth=async (x,kind)=>{if(!confirm('Gesundheitseintrag löschen?'))return;const key=kind==='lung'?'lungTests':kind==='lab'?'labResults':'doctorLetters';state.health[key]=state.health[key].filter(y=>y.id!==x);await save();};
-window.delChild=async x=>{if(confirm('Eintrag löschen?')){state.childSick=state.childSick.filter(y=>y.id!==x);await save();}};
-window.delRehab=async x=>{if(confirm('Eintrag löschen?')){state.rehabs=state.rehabs.filter(y=>y.id!==x);await save();}};
-window.delContract=async x=>{if(confirm('Arbeitsvertrag löschen?')){state.company.contracts=state.company.contracts.filter(y=>y.id!==x);await save();}};
-window.closeModal=closeModal;
-
-
-function reportYearFromValue(value){
-  const m=String(value||'').match(/^(\d{4})/);
-  return m?m[1]:'';
+async function saveAuPhoto(){
+  const f=$('#auImage')?.files?.[0],from=$('#auFrom')?.value||'',to=$('#auTo')?.value||from;
+  if(!from){alert('Bitte den ersten Krankheitstag im Kalender auswählen.');return;}
+  if(to<from){alert('Das Bis-Datum darf nicht vor dem Von-Datum liegen.');return;}
+  if(!f){alert('Bitte zuerst ein Foto der Krankschreibung auswählen.');return;}
+  if(!String(f.type||'').startsWith('image/')){alert('Bitte ein Foto auswählen.');return;}
+  const data=await imageForStorage(f);
+  state.aus.push({id:id(),from,to,name:f.name||'Krankschreibung',mime:f.type||'image/jpeg',data,createdAt:now()});
+  $('#auImage').value='';$('#auFrom').value='';$('#auTo').value='';
+  await save('Krankschreibung gespeichert');
 }
 function reportEntryYear(item,fields=[]){
   for(const f of fields){const y=reportYearFromValue(item?.[f]);if(y)return y;}
@@ -223,9 +254,6 @@ function reportAvailableYears(){
   for(const x of state.childSick){add(x.from||x.to||x.createdAt);add(x.to);}
   for(const x of state.rehabs){add(x.from||x.to||x.createdAt);add(x.to);}
   for(const x of state.stairs)add(x.date||x.createdAt);
-  for(const x of state.health.lungTests)add(x.date||x.createdAt);
-  for(const x of state.health.labResults)add(x.date||x.createdAt);
-  for(const x of state.health.doctorLetters)add(x.date||x.createdAt);
   for(const x of state.company.contracts||[])add(x.createdAt);
   for(const arr of Object.values(state.attachments||{}))for(const x of arr||[])add(x.createdAt);
   return [...years].filter(x=>/^\d{4}$/.test(x)).sort().reverse();
@@ -240,26 +268,21 @@ function reportYearData(year){
   const childSick=state.childSick.filter(x=>reportRangeOverlapsYear(x.from,x.to,y,x.createdAt));
   const rehabs=state.rehabs.filter(x=>reportRangeOverlapsYear(x.from,x.to,y,x.createdAt));
   const stairs=state.stairs.filter(x=>reportInYear(x,['date'],y));
-  const lungTests=state.health.lungTests.filter(x=>reportInYear(x,['date'],y));
-  const labResults=state.health.labResults.filter(x=>reportInYear(x,['date'],y));
-  const doctorLetters=state.health.doctorLetters.filter(x=>reportInYear(x,['date'],y));
   const contracts=(state.company.contracts||[]).filter(x=>reportInYear(x,[],y));
   const attachments={};
   for(const [key,arr] of Object.entries(state.attachments||{}))attachments[key]=(arr||[]).filter(x=>reportInYear(x,[],y));
-  return {year:y,shifts,meetings,notices,documents,aus,childSick,rehabs,stairs,lungTests,labResults,doctorLetters,contracts,attachments};
+  return {year:y,shifts,meetings,notices,documents,aus,childSick,rehabs,stairs,contracts,attachments};
 }
 function reportSummary(year){
   const d=reportYearData(year);
   const auDays=d.aus.reduce((n,x)=>n+reportDaysWithinYear(x.from,x.to,d.year),0);
   const childDays=d.childSick.reduce((n,x)=>n+reportDaysWithinYear(x.from,x.to,d.year),0);
   const stair=stairStats(d.stairs);
-  const health=d.lungTests.length+d.labResults.length+d.doctorLetters.length;
   const attached=Object.values(d.attachments).reduce((n,a)=>n+a.length,0);
-  const healthDocs=[...d.lungTests,...d.labResults,...d.doctorLetters].filter(x=>x.data).length;
   const noticeDocs=d.notices.filter(x=>x.file).length;
   const auDocs=d.aus.filter(x=>x.data||x.image||x.name).length;
-  const docs=d.documents.length+d.contracts.length+attached+healthDocs+noticeDocs+auDocs;
-  return {...d,auDays,childDays,stair,health,docs};
+  const docs=d.documents.length+d.contracts.length+attached+noticeDocs+auDocs;
+  return {...d,auDays,childDays,stair,docs};
 }
 function renderAnnualReport(){
   const select=$('#annualYear');if(!select)return;
@@ -275,7 +298,6 @@ function renderAnnualReport(){
   if($('#annualStatStairs'))$('#annualStatStairs').textContent=s.stair.total;
   if($('#annualStatStairDays'))$('#annualStatStairDays').textContent=`${s.stair.days} aktive Tage`;
   if($('#annualStatDocs'))$('#annualStatDocs').textContent=s.docs;
-  if($('#annualStatHealth'))$('#annualStatHealth').textContent=s.health;
   if($('#annualStatMeetings'))$('#annualStatMeetings').textContent=s.meetings.length;
   const preview=$('#annualPreview');
   if(preview)preview.innerHTML=`<div class="annual-preview-grid">
@@ -283,7 +305,6 @@ function renderAnnualReport(){
     <div><strong>Kind krank</strong><span>${s.childSick.length} Einträge · ${s.childDays} Kalendertage</span></div>
     <div><strong>Schichten</strong><span>${s.shifts.length} Einträge</span></div>
     <div><strong>Treppen</strong><span>${s.stair.total} gesamt · ${s.stair.entries} Einträge · ${s.stair.days} aktive Tage</span></div>
-    <div><strong>Gesundheit</strong><span>${s.health} Einträge</span></div>
     <div><strong>Dokumente</strong><span>${s.docs} gespeicherte Dateien/Scans</span></div>
     <div><strong>Gespräche</strong><span>${s.meetings.length} Einträge</span></div>
     <div><strong>Aushänge</strong><span>${s.notices.length} Einträge</span></div>
@@ -320,7 +341,6 @@ function buildAnnualReportLines(year){
   row('Gespräche / BEM / AMZ',d.meetings.length);
   row('Aushänge',d.notices.length);
   row('Reha-Einträge',d.rehabs.length);
-  row('Gesundheitseinträge',d.health);
   row('Gespeicherte Dokumente/Scans',d.docs);
   row('Treppen gesamt',d.stair.total);
   row('Treppeneinträge',d.stair.entries);
@@ -338,23 +358,11 @@ function buildAnnualReportLines(year){
   empty();
 
   section('Schichten',d.shifts,x=>`${fmtDate(x.date)} · ${reportText(x.shift,'Schicht')} · ${reportText(x.start,'—')}–${reportText(x.end,'—')}${x.note?' · '+reportOneLine(x.note):''}`);
-  section('Krankheit & AU',d.aus,x=>`${x.from?fmtDate(x.from):'ohne Von-Datum'}${x.to?' bis '+fmtDate(x.to):''} · ${reportText(x.kind,'AU')}${x.codes?.length?' · ICD-10: '+x.codes.join(', '):''}${x.note?' · '+reportOneLine(x.note):''}${x.name?' · Datei: '+reportOneLine(x.name):''}`);
+  section('Krankheit & AU',d.aus,x=>`${x.from?fmtDate(x.from):'ohne Von-Datum'}${x.to?' bis '+fmtDate(x.to):''}${x.name?' · Foto: '+reportOneLine(x.name):''}`);
   section('Kind krank',d.childSick,x=>`${reportText(x.child,'Kind')} · ${x.from?fmtDate(x.from):'ohne Von-Datum'}${x.to?' bis '+fmtDate(x.to):''}${x.note?' · '+reportOneLine(x.note):''}`);
   section('BEM · AMZ · Gespräche',d.meetings,x=>`${reportText(x.type,'Gespräch')} · ${x.date?fmtDate(x.date):'ohne Datum'}${x.time?' '+x.time:''}${x.partner?' · '+reportOneLine(x.partner):''}${x.place?' · '+reportOneLine(x.place):''}${x.note?' · '+reportOneLine(x.note):''}`);
   section('Aushänge',d.notices,x=>`${reportText(x.type,'Aushang')} · ${x.date?fmtDate(x.date):'ohne Datum'} · ${reportText(x.title,'ohne Titel')}${x.note?' · '+reportOneLine(x.note):''}${x.file?.name?' · Datei: '+reportOneLine(x.file.name):''}`);
   section('Abrechnung · Stempelübersicht · Arbeitsplan',d.documents,x=>`${x.month?monthLabel(x.month):'ohne Monat'} · ${x.type==='payroll'?'Lohnabrechnung':x.type==='stamp'?'Stempelübersicht':x.type==='workplan'?'Arbeitsplan':reportText(x.type,'Dokument')} · Datei: ${reportText(x.name,'Dokument')}`);
-
-  h2('Gesundheit');
-  h3('Lungenfunktion');
-  if(!d.lungTests.length)bullet('Keine Einträge.');
-  else d.lungTests.forEach(x=>bullet(`${x.date?fmtDate(x.date):'ohne Datum'}${x.doctor?' · '+reportOneLine(x.doctor):''}${x.testType?' · '+reportOneLine(x.testType):''}${x.fev1Liters?' · FEV1 '+x.fev1Liters+' L':''}${x.fev1Percent?' / '+x.fev1Percent+' %':''}${x.fvcLiters?' · FVC '+x.fvcLiters+' L':''}${x.fvcPercent?' / '+x.fvcPercent+' %':''}${x.ratio?' · FEV1/FVC '+x.ratio:''}${x.otherValues?' · '+reportOneLine(x.otherValues):''}${x.note?' · '+reportOneLine(x.note):''}${x.name?' · Datei: '+reportOneLine(x.name):''}`));
-  h3('Laborwerte');
-  if(!d.labResults.length)bullet('Keine Einträge.');
-  else d.labResults.forEach(x=>bullet(`${x.date?fmtDate(x.date):'ohne Datum'}${x.provider?' · '+reportOneLine(x.provider):''}${x.values?' · '+reportOneLine(x.values):''}${x.note?' · '+reportOneLine(x.note):''}${x.name?' · Datei: '+reportOneLine(x.name):''}`));
-  h3('Arztbriefe');
-  if(!d.doctorLetters.length)bullet('Keine Einträge.');
-  else d.doctorLetters.forEach(x=>bullet(`${x.date?fmtDate(x.date):'ohne Datum'}${x.doctor?' · '+reportOneLine(x.doctor):''}${x.specialty?' · '+reportOneLine(x.specialty):''}${x.subject?' · '+reportOneLine(x.subject):''}${x.note?' · '+reportOneLine(x.note):''}${x.name?' · Datei: '+reportOneLine(x.name):''}`));
-  empty();
 
   section('Reha',d.rehabs,x=>`${reportText(x.status,'Reha')} · ${reportText(x.clinic,'ohne Einrichtung')} · ${x.from?fmtDate(x.from):'ohne Von-Datum'}${x.to?' bis '+fmtDate(x.to):''}${x.note?' · '+reportOneLine(x.note):''}`);
   section('Treppenzähler - Einzeleinträge',d.stairs,x=>`${x.date?fmtDate(x.date):'ohne Datum'}${x.time?' '+x.time:''} · ${Number(x.count)||0} Treppen${x.reason?' · '+reportOneLine(x.reason):''}`);
@@ -481,8 +489,8 @@ function bind(){
   $('#saveStairEntry').onclick=saveStairEntry;
   $('#annualYear').onchange=renderAnnualReport;$('#createAnnualPdf').onclick=createAnnualPdf;
   $('#saveCompany').onclick=saveCompany;$('#saveContractFile').onclick=saveContractFile;$('#saveMeeting').onclick=saveMeeting;$('#saveNotice').onclick=saveNotice;$('#saveChild').onclick=saveChild;$('#saveRehab').onclick=saveRehab;
-  $('#addLungTest').onclick=addLungTest;$('#addLabResult').onclick=addLabResult;$('#addDoctorLetter').onclick=addDoctorLetter;$('#addShiftManual').onclick=addManualShift;$('#addAuManual').onclick=addManualAu;
-  $('#saveAuPhoto').onclick=saveAuPhoto;$('#saveLungPhoto').onclick=saveLungPhoto;$('#saveLabPhoto').onclick=saveLabPhoto;$('#saveLetterPhoto').onclick=saveLetterPhoto;
+  $('#addShiftManual').onclick=addManualShift;
+  $('#saveAuPhoto').onclick=saveAuPhoto;$('#auStatsMonth').onchange=renderAUs;$('#auStatsYear').onchange=renderAUs;
   $$('[data-docsave]').forEach(b=>b.onclick=()=>saveSimpleDoc(b.dataset.docsave));
   $$('[data-attachment-section]').forEach(b=>b.onclick=()=>saveGenericAttachment(b.dataset.attachmentSection,b.dataset.attachmentInput));
   $('#exportBackup').onclick=exportBackup;$('#importBackup').onchange=e=>e.target.files[0]&&importBackup(e.target.files[0]);
