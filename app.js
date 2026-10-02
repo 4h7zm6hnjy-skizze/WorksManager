@@ -4,7 +4,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const enc = new TextEncoder();
 const dec = new TextDecoder();
-const APP_VERSION='1.8.3';
+const APP_VERSION='1.8.4';
 let state = blankState();
 let cryptoKey = null;
 let db = null;
@@ -395,6 +395,22 @@ function formatContractDuration(duration){
   if(!duration)return '—';
   return `${durationUnit(duration.years,'Jahr','Jahre')}, ${durationUnit(duration.months,'Monat','Monate')}, ${durationUnit(duration.weeks,'Woche','Wochen')} und ${durationUnit(duration.days,'Tag','Tage')}`;
 }
+function renderContractDurationValue(el,duration){
+  if(!el)return;
+  if(!duration){el.textContent='—';return;}
+  const parts=[
+    `${durationUnit(duration.years,'Jahr','Jahre')},`,
+    `${durationUnit(duration.months,'Monat','Monate')},`,
+    `${durationUnit(duration.weeks,'Woche','Wochen')}`,
+    `und ${durationUnit(duration.days,'Tag','Tage')}`
+  ];
+  el.replaceChildren(...parts.map((text,i)=>{
+    const span=document.createElement('span');
+    span.className='employment-duration-part'+(i===3?' employment-duration-last':'');
+    span.textContent=text;
+    return span;
+  }));
+}
 function renderEmploymentCounter(){
   const start=String(state.company?.contractStart||'').slice(0,10);
   const period=$('#employmentCounterPeriod'),hint=$('#employmentCounterHint');
@@ -402,18 +418,18 @@ function renderEmploymentCounter(){
   if(!durationEl)return;
   const duration=contractDuration(start);
   if(!start){
-    durationEl.textContent='—';
+    renderContractDurationValue(durationEl,null);
     if(period)period.textContent='Vertragsbeginn noch nicht eingetragen';
     if(hint)hint.textContent='Trage den Vertragsbeginn unter „Firma & Vertrag“ ein.';
     return;
   }
   if(!duration){
-    durationEl.textContent='—';
+    renderContractDurationValue(durationEl,null);
     if(period)period.textContent=`Vertragsbeginn: ${fmtDate(start)}`;
     if(hint)hint.textContent='Der Vertragsbeginn liegt in der Zukunft oder ist ungültig.';
     return;
   }
-  durationEl.textContent=formatContractDuration(duration);
+  renderContractDurationValue(durationEl,duration);
   if(period)period.textContent=`${fmtDate(start)} bis heute`;
   if(hint)hint.textContent='Kalendergenaue Vertragsdauer: volle Jahre und Monate, der Rest wird in Wochen und Tagen angezeigt.';
 }

@@ -1,0 +1,4 @@
+WorksManager
+Version 1.8.4
+GitHub-Build: 2026-10-02
+Darstellungsfix: Vertragsdauer bricht mobil sauber um; Start-Zoom deaktiviert.
