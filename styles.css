@@ -174,3 +174,9 @@ main{width:100%;overflow-x:hidden}
 @media(max-width:340px){
   .dashboard-stats{grid-template-columns:1fr!important}
 }
+
+/* v1.8.3 – Vertragsdauer als eine zusammengesetzte Laufzeit */
+.employment-duration-box{width:100%;min-width:0;padding:14px 16px;border:1px solid var(--line);border-radius:16px;background:#fff;overflow:hidden}
+.employment-duration-value{display:block;max-width:100%;font-size:24px;line-height:1.3;letter-spacing:-.025em;color:var(--ink);overflow-wrap:anywhere}
+@media (max-width:560px){.employment-duration-box{padding:13px}.employment-duration-value{font-size:21px;line-height:1.35}}
+@media (max-width:380px){.employment-duration-value{font-size:19px}}

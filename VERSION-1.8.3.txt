@@ -1,0 +1,4 @@
+WorksManager
+Version 1.8.3
+GitHub-Build: 2026-10-02
+Vertragsdauer: Jahre, Monate, Wochen und Tage.

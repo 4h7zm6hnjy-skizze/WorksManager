@@ -4,7 +4,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const enc = new TextEncoder();
 const dec = new TextDecoder();
-const APP_VERSION='1.8.2';
+const APP_VERSION='1.8.3';
 let state = blankState();
 let cryptoKey = null;
 let db = null;
@@ -356,41 +356,66 @@ function dateOnlyParts(value){
   if(probe.getUTCFullYear()!==y||probe.getUTCMonth()!==mo-1||probe.getUTCDate()!==d)return null;
   return {y,mo,d,dayNumber:Math.floor(probe.getTime()/86400000)};
 }
+function calendarPartsToDayNumber(p){
+  return Math.floor(Date.UTC(p.y,p.mo-1,p.d)/86400000);
+}
+function daysInCalendarMonth(y,mo){
+  return new Date(Date.UTC(y,mo,0)).getUTCDate();
+}
+function addCalendarYears(parts,years){
+  const y=parts.y+years,mo=parts.mo,d=Math.min(parts.d,daysInCalendarMonth(y,mo));
+  return {y,mo,d,dayNumber:calendarPartsToDayNumber({y,mo,d})};
+}
+function addCalendarMonths(parts,months){
+  const total=(parts.y*12+(parts.mo-1))+months;
+  const y=Math.floor(total/12),mo=(total%12)+1,d=Math.min(parts.d,daysInCalendarMonth(y,mo));
+  return {y,mo,d,dayNumber:calendarPartsToDayNumber({y,mo,d})};
+}
 function contractDuration(startValue,endValue=localDateValue()){
   const start=dateOnlyParts(startValue),end=dateOnlyParts(endValue);
   if(!start||!end||end.dayNumber<start.dayNumber)return null;
-  const days=end.dayNumber-start.dayNumber+1;
-  let months=(end.y-start.y)*12+(end.mo-start.mo);
-  if(end.d<start.d)months--;
-  months=Math.max(0,months);
+
   let years=end.y-start.y;
-  if(end.mo<start.mo||(end.mo===start.mo&&end.d<start.d))years--;
+  let cursor=addCalendarYears(start,years);
+  if(cursor.dayNumber>end.dayNumber){years--;cursor=addCalendarYears(start,years);}
   years=Math.max(0,years);
-  return {days,months,years};
+
+  let months=(end.y-cursor.y)*12+(end.mo-cursor.mo);
+  let monthCursor=addCalendarMonths(cursor,months);
+  if(monthCursor.dayNumber>end.dayNumber){months--;monthCursor=addCalendarMonths(cursor,months);}
+  months=Math.max(0,months);
+
+  const remainingDays=Math.max(0,end.dayNumber-monthCursor.dayNumber);
+  const weeks=Math.floor(remainingDays/7);
+  const days=remainingDays%7;
+  return {years,months,weeks,days};
+}
+function durationUnit(value,singular,plural){return `${value.toLocaleString('de-DE')} ${value===1?singular:plural}`;}
+function formatContractDuration(duration){
+  if(!duration)return '—';
+  return `${durationUnit(duration.years,'Jahr','Jahre')}, ${durationUnit(duration.months,'Monat','Monate')}, ${durationUnit(duration.weeks,'Woche','Wochen')} und ${durationUnit(duration.days,'Tag','Tage')}`;
 }
 function renderEmploymentCounter(){
   const start=String(state.company?.contractStart||'').slice(0,10);
   const period=$('#employmentCounterPeriod'),hint=$('#employmentCounterHint');
-  const daysEl=$('#employmentDays'),monthsEl=$('#employmentMonths'),yearsEl=$('#employmentYears');
-  if(!daysEl||!monthsEl||!yearsEl)return;
+  const durationEl=$('#employmentDurationText');
+  if(!durationEl)return;
   const duration=contractDuration(start);
   if(!start){
-    daysEl.textContent=monthsEl.textContent=yearsEl.textContent='—';
+    durationEl.textContent='—';
     if(period)period.textContent='Vertragsbeginn noch nicht eingetragen';
     if(hint)hint.textContent='Trage den Vertragsbeginn unter „Firma & Vertrag“ ein.';
     return;
   }
   if(!duration){
-    daysEl.textContent=monthsEl.textContent=yearsEl.textContent='—';
+    durationEl.textContent='—';
     if(period)period.textContent=`Vertragsbeginn: ${fmtDate(start)}`;
     if(hint)hint.textContent='Der Vertragsbeginn liegt in der Zukunft oder ist ungültig.';
     return;
   }
-  daysEl.textContent=duration.days.toLocaleString('de-DE');
-  monthsEl.textContent=duration.months.toLocaleString('de-DE');
-  yearsEl.textContent=duration.years.toLocaleString('de-DE');
+  durationEl.textContent=formatContractDuration(duration);
   if(period)period.textContent=`${fmtDate(start)} bis heute`;
-  if(hint)hint.textContent='Der Tageszähler zählt den Vertragsbeginn als ersten Kalendertag. Monate und Jahre zeigen vollständig vergangene Zeiträume.';
+  if(hint)hint.textContent='Kalendergenaue Vertragsdauer: volle Jahre und Monate, der Rest wird in Wochen und Tagen angezeigt.';
 }
 function renderDashboard(){
   const auDays=countUniqueRangeDays(state.aus);

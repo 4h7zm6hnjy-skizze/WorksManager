@@ -1,26 +1,26 @@
 <!doctype html>
-<html lang="de" data-app-version="1.8.2">
+<html lang="de" data-app-version="1.8.3">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <meta name="theme-color" content="#062f4f" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-  <title>WorksManager v1.8.2</title>
-  <link rel="manifest" href="manifest.json?v=1.8.2" />
+  <title>WorksManager v1.8.3</title>
+  <link rel="manifest" href="manifest.json?v=1.8.3" />
   <link rel="icon" type="image/png" href="favicon.png" />
   <link rel="apple-touch-icon" href="apple-touch-icon.png" />
-  <link rel="stylesheet" href="styles.css?v=1.8.2" />
+  <link rel="stylesheet" href="styles.css?v=1.8.3" />
 </head>
 <body>
   <div id="unlock" class="unlock-screen">
     <div class="unlock-card">
       <div class="unlock-brand">
         <img class="unlock-logo" src="worksmanager-logo.png" alt="WorksManager" />
-        <span class="version-badge unlock-version" aria-label="Version 1.8.2">v1.8.2</span>
+        <span class="version-badge unlock-version" aria-label="Version 1.8.3">v1.8.3</span>
       </div>
-      <h1 class="sr-only">WorksManager v1.8.2</h1>
-      <div class="unlock-version-text">Version 1.8.2</div>
+      <h1 class="sr-only">WorksManager v1.8.3</h1>
+      <div class="unlock-version-text">Version 1.8.3</div>
       <p class="muted">Private Arbeitsverwaltung · lokale, verschlüsselte Datenspeicherung</p>
       <label>Passwort / PIN</label>
       <input id="unlockPassword" type="password" autocomplete="current-password" placeholder="Passwort eingeben" />
@@ -34,9 +34,9 @@
       <div class="top-brand">
         <div class="brand-row">
           <img class="top-logo" src="worksmanager-logo.png" alt="WorksManager" />
-          <span class="version-badge" aria-label="Version 1.8.2">v1.8.2</span>
+          <span class="version-badge" aria-label="Version 1.8.3">v1.8.3</span>
         </div>
-        <div class="app-version">Version 1.8.2</div>
+        <div class="app-version">Version 1.8.3</div>
         <div class="subtitle">Copyright Marcel Hentschel</div>
       </div>
       <div class="top-actions">
@@ -63,10 +63,8 @@
             </div>
             <span id="employmentCounterPeriod" class="employment-period">Vertragsbeginn noch nicht eingetragen</span>
           </div>
-          <div class="employment-counter-grid">
-            <div class="employment-metric"><strong id="employmentDays">—</strong><span>Tage gesamt</span></div>
-            <div class="employment-metric"><strong id="employmentMonths">—</strong><span>volle Monate</span></div>
-            <div class="employment-metric"><strong id="employmentYears">—</strong><span>volle Jahre</span></div>
+          <div class="employment-duration-box">
+            <strong id="employmentDurationText" class="employment-duration-value">—</strong>
           </div>
           <p id="employmentCounterHint" class="employment-counter-hint">Trage den Vertragsbeginn unter „Firma & Vertrag“ ein.</p>
         </section>
@@ -416,6 +414,6 @@
 
   <div id="modal" class="sheet hidden"><div id="modalCard" class="sheet-card"></div></div>
 
-  <script src="app.js?v=1.8.2"></script>
+  <script src="app.js?v=1.8.3"></script>
 </body>
 </html>
