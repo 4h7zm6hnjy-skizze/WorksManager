@@ -1,4 +1,4 @@
-# WorksManager v1.4.0
+# WorksManager v1.4.1
 
 Private Arbeits- und Dokumentenverwaltung.
 
@@ -30,3 +30,10 @@ Copyright Marcel Hentschel.
 - Keine ICD-Codes, AU-Art, Notiz oder automatische Analyse.
 - Monatsstatistik mit Fällen und Krankheitstagen.
 - Jahresstatistik mit Fällen und Krankheitstagen sowie 12-Monats-Übersicht.
+
+## Änderung in v1.4.1
+- Löschen-Funktionen in allen Rubriken repariert.
+- Öffnen gespeicherter Fotos und Dokumente repariert.
+- Ältere Einträge ohne interne ID erhalten beim Laden automatisch eine ID und können wieder gelöscht werden.
+- Arbeitsvertrag-Dateispeicherung repariert.
+- PWA-Cache auf v1.4.1 aktualisiert.

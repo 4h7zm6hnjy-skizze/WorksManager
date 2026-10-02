@@ -9,7 +9,7 @@ let cryptoKey = null;
 let db = null;
 
 function blankState(){return {version:5,company:{name:'',employeeName:'',contractStart:'',employeeNo:'',notes:'',contracts:[]},shifts:[],meetings:[],notices:[],documents:[],aus:[],childSick:[],rehabs:[],stairs:[],attachments:{company:[],shift:[],meetings:[],notices:[],family:[],rehab:[]}};}
-function normalizeState(v){const base=blankState();const x=v&&typeof v==='object'?v:{};x.company={...base.company,...(x.company||{})};x.company.contracts=Array.isArray(x.company.contracts)?x.company.contracts:[];for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])x[k]=Array.isArray(x[k])?x[k]:[];delete x.health;x.attachments=x.attachments&&typeof x.attachments==='object'?x.attachments:{};for(const k of ['company','shift','meetings','notices','family','rehab'])x.attachments[k]=Array.isArray(x.attachments[k])?x.attachments[k]:[];x.version=5;return x;}
+function normalizeState(v){const base=blankState();const x=v&&typeof v==='object'?v:{};x.company={...base.company,...(x.company||{})};x.company.contracts=Array.isArray(x.company.contracts)?x.company.contracts:[];for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])x[k]=Array.isArray(x[k])?x[k]:[];delete x.health;x.attachments=x.attachments&&typeof x.attachments==='object'?x.attachments:{};for(const k of ['company','shift','meetings','notices','family','rehab'])x.attachments[k]=Array.isArray(x.attachments[k])?x.attachments[k]:[];const ensureIds=arr=>arr.forEach(item=>{if(item&&typeof item==='object'&&!item.id)item.id=id();});ensureIds(x.company.contracts);for(const k of ['shifts','meetings','notices','documents','aus','childSick','rehabs','stairs'])ensureIds(x[k]);for(const k of ['company','shift','meetings','notices','family','rehab'])ensureIds(x.attachments[k]);x.version=5;return x;}
 function id(){return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36)+Math.random().toString(36).slice(2);}
 function now(){return new Date().toISOString();}
 function fmtDate(v){if(!v)return '—';const d=new Date(v+'T12:00:00');return d.toLocaleDateString('de-DE');}
@@ -195,6 +195,47 @@ function modal(html){$('#modalCard').innerHTML=html;$('#modal').classList.remove
 function closeModal(){$('#modal').classList.add('hidden');}
 
 async function saveCompany(){state.company={...state.company,name:$('#companyName').value.trim(),employeeName:$('#employeeName').value.trim(),contractStart:$('#contractStart').value,employeeNo:$('#employeeNo').value.trim(),notes:$('#companyNotes').value.trim()};await save();}
+async function saveContractFile(){
+  const input=$('#contractFile'),f=input?.files?.[0];
+  if(!f){alert('Bitte zuerst ein Foto oder eine Datei auswählen.');return;}
+  const data=f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f);
+  state.company.contracts.push({id:id(),name:f.name||'Arbeitsvertrag',mime:f.type||'',data,createdAt:now()});
+  input.value='';
+  await save('Arbeitsvertrag gespeichert');
+}
+function openStoredData(data,title='WorksManager Dokument'){
+  if(!data){alert('Zu diesem Eintrag ist keine Datei gespeichert.');return;}
+  const w=window.open('','_blank');
+  if(!w){alert('Das Öffnen wurde vom Browser blockiert. Bitte Pop-ups für WorksManager erlauben.');return;}
+  if(String(data).startsWith('data:application/pdf')){w.location.href=data;return;}
+  w.document.open();
+  w.document.write(`<title>${esc(title)}</title><meta name="viewport" content="width=device-width,initial-scale=1"><body style="margin:0;background:#111;display:flex;justify-content:center"><img src="${data}" alt="${esc(title)}" style="max-width:100%;height:auto;object-fit:contain"></body>`);
+  w.document.close();
+}
+window.viewDoc=(ident,type)=>{
+  let obj=null,data='',title='WorksManager Dokument';
+  if(type==='contract'){obj=(state.company.contracts||[]).find(x=>x.id===ident);data=obj?.data||'';title=obj?.name||'Arbeitsvertrag';}
+  else if(type==='notice'){obj=(state.notices||[]).find(x=>x.id===ident);data=obj?.file?.data||'';title=obj?.file?.name||obj?.title||'Aushang';}
+  else if(type==='doc'){obj=(state.documents||[]).find(x=>x.id===ident);data=obj?.data||'';title=obj?.name||'Dokument';}
+  else if(type==='au'){obj=(state.aus||[]).find(x=>x.id===ident);data=obj?.data||obj?.image||'';title=obj?.name||'Krankschreibung';}
+  openStoredData(data,title);
+};
+async function deleteById(listName,ident,message){
+  const list=state[listName];
+  if(!Array.isArray(list))return;
+  const before=list.length;
+  state[listName]=list.filter(x=>x.id!==ident);
+  if(state[listName].length===before){alert('Der Eintrag konnte nicht gefunden werden. Bitte die App einmal neu öffnen und erneut versuchen.');return;}
+  await save(message);
+}
+window.delContract=async ident=>{if(confirm('Arbeitsvertrag wirklich löschen?')){const before=state.company.contracts.length;state.company.contracts=state.company.contracts.filter(x=>x.id!==ident);if(state.company.contracts.length===before){alert('Der Eintrag konnte nicht gefunden werden.');return;}await save('Arbeitsvertrag gelöscht');}};
+window.delShift=async ident=>{if(confirm('Schichteintrag wirklich löschen?'))await deleteById('shifts',ident,'Schicht gelöscht');};
+window.delMeeting=async ident=>{if(confirm('Gesprächseintrag wirklich löschen?'))await deleteById('meetings',ident,'Eintrag gelöscht');};
+window.delNotice=async ident=>{if(confirm('Aushang wirklich löschen?'))await deleteById('notices',ident,'Aushang gelöscht');};
+window.delDoc=async ident=>{if(confirm('Dokument wirklich löschen?'))await deleteById('documents',ident,'Dokument gelöscht');};
+window.delAu=async ident=>{if(confirm('Krankschreibung wirklich löschen?'))await deleteById('aus',ident,'Krankschreibung gelöscht');};
+window.delChild=async ident=>{if(confirm('Kind-krank-Eintrag wirklich löschen?'))await deleteById('childSick',ident,'Eintrag gelöscht');};
+window.delRehab=async ident=>{if(confirm('Reha-Eintrag wirklich löschen?'))await deleteById('rehabs',ident,'Reha-Eintrag gelöscht');};
 async function saveMeeting(){state.meetings.push({id:id(),type:$('#meetingType').value,date:$('#meetingDate').value,time:$('#meetingTime').value,partner:$('#meetingPartner').value.trim(),place:$('#meetingPlace').value.trim(),note:$('#meetingNote').value.trim(),createdAt:now()});await save();['meetingDate','meetingTime','meetingPartner','meetingPlace','meetingNote'].forEach(i=>$('#'+i).value='');}
 async function saveNotice(){const f=$('#noticeFile').files[0];let file=null;if(f)file={name:f.name,type:f.type,data:f.type.startsWith('image/')?await imageForStorage(f):await fileToDataURL(f)};state.notices.push({id:id(),type:$('#noticeType').value,date:$('#noticeDate').value,title:$('#noticeTitle').value.trim(),note:$('#noticeNote').value.trim(),file,createdAt:now()});await save();$('#noticeTitle').value='';$('#noticeNote').value='';$('#noticeFile').value='';}
 async function saveChild(){state.childSick.push({id:id(),child:$('#childName').value.trim(),from:$('#childFrom').value,to:$('#childTo').value,note:$('#childNote').value.trim(),createdAt:now()});await save();}
