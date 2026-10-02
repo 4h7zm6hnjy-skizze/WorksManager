@@ -4,7 +4,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const enc = new TextEncoder();
 const dec = new TextDecoder();
-const APP_VERSION='1.7.0';
+const APP_VERSION='1.8.1';
 let state = blankState();
 let cryptoKey = null;
 let db = null;
@@ -348,10 +348,66 @@ function renderAll(){
   if(errors.length)showToast(`Anzeigeproblem: ${errors.join(', ')}`,'error');
 }
 
+function dateOnlyParts(value){
+  const m=String(value||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if(!m)return null;
+  const y=Number(m[1]),mo=Number(m[2]),d=Number(m[3]);
+  const probe=new Date(Date.UTC(y,mo-1,d));
+  if(probe.getUTCFullYear()!==y||probe.getUTCMonth()!==mo-1||probe.getUTCDate()!==d)return null;
+  return {y,mo,d,dayNumber:Math.floor(probe.getTime()/86400000)};
+}
+function contractDuration(startValue,endValue=localDateValue()){
+  const start=dateOnlyParts(startValue),end=dateOnlyParts(endValue);
+  if(!start||!end||end.dayNumber<start.dayNumber)return null;
+  const days=end.dayNumber-start.dayNumber+1;
+  let months=(end.y-start.y)*12+(end.mo-start.mo);
+  if(end.d<start.d)months--;
+  months=Math.max(0,months);
+  let years=end.y-start.y;
+  if(end.mo<start.mo||(end.mo===start.mo&&end.d<start.d))years--;
+  years=Math.max(0,years);
+  return {days,months,years};
+}
+function renderEmploymentCounter(){
+  const start=String(state.company?.contractStart||'').slice(0,10);
+  const period=$('#employmentCounterPeriod'),hint=$('#employmentCounterHint');
+  const daysEl=$('#employmentDays'),monthsEl=$('#employmentMonths'),yearsEl=$('#employmentYears');
+  if(!daysEl||!monthsEl||!yearsEl)return;
+  const duration=contractDuration(start);
+  if(!start){
+    daysEl.textContent=monthsEl.textContent=yearsEl.textContent='—';
+    if(period)period.textContent='Vertragsbeginn noch nicht eingetragen';
+    if(hint)hint.textContent='Trage den Vertragsbeginn unter „Firma & Vertrag“ ein.';
+    return;
+  }
+  if(!duration){
+    daysEl.textContent=monthsEl.textContent=yearsEl.textContent='—';
+    if(period)period.textContent=`Vertragsbeginn: ${fmtDate(start)}`;
+    if(hint)hint.textContent='Der Vertragsbeginn liegt in der Zukunft oder ist ungültig.';
+    return;
+  }
+  daysEl.textContent=duration.days.toLocaleString('de-DE');
+  monthsEl.textContent=duration.months.toLocaleString('de-DE');
+  yearsEl.textContent=duration.years.toLocaleString('de-DE');
+  if(period)period.textContent=`${fmtDate(start)} bis heute`;
+  if(hint)hint.textContent='Der Tageszähler zählt den Vertragsbeginn als ersten Kalendertag. Monate und Jahre zeigen vollständig vergangene Zeiträume.';
+}
 function renderDashboard(){
-  const auDays=countUniqueRangeDays(state.aus);const extraDocs=Object.values(state.attachments||{}).reduce((n,a)=>n+(Array.isArray(a)?a.reduce((m,x)=>m+recordFileCount(x),0):0),0);
+  const auDays=countUniqueRangeDays(state.aus);
+  const extraDocs=Object.values(state.attachments||{}).reduce((n,a)=>n+(Array.isArray(a)?a.reduce((m,x)=>m+recordFileCount(x),0):0),0);
   const fileDocs=state.documents.reduce((n,x)=>n+recordFileCount(x),0)+(state.company.contracts||[]).reduce((n,x)=>n+recordFileCount(x),0)+state.notices.reduce((n,x)=>n+recordFileCount(x),0)+(state.vacations||[]).reduce((n,x)=>n+recordFileCount(x),0)+extraDocs;
-  $('#statAuDays').textContent=auDays;$('#statAuCases').textContent=state.aus.length;$('#statChildCases').textContent=state.childSick.length;$('#statShifts').textContent=state.shifts.length;$('#statDocs').textContent=fileDocs;$('#welcomeText').textContent=state.company.employeeName?`${state.company.employeeName}${state.company.name?' · '+state.company.name:''}`:'Noch kein Mitarbeitername hinterlegt.';const today=localDateValue();const stairsToday=(state.stairs||[]).filter(x=>x.date===today).reduce((n,x)=>n+(Number(x.count)||0),0);const stairStat=$('#statStairsToday');if(stairStat)stairStat.textContent=stairsToday;const currentYear=today.slice(0,4),vacationStat=$('#statVacationDays');if(vacationStat)vacationStat.textContent=vacationDaysForRecords(state.vacations||[],`${currentYear}-01-01`,`${currentYear}-12-31`);
+  $('#statAuDays').textContent=auDays;
+  $('#statAuCases').textContent=state.aus.length;
+  $('#statChildCases').textContent=state.childSick.length;
+  $('#statShifts').textContent=state.shifts.length;
+  $('#statDocs').textContent=fileDocs;
+  $('#welcomeText').textContent=state.company.employeeName?`${state.company.employeeName}${state.company.name?' · '+state.company.name:''}`:'Noch kein Mitarbeitername hinterlegt.';
+  const today=localDateValue();
+  const stairsToday=(state.stairs||[]).filter(x=>x.date===today).reduce((n,x)=>n+(Number(x.count)||0),0);
+  const stairStat=$('#statStairsToday');if(stairStat)stairStat.textContent=stairsToday;
+  const currentYear=today.slice(0,4),vacationStat=$('#statVacationDays');
+  if(vacationStat)vacationStat.textContent=vacationDaysForRecords(state.vacations||[],`${currentYear}-01-01`,`${currentYear}-12-31`);
+  renderEmploymentCounter();
 }
 function renderCompany(){const c=state.company;$('#companyName').value=c.name||'';$('#employeeName').value=c.employeeName||'';$('#contractStart').value=c.contractStart||'';$('#employeeNo').value=c.employeeNo||'';$('#companyNotes').value=c.notes||'';$('#contractList').innerHTML=(c.contracts||[]).map(x=>itemHtml('Arbeitsvertrag',esc(recordFileSummary(x,'Dokument')),x.createdAt,[`<button onclick="viewDoc('${x.id}','contract')">Öffnen${recordFileCount(x)>1?' ('+recordFileCount(x)+')':''}</button>`,`<button onclick="delContract('${x.id}')">Löschen</button>`])).join('')||empty('Noch kein Arbeitsvertrag gespeichert.');}
 function renderShifts(){const arr=[...state.shifts].sort((a,b)=>(b.date||'').localeCompare(a.date||''));$('#shiftList').innerHTML=arr.map(s=>itemHtml(`${fmtDate(s.date)} · ${esc(s.shift||'Schicht')}`,`${esc(s.start||'—')}–${esc(s.end||'—')}${s.note?' · '+esc(s.note):''}`,s.createdAt,[`<button onclick="delShift('${s.id}')">Löschen</button>`])).join('')||empty('Noch keine Schichten gespeichert.');}
@@ -1108,6 +1164,7 @@ function bind(){
     window.addEventListener('pageshow',()=>{setTimeout(resetViewportPosition,0);const app=$('#app');if(app&&!app.classList.contains('hidden')&&!cryptoKey){app.classList.add('hidden');$('#unlock').classList.remove('hidden');$('#unlockHint').textContent='Die Sitzung wurde neu geladen. Bitte einmal erneut entsperren.';}});
     window.addEventListener('orientationchange',()=>setTimeout(resetViewportPosition,120));
     resetViewportPosition();
+    setInterval(()=>{try{const app=$('#app');if(app&&!app.classList.contains('hidden'))renderDashboard();}catch{}},60000);
     const has=await dbGet('payload');
     $('#unlockHint').textContent=has?'Daten vorhanden – mit deinem Passwort öffnen.':'Erster Start: Dieses Passwort verschlüsselt deine Daten. Merke es dir; es kann nicht wiederhergestellt werden.';
   }catch(e){

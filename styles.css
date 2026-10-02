@@ -75,3 +75,46 @@ button:disabled{opacity:.65;cursor:wait}
 .form-grid>*,.two-col>*,.upload-row>*{min-width:0}
 input[type=file],input[type=date],input[type=time],input[type=month],select,textarea{max-width:100%;min-width:0}
 @media(max-width:700px){input,textarea,select{font-size:16px}}
+
+
+/* v1.8.0 – Startseite vollständig in der Gerätebreite + Vertragsdauer */
+html,body{width:100%;max-width:100%;overflow-x:hidden}
+body{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+.app,.topbar,main,.page,.dashboard-hero,.hero-copy,.stats-grid,.dashboard-stats,.module-grid,.card{width:100%;min-width:0;max-width:100%}
+main{overflow-x:hidden}
+.dashboard-hero>*{min-width:0;max-width:100%}
+.hero-copy{overflow-wrap:anywhere}
+.dashboard-stats{grid-template-columns:repeat(4,minmax(0,1fr))!important}
+.dashboard-stats>.stat{width:100%;min-width:0;max-width:100%;overflow:hidden}
+.stat span,.stat small{overflow-wrap:anywhere}
+.employment-counter{margin:0 0 18px;padding:16px;background:linear-gradient(135deg,#ffffff,#f2fbfa);border:1px solid #cfe9e6;border-radius:20px;box-shadow:var(--shadow)}
+.employment-counter-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px}
+.employment-counter-head h3{margin:0;font-size:20px;letter-spacing:-.02em}
+.employment-period{max-width:48%;color:var(--muted);font-size:12px;font-weight:800;text-align:right;overflow-wrap:anywhere}
+.employment-counter-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.employment-metric{min-width:0;padding:12px;border:1px solid var(--line);border-radius:15px;background:#fff}
+.employment-metric strong{display:block;font-size:27px;line-height:1.05;letter-spacing:-.03em;overflow-wrap:anywhere}
+.employment-metric span{display:block;margin-top:6px;color:var(--muted);font-size:11px;font-weight:800}
+.employment-counter-hint{margin:10px 0 0;color:var(--muted);font-size:11px;line-height:1.4}
+@media(max-width:900px){.dashboard-stats{grid-template-columns:repeat(3,minmax(0,1fr))!important}}
+@media(max-width:700px){
+  .topbar{padding-left:12px;padding-right:12px}
+  main{padding-left:12px;padding-right:12px}
+  .dashboard-hero{width:100%;gap:8px}
+  .hero-copy h2{font-size:clamp(25px,8vw,31px)}
+  .privacy-badge{max-width:100%;white-space:normal}
+  .dashboard-stats{grid-template-columns:repeat(2,minmax(0,1fr))!important;gap:9px}
+  .stat{padding:12px;min-height:92px}
+  .stat strong{font-size:25px}
+  .employment-counter{padding:14px;border-radius:17px}
+  .employment-counter-head{display:block}
+  .employment-period{display:block;max-width:none;text-align:left;margin-top:4px}
+  .employment-counter-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:7px}
+  .employment-metric{padding:10px 8px}
+  .employment-metric strong{font-size:23px}
+  .employment-metric span{font-size:10px}
+}
+@media(max-width:350px){
+  .dashboard-stats{grid-template-columns:1fr!important}
+  .employment-counter-grid{grid-template-columns:1fr}
+}

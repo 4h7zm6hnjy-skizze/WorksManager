@@ -1,6 +1,6 @@
 const CACHE_PREFIX='worksmanager-v';
-const CACHE='worksmanager-v1.7.0';
-const ASSETS=['./','./index.html','./styles.css?v=1.7.0','./app.js?v=1.7.0','./manifest.json?v=1.7.0','./worksmanager-logo.png','./favicon.png','./apple-touch-icon.png','./icon-192.png','./icon-512.png','./icon-1024.png'];
+const CACHE='worksmanager-v1.8.1';
+const ASSETS=['./','./index.html','./styles.css?v=1.8.1','./app.js?v=1.8.1','./manifest.json?v=1.8.1','./worksmanager-logo.png','./favicon.png','./apple-touch-icon.png','./icon-192.png','./icon-512.png','./icon-1024.png'];
 self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith(CACHE_PREFIX)&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim())));
 self.addEventListener('fetch',e=>{
