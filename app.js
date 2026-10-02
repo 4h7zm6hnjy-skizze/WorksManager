@@ -4,7 +4,7 @@ const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
 const enc = new TextEncoder();
 const dec = new TextDecoder();
-const APP_VERSION='1.8.1';
+const APP_VERSION='1.8.2';
 let state = blankState();
 let cryptoKey = null;
 let db = null;

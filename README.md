@@ -1,4 +1,4 @@
-# WorksManager v1.6.0
+# WorksManager v1.8.2
 
 Private, lokal verschlüsselte Arbeits- und Dokumentenverwaltung.
 
@@ -64,7 +64,7 @@ Copyright Marcel Hentschel.
 - Backup-Nachbereinigung kann einen bereits erfolgreichen Import nicht mehr fälschlich als fehlgeschlagen melden.
 
 
-## v1.7.0 – Urlaub
+## v1.8.2 – Urlaub
 
 - Neue Rubrik „Urlaub“ mit Von-/Bis-Datum und Mehrfach-Foto-Upload.
 - Urlaubstage werden automatisch als Montag bis Freitag gezählt.
@@ -73,3 +73,10 @@ Copyright Marcel Hentschel.
 - Bewegliche Feiertage werden anhand des Osterdatums des jeweiligen Jahres berechnet.
 - Urlaub wird im Dashboard und in der Jahresstatistik/PDF berücksichtigt.
 - Originalfotos bleiben verschlüsselt in WorksManager und im verschlüsselten Backup enthalten.
+
+
+## Version 1.8.2
+- Startseiten-Layout für iPhone/PWA weiter stabilisiert: keine abgeschnittenen Statistik-Kacheln, keine horizontale Überbreite.
+- Neuer Vertragsdauer-Zähler direkt unter „Meine Arbeitsübersicht“.
+- Zeigt Kalendertage seit Vertragsbeginn (inklusive Starttag), volle Monate und volle Jahre bis zum aktuellen Tag.
+- Aktualisiert sich beim Öffnen und während die App geöffnet ist regelmäßig automatisch.

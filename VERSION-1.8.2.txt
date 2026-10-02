@@ -1,0 +1,4 @@
+WorksManager
+Version 1.8.2
+GitHub-Build: 2026-10-02
+Responsive iPhone layout fix
