@@ -46,7 +46,7 @@ Copyright Marcel Hentschel.
 - PWA-Cache auf v1.4.3 aktualisiert.
 
 
-## Version 1.4.4
+## Version 1.4.5
 - AU-Speichern auf iPhone/PWA robuster gemacht.
 - AU-Fotos werden speicherschonend komprimiert.
 - Eingaben werden erst nach erfolgreichem Speichern geleert.

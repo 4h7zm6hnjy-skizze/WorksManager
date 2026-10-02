@@ -19,10 +19,14 @@ function normalizeDate(s){if(!s)return '';let m=s.match(/(\d{1,2})[.\/\-](\d{1,2
 function fileToDataURL(file){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(file);});}
 async function compressImage(file,max=1600,q=.78){if(!file.type.startsWith('image/')) return await fileToDataURL(file);const src=await fileToDataURL(file);const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src;});const scale=Math.min(1,max/Math.max(img.width,img.height));const c=document.createElement('canvas');c.width=Math.round(img.width*scale);c.height=Math.round(img.height*scale);c.getContext('2d').drawImage(img,0,0,c.width,c.height);return c.toDataURL('image/jpeg',q);}
 
-function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open('WorksManagerSecure',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+function openDB(){return new Promise((res,rej)=>{const r=indexedDB.open('WorksManagerSecure',2);r.onupgradeneeded=()=>{const d=r.result;if(!d.objectStoreNames.contains('kv'))d.createObjectStore('kv');if(!d.objectStoreNames.contains('files'))d.createObjectStore('files');};r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
 function dbGet(k){return new Promise((res,rej)=>{const tx=db.transaction('kv','readonly');const r=tx.objectStore('kv').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
 function dbPut(k,v){return new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
-function dbClear(){return new Promise((res,rej)=>{const tx=db.transaction('kv','readwrite');tx.objectStore('kv').clear();tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
+function dbFileGet(k){return new Promise((res,rej)=>{const tx=db.transaction('files','readonly');const r=tx.objectStore('files').get(k);r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+function dbFilePut(k,v){return new Promise((res,rej)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').put(v,k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
+function dbFileDelete(k){return new Promise((res,rej)=>{const tx=db.transaction('files','readwrite');tx.objectStore('files').delete(k);tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
+function dbFileEntries(){return new Promise((res,rej)=>{const tx=db.transaction('files','readonly');const store=tx.objectStore('files');const out=[];const req=store.openCursor();req.onsuccess=()=>{const c=req.result;if(c){out.push([c.key,c.value]);c.continue();}else res(out);};req.onerror=()=>rej(req.error);});}
+function dbClear(){return new Promise((res,rej)=>{const names=['kv',...(db.objectStoreNames.contains('files')?['files']:[])];const tx=db.transaction(names,'readwrite');names.forEach(n=>tx.objectStore(n).clear());tx.oncomplete=()=>res();tx.onerror=()=>rej(tx.error);});}
 function b64(buf){
   const bytes=buf instanceof Uint8Array?buf:new Uint8Array(buf);
   const chunk=0x8000;
@@ -43,41 +47,80 @@ async function imageForStorage(file){
   if(!file.type.startsWith('image/'))return await fileToDataURL(file);
   try{return await compressImage(file,2400,.88);}catch(e){console.warn('Bildkomprimierung nicht möglich, Original wird verwendet.',e);return await fileToDataURL(file);}
 }
-async function imageForAuStorage(file){
-  if(!file)return '';
-  if(!String(file.type||'').startsWith('image/'))return await fileToDataURL(file);
+async function compressImageBlob(file,max=1200,q=.64){
+  if(!file||!String(file.type||'').startsWith('image/'))return file;
+  const url=URL.createObjectURL(file);
   try{
-    // AU-Fotos werden bewusst kompakter gespeichert. Das reduziert den verschlüsselten
-    // IndexedDB-Datensatz deutlich und verhindert Speicherprobleme auf iOS/PWA.
-    return await compressImage(file,1400,.68);
-  }catch(e){
-    console.warn('AU-Bildkomprimierung fehlgeschlagen, kleinere Fallback-Komprimierung wird versucht.',e);
-    try{return await compressImage(file,1000,.58);}catch(e2){console.warn('AU-Fallback fehlgeschlagen.',e2);return await fileToDataURL(file);}
+    const img=await new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=()=>rej(new Error('Bild konnte nicht gelesen werden.'));i.src=url;});
+    const scale=Math.min(1,max/Math.max(img.naturalWidth||img.width,img.naturalHeight||img.height));
+    const c=document.createElement('canvas');c.width=Math.max(1,Math.round((img.naturalWidth||img.width)*scale));c.height=Math.max(1,Math.round((img.naturalHeight||img.height)*scale));
+    const ctx=c.getContext('2d');if(!ctx)throw new Error('Bildverarbeitung wird auf diesem Gerät nicht unterstützt.');ctx.drawImage(img,0,0,c.width,c.height);
+    const blob=await new Promise((res,rej)=>c.toBlob(b=>b?res(b):rej(new Error('Bild konnte nicht komprimiert werden.')),'image/jpeg',q));
+    return blob;
+  }finally{URL.revokeObjectURL(url);}
+}
+async function encryptFileBlob(blob,name='Datei'){
+  if(!cryptoKey)throw new Error('App ist gesperrt.');
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const plain=await blob.arrayBuffer();
+  const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},cryptoKey,plain);
+  return {iv:b64(iv),cipher,mime:blob.type||'application/octet-stream',name:name||'Datei',size:blob.size||plain.byteLength,createdAt:now()};
+}
+async function decryptFileBlob(rec){
+  if(!rec||!rec.iv||!rec.cipher)throw new Error('Gespeicherte Datei ist unvollständig.');
+  const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(unb64(rec.iv))},cryptoKey,rec.cipher);
+  return new Blob([plain],{type:rec.mime||'application/octet-stream'});
+}
+function dataUrlToBlob(data){
+  const m=String(data||'').match(/^data:([^;,]+)?(?:;charset=[^;,]+)?(;base64)?,(.*)$/s);
+  if(!m)throw new Error('Ungültiges altes Bildformat.');
+  const mime=m[1]||'application/octet-stream';
+  if(m[2]){const raw=atob(m[3]);const bytes=new Uint8Array(raw.length);for(let i=0;i<raw.length;i++)bytes[i]=raw.charCodeAt(i);return new Blob([bytes],{type:mime});}
+  return new Blob([decodeURIComponent(m[3])],{type:mime});
+}
+async function storeAuBlob(fileKey,blob,name){const encrypted=await encryptFileBlob(blob,name);await dbFilePut(fileKey,encrypted);}
+async function migrateLegacyAuImages(){
+  let changed=false;
+  for(const a of state.aus||[]){
+    if(a.fileKey||(!a.data&&!a.image))continue;
+    const old=a.data||a.image;
+    try{
+      const blob=dataUrlToBlob(old);
+      const key=`au:${a.id||id()}`;
+      await storeAuBlob(key,blob,a.name||'Krankschreibung');
+      a.fileKey=key;a.mime=blob.type||a.mime||'image/jpeg';delete a.data;delete a.image;changed=true;
+    }catch(e){console.warn('Altes AU-Foto konnte nicht migriert werden:',e);}
   }
+  if(changed)await persistStateOnly();
 }
 function unb64(s){const x=atob(s);const a=new Uint8Array(x.length);for(let i=0;i<x.length;i++)a[i]=x.charCodeAt(i);return a.buffer;}
 async function deriveKey(password,salt){const base=await crypto.subtle.importKey('raw',enc.encode(password),'PBKDF2',false,['deriveKey']);return crypto.subtle.deriveKey({name:'PBKDF2',salt,iterations:210000,hash:'SHA-256'},base,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);}
 async function encryptState(){const iv=crypto.getRandomValues(new Uint8Array(12));const plain=enc.encode(JSON.stringify(state));const cipher=await crypto.subtle.encrypt({name:'AES-GCM',iv},cryptoKey,plain);return {iv:b64(iv),cipher:b64(cipher),updatedAt:now()};}
 async function decryptPayload(payload,key){const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:new Uint8Array(unb64(payload.iv))},key,unb64(payload.cipher));return JSON.parse(dec.decode(plain));}
+async function persistStateOnly(){
+  if(!cryptoKey)throw new Error('App ist gesperrt. Bitte erneut entsperren.');
+  const payload=await encryptState();
+  await dbPut('payload',payload);
+  return true;
+}
 async function save(successMessage='Gespeichert'){
   if(!cryptoKey)throw new Error('App ist gesperrt. Bitte erneut entsperren.');
   try{
-    const payload=await encryptState();
-    await dbPut('payload',payload);
-    renderAll();
-    if(successMessage)showToast(successMessage);
-    return true;
+    await persistStateOnly();
   }catch(e){
     console.error('WorksManager Speichern fehlgeschlagen:',e);
-    // Nicht gespeicherte Änderungen aus dem Arbeitsspeicher zurückrollen, damit ein erneuter Klick keine Duplikate erzeugt.
-    try{const stored=await dbGet('payload');if(stored){state=normalizeState(await decryptPayload(stored,cryptoKey));renderAll();}}catch(restoreError){console.error('Rollback fehlgeschlagen:',restoreError);}
+    try{const stored=await dbGet('payload');if(stored)state=normalizeState(await decryptPayload(stored,cryptoKey));}catch(restoreError){console.error('Rollback fehlgeschlagen:',restoreError);}
     const quota=(e&&(/quota/i.test(e.name||'')||/quota|storage|space/i.test(e.message||'')));
-    alert(quota?'Speichern fehlgeschlagen: Der lokale Gerätespeicher für WorksManager ist voll. Bitte zuerst ein verschlüsseltes Backup erstellen und nicht benötigte große Dokumente entfernen.':'Speichern fehlgeschlagen. Bitte erneut versuchen. Technischer Hinweis: '+(e?.message||e));
+    alert(quota?'Speichern fehlgeschlagen: Der lokale Gerätespeicher für WorksManager ist voll. Bitte zuerst ein verschlüsseltes Backup erstellen und nicht benötigte große Dokumente entfernen.':'Speichern fehlgeschlagen. Technischer Hinweis: '+(e?.message||e));
     throw e;
   }
+  try{renderAll();}catch(renderError){console.error('Anzeige nach dem Speichern konnte nicht vollständig aktualisiert werden:',renderError);}
+  if(successMessage)showToast(successMessage);
+  return true;
 }
 
-async function unlock(){const pass=$('#unlockPassword').value;if(!pass){$('#unlockHint').textContent='Bitte Passwort eingeben.';return;}try{let saltB64=await dbGet('salt');if(!saltB64){const salt=crypto.getRandomValues(new Uint8Array(16));saltB64=b64(salt);await dbPut('salt',saltB64);}cryptoKey=await deriveKey(pass,new Uint8Array(unb64(saltB64)));const payload=await dbGet('payload');if(payload){state=normalizeState(await decryptPayload(payload,cryptoKey));}else{state=blankState();await save('');}$('#unlock').classList.add('hidden');$('#app').classList.remove('hidden');$('#unlockPassword').value='';$('#unlockHint').textContent='';renderAll();resetViewportPosition();setTimeout(resetViewportPosition,60);}catch(e){cryptoKey=null;$('#unlockHint').textContent='Passwort falsch oder Daten beschädigt.';}}
+
+async function unlock(){const pass=$('#unlockPassword').value;if(!pass){$('#unlockHint').textContent='Bitte Passwort eingeben.';return;}try{let saltB64=await dbGet('salt');if(!saltB64){const salt=crypto.getRandomValues(new Uint8Array(16));saltB64=b64(salt);await dbPut('salt',saltB64);}cryptoKey=await deriveKey(pass,new Uint8Array(unb64(saltB64)));const payload=await dbGet('payload');if(payload){state=normalizeState(await decryptPayload(payload,cryptoKey));await migrateLegacyAuImages();}else{state=blankState();await persistStateOnly();}$('#unlock').classList.add('hidden');$('#app').classList.remove('hidden');$('#unlockPassword').value='';$('#unlockHint').textContent='';renderAll();resetViewportPosition();setTimeout(resetViewportPosition,60);}catch(e){console.error('Entsperren fehlgeschlagen:',e);cryptoKey=null;$('#unlockHint').textContent='Passwort falsch oder Daten beschädigt.';}}
 function lock(){cryptoKey=null;state=blankState();$('#app').classList.add('hidden');$('#unlock').classList.remove('hidden');}
 
 function resetViewportPosition(){
@@ -215,7 +258,7 @@ function itemHtml(title,meta,created,actions=[]){return `<div class="item"><div 
 function empty(t){return `<div class="muted">${esc(t)}</div>`;}
 
 function modal(html){$('#modalCard').innerHTML=html;$('#modal').classList.remove('hidden');}
-function closeModal(){$('#modal').classList.add('hidden');}
+function closeModal(){if(window._wmObjectUrl){URL.revokeObjectURL(window._wmObjectUrl);window._wmObjectUrl='';}$('#modal').classList.add('hidden');}
 
 async function saveCompany(){state.company={...state.company,name:$('#companyName').value.trim(),employeeName:$('#employeeName').value.trim(),contractStart:$('#contractStart').value,employeeNo:$('#employeeNo').value.trim(),notes:$('#companyNotes').value.trim()};await save();}
 async function saveContractFile(){
@@ -262,18 +305,28 @@ function findAuRecordIndex(ident,indexFallback){
   if(i<0){const fallback=Number(indexFallback);if(Number.isInteger(fallback)&&fallback>=0&&fallback<state.aus.length)i=fallback;}
   return i;
 }
-function viewAuRecord(ident,indexFallback){
+async function viewAuRecord(ident,indexFallback){
   const i=findAuRecordIndex(ident,indexFallback),obj=i>=0?state.aus[i]:null;
   if(!obj){alert('Die Krankschreibung konnte nicht gefunden werden.');return;}
-  openStoredData(obj.data||obj.image||'',obj.name||'Krankschreibung');
+  try{
+    if(obj.fileKey){
+      const rec=await dbFileGet(obj.fileKey);if(!rec)throw new Error('Das gespeicherte Foto wurde nicht gefunden.');
+      const blob=await decryptFileBlob(rec);const url=URL.createObjectURL(blob);window._wmObjectUrl=url;
+      modal(`<div class="sheet-head"><strong>${esc(obj.name||'Krankschreibung')}</strong><button type="button" onclick="closeModal()">✕</button></div><img src="${url}" alt="Krankschreibung" style="display:block;max-width:100%;height:auto;margin:12px auto;border-radius:12px">`);return;
+    }
+    openStoredData(obj.data||obj.image||'',obj.name||'Krankschreibung');
+  }catch(e){console.error('AU-Foto öffnen fehlgeschlagen:',e);alert('Das Foto konnte nicht geöffnet werden: '+(e?.message||e));}
 }
 async function deleteAuRecord(ident,indexFallback){
   if(!confirm('Krankschreibung wirklich löschen?'))return;
   const i=findAuRecordIndex(ident,indexFallback);
   if(i<0){alert('Die Krankschreibung konnte nicht gefunden werden.');return;}
-  // Neue Array-Referenz statt splice: vermeidet Probleme mit alten/sortierten Listenständen.
+  const removed=state.aus[i];
   state.aus=state.aus.filter((_,idx)=>idx!==i);
-  await save('Krankschreibung gelöscht');
+  try{
+    await save('Krankschreibung gelöscht');
+    if(removed?.fileKey)dbFileDelete(removed.fileKey).catch(e=>console.warn('Verwaistes AU-Foto konnte nicht entfernt werden:',e));
+  }catch(e){console.error('AU löschen fehlgeschlagen:',e);}
 }
 window.viewAuAt=index=>viewAuRecord('',index);
 window.delAuAt=index=>deleteAuRecord('',index);
@@ -300,22 +353,26 @@ async function saveAuPhoto(){
   const oldText=btn?.textContent||'Krankschreibung speichern';
   if(btn){btn.disabled=true;btn.textContent='Wird gespeichert …';}
   const status=$('#auSaveStatus');
-  if(status){status.textContent='Foto wird vorbereitet und gespeichert …';status.className='save-status working';}
+  if(status){status.textContent='Foto wird sicher gespeichert …';status.className='save-status working';}
+  let fileKey='';
   try{
-    const data=await imageForAuStorage(f);
-    if(!data)throw new Error('Das Foto konnte nicht verarbeitet werden.');
-    const record={id:id(),from,to,name:f.name||'Krankschreibung',mime:'image/jpeg',data,createdAt:now()};
+    const recordId=id();fileKey=`au:${recordId}`;
+    let blob;try{blob=await compressImageBlob(f,1200,.64);}catch(e){console.warn('Komprimierung fehlgeschlagen, Originalfoto wird verschlüsselt gespeichert.',e);blob=f;}
+    await storeAuBlob(fileKey,blob,f.name||'Krankschreibung');
+    const record={id:recordId,from,to,name:f.name||'Krankschreibung',mime:blob.type||f.type||'image/jpeg',fileKey,createdAt:now()};
     state.aus.push(record);
-    await save('Krankschreibung gespeichert');
+    try{await save('Krankschreibung gespeichert');}catch(e){state.aus=state.aus.filter(x=>x.id!==recordId);await dbFileDelete(fileKey).catch(()=>{});throw e;}
     $('#auImage').value='';$('#auFrom').value='';$('#auTo').value='';
     if(status){status.textContent='Krankschreibung wurde gespeichert.';status.className='save-status success';}
   }catch(e){
     console.error('AU speichern fehlgeschlagen:',e);
-    if(status){status.textContent='Speichern fehlgeschlagen – die Eingaben wurden nicht gelöscht.';status.className='save-status error';}
+    if(fileKey)await dbFileDelete(fileKey).catch(()=>{});
+    if(status){status.textContent='Speichern fehlgeschlagen: '+(e?.message||'unbekannter Fehler')+' – die Eingaben wurden nicht gelöscht.';status.className='save-status error';}
   }finally{
     if(btn){btn.disabled=false;btn.textContent=oldText;}
   }
 }
+
 function reportEntryYear(item,fields=[]){
   for(const f of fields){const y=reportYearFromValue(item?.[f]);if(y)return y;}
   return reportYearFromValue(item?.createdAt);
@@ -581,8 +638,22 @@ function createAnnualPdf(){
   }catch(e){console.error('Jahres-PDF fehlgeschlagen:',e);alert('Jahres-PDF konnte nicht erstellt werden: '+(e?.message||e));}
 }
 
-async function exportBackup(){const payload=await dbGet('payload');const salt=await dbGet('salt');const blob=new Blob([JSON.stringify({app:'WorksManager',version:1,salt,payload,exportedAt:now()},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`WorksManager-Backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);}
-async function importBackup(file){try{const j=JSON.parse(await file.text());if(j.app!=='WorksManager'||!j.salt||!j.payload)throw new Error('Ungültiges Backup');await dbPut('salt',j.salt);await dbPut('payload',j.payload);alert('Backup importiert. Bitte erneut mit dem Backup-Passwort öffnen.');lock();}catch(e){alert('Backup konnte nicht importiert werden: '+e.message);}}
+async function exportBackup(){
+  const payload=await dbGet('payload'),salt=await dbGet('salt');
+  const entries=await dbFileEntries();
+  const files=entries.map(([key,v])=>({key,iv:v.iv,cipher:b64(v.cipher),mime:v.mime||'',name:v.name||'',size:v.size||0,createdAt:v.createdAt||''}));
+  const blob=new Blob([JSON.stringify({app:'WorksManager',version:2,salt,payload,files,exportedAt:now()},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=`WorksManager-Backup-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+async function importBackup(file){
+  try{
+    const j=JSON.parse(await file.text());if(j.app!=='WorksManager'||!j.salt||!j.payload)throw new Error('Ungültiges Backup');
+    await dbPut('salt',j.salt);await dbPut('payload',j.payload);
+    if(Array.isArray(j.files)){for(const f of j.files){if(!f?.key||!f?.iv||!f?.cipher)continue;await dbFilePut(f.key,{iv:f.iv,cipher:unb64(f.cipher),mime:f.mime||'',name:f.name||'',size:f.size||0,createdAt:f.createdAt||''});}}
+    alert('Backup importiert. Bitte erneut mit dem Backup-Passwort öffnen.');lock();
+  }catch(e){alert('Backup konnte nicht importiert werden: '+e.message);}
+}
+
 
 function bind(){
   $('#unlockBtn').onclick=unlock;$('#unlockPassword').addEventListener('keydown',e=>{if(e.key==='Enter')unlock();});$('#lockBtn').onclick=lock;
@@ -603,7 +674,7 @@ function bind(){
   if('serviceWorker' in navigator){
     try{sessionStorage.removeItem('wm-sw-reload');}catch{}
     navigator.serviceWorker.addEventListener('controllerchange',()=>{try{if(!sessionStorage.getItem('wm-sw-reload')){sessionStorage.setItem('wm-sw-reload','1');location.reload();}}catch{}});
-    navigator.serviceWorker.register('./sw.js?v=1.4.4',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
+    navigator.serviceWorker.register('./sw.js?v=1.4.5',{updateViaCache:'none'}).then(r=>r.update()).catch(()=>{});
   }
   window.addEventListener('pageshow',()=>setTimeout(resetViewportPosition,0));
   window.addEventListener('orientationchange',()=>setTimeout(resetViewportPosition,120));
