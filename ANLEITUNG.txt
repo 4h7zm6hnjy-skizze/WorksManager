@@ -1,48 +1,118 @@
-WORKSMANAGER 1.9.0 – VOLLSTÄNDIGE DATEIEN FÜR DAS UPDATE
-============================================================
+WORKSMANAGER 1.9.1 – KOMPLETTES UPDATE AUF BASIS DER BESTEHENDEN APP
+===============================================================
+Erstellt: 08.10.2026
+Grundlage: WorksManager Kern 1.8.4 + Erweiterungen 1.9.0
 
-WICHTIG VORHER
-1) WorksManager öffnen → Sicherheit & Backup → verschlüsseltes Backup exportieren.
-2) Prüfen, ob die Sicherungsdatei in der iPhone-Dateien-App gespeichert wurde.
-3) Passwort merken. Auf keinen Fall die Web-App löschen oder die Browserdaten löschen!
+WICHTIG VOR DEM UPDATE
+---------------------
+1. In der laufenden WorksManager-App zuerst unter "Sicherheit & Backup" eine
+   vollständige, verschlüsselte JSON-Sicherung exportieren.
+2. Prüfen, ob die Backup-Datei in "Dateien" oder außerhalb der App gespeichert ist.
+3. WorksManager NICHT deinstallieren. Safari-Websitedaten NICHT löschen.
+4. Das vorhandene GitHub-Repository beibehalten. Kein neues Repository starten.
 
-HOCHLADEN NACH GITHUB
-Repository: 4h7zm6hnjy-skizze/WorksManager
-Alle 6 Dateien aus diesem ZIP in den Stammordner (Root) hochladen:
+GITHUB-INSTALLATION
+-------------------
+Repository: https://github.com/4h7zm6hnjy-skizze/WorksManager
 
-- index.html (vollständige Startseite, vorhandene ersetzen)
-- worksmanager-plus.js (vorhandene ersetzen)
-- worksmanager-19.js (neu hinzufügen)
-- sw.js (vorhandene ersetzen)
-- worksmanager-release.json (vorhandene ersetzen)
-- manifest.json (vorhandene ersetzen)
+Diese 7 Dateien ins HAUPTVERZEICHNIS hochladen bzw. die gleichnamigen ersetzen:
+  index.html                ERSETZEN – lädt alle drei Module direkt
+  worksmanager-plus.js      ERSETZEN – App-Updates, Offline-Anzeige, Zusatzfunktionen
+  worksmanager-19.js        HINZUFÜGEN oder ERSETZEN – Bearbeiten, Zeit, Suche, Papierkorb
+  worksmanager-lohn.js      NEU – komplette individuell anpassbare Lohnübersicht
+  sw.js                     ERSETZEN – Offline-Cache für alle Module
+  worksmanager-release.json ERSETZEN – Update-Meldung / Build 2026100804
+  manifest.json             ERSETZEN – App-Startadresse 1.9.1
 
-WICHTIG: Die bisherige app.js, styles.css, Bilder und Icons bleiben ERHALTEN und dürfen
-NICHT gelöscht werden. Die bestehende app.js 1.8.4 ist die kompatible technische Basis.
-Die sichtbare Produktversion ist 1.9.0.
+Nicht löschen / NICHT überschreiben:
+  app.js                    Unveränderter Kern 1.8.4; verschlüsselte IndexedDB
+  styles.css                Bisheriges Design / Menüanordnung
+  Bilder, Icons und andere bereits vorhandene Dateien
 
-DANACH
-- App mit Internet öffnen, vollständig schließen und wieder öffnen.
-- Neue Buttons „Bearbeiten“ prüfen. Testeintrag erstellen und bearbeiten.
-- In „Sicherheit & Backup“ Papierkorb, Änderungsverlauf und Backupprüfung prüfen.
-- Arbeitszeitkonto in „Schicht“, Termine auf der Startseite, erweiterten PDF-Bericht testen.
-- Flugmodus testen, nachdem die App einmal online vollständig geladen wurde.
-- Unbedingt bei einem Testeintrag prüfen, ob das Rückspielen aus dem Papierkorb funktioniert.
+Nach dem Upload (alle Dateien müssen hochgeladen sein):
+- WorksManager MIT INTERNET öffnen, schließen, erneut öffnen.
+- In "Abrechnungen" bis zur neuen Rubrik "Lohnberechnung · Deutschland 2026"
+  scrollen (alter Dokumentenscanner bleibt erhalten).
+- Wichtig: Bei erster Benutzung 1–2 Lohnmonate manuell nachrechnen und
+  mit den echten Lohnabrechnungen vergleichen.
 
-DATENSCHUTZ UND DATENERHALTUNG
-Die verschlüsselte IndexedDB heißt unverändert WorksManagerSecure.
-Die Datensatzstruktur v7 und das bestehende AES-GCM-Backupformat bleiben unverändert.
-Zusatzdaten wie Papierkorb, Arbeitszeiten und Änderungshistorie werden in den
-verschlüsselten Daten unter state.wm19 gespeichert.
-Nicht auf die alte Version zurückwechseln: alte Dateibereinigung kann Papierkorb-Dateien
-sonst als verwaist behandeln und löschen.
-Achtung: Die lokale Speicherung kann vom Browser gelöscht werden. Externe Backups sind
-weiterhin nötig. Erfasstes Ist und theoretisches Soll sind getrennte Werte.
-Auf dem iPhone bestehen keine garantierten Hintergrund-Pushbenachrichtigungen.
+LOHN- UND KRANKENKASSENFUNKTIONEN
+--------------------------------
+- Stundenlohn oder monatliches Festgehalt; Bezahlstunden/Lohnfortzahlung,
+  Urlaubs-/Feiertagsstunden; Überstunden + Prozentzuschlag.
+- Beliebig viele zusätzliche Lohnarten: Stunden-Zuschläge, Festbeträge,
+  steuer-/SV-pflichtige oder steuer-/SV-freie Posten, Nettoabzüge,
+  Kostenerstattungen, einmalige Sonderzahlungen.
+- Steuerklasse I–VI, Faktor (annähernd), Elterneigenschaft, Kinderfreibeträge,
+  Kirchensteuer, eigene Steuerbeträge, Soli, ELStAM-Freibetrag.
+- Krankenkasse und Kassen-Zusatzbeitrag frei in Prozent eintragen,
+  optional Arbeitnehmeranteil manuell überschreiben.
+- Pflegeversicherung mit Kinderstaffel/Sachsen, Arbeitnehmer RV/AV,
+  monatliche KV- und RV-Beitragsbemessungsgrenzen – alles anpassbar.
+- Kurzarbeit mit bei Festgehalt manuell gekürztem Ist-Brutto sowie
+  60/67 Prozent der Differenz aus PAUSCHALIERTEM Soll-/Ist-Netto
+  oder manuell bewilligtem Kurzarbeitergeld.
+- Krankengeld 70 % Regelbrutto, maximal 90 % Regelnetto, mit Tagesdeckel
+  und frei änderbaren Sozialabzügen oder tatsächlich gezahltem Betrag.
+- Kinderkrankengeld mit 90/100 % ausgefallenem Netto, Tagesdeckel und
+  frei änderbaren Sozialabzügen oder tatsächlich gezahltem Betrag.
+- Monatliche Notizen, Änderung/Speicherung beliebiger Abrechnungsmonate,
+  PDF-Druckansicht via Browser, CSV-Export und grobe Jahreszusammenfassung.
+- Jeder Monat sichert eine Kopie der damaligen Berechnungs-Vorgaben.
 
-VERSIONSSYSTEM
-worksmanager-release.json: build 2026100803. Bei einer nachfolgenden Veröffentlichung
-muss die numerische Build-Version der Clientdatei und der Versionsdatei erhöht werden.
+FÜR DIE DATENSICHERHEIT
+----------------------
+- Neue Datensätze in state.wmPayroll – Bestandteil derselben bereits
+  AES-GCM-verschlüsselten WorksManager-IndexedDB (WorksManagerSecure).
+- Vorhandene AU-, Schicht-, Urlaubs-, Dokumenten- und Stammdatenformate
+  werden NICHT geändert.
+- Verschlüsselte Backups nehmen die neu gespeicherten Daten mit auf.
+- EXTERNE CSV-Dateien und Druckansichten SIND NICHT VERSCHLÜSSELT:
+  nur privat speichern, teilen oder ausdrucken.
+- Leere Angaben führen NICHT automatisch zu gesetzlichen Ansprüchen.
 
-Die Dateien wurden erstellt, aber NICHT direkt auf GitHub hochgeladen. Der GitHub-Zugriff
-hat im bisherigen Verlauf keine Schreibrechte erteilt.
+WICHTIGE RECHTLICHE GRENZEN
+--------------------------
+Diese Funktion ist eine individuell anpassbare Musterrechnung, KEINE
+rechtsverbindliche Entgeltabrechnung oder vollständige BMF-PAP-Implementierung.
+Die Lohnsteuer für Klassen I–IV wird nur auf Basis des gesetzlichen
+Einkommensteuertarifs 2026 geschätzt. Für Steuerklassen V/VI oder Faktorverfahren
+müssen tatsächliche Abzüge aus Lohnabrechnung/ELStAM eingetragen werden.
+Kinderfreibeträge wirken beim laufenden Lohnsteuerabzug in der Regel auf
+Solidaritätszuschlag/Kirchensteuer, nicht auf die reguläre Lohnsteuer.
+Die Software ermittelt diese Sonderbemessung nicht amtlich: Abzüge manuell
+überschreiben. Kurzarbeitergeld benötigt pauschaliertes Soll-/Ist-NETTO aus
+amtlicher Tabelle oder eine manuelle Vorgabe. Krankengeld und
+Kinderkrankengeld stammen üblicherweise von der Krankenkasse und werden
+nicht mit dem normalen Arbeitgebernetto verwechselt. Steuern und
+Zusatzbeiträge können jährlich geändert werden.
+
+OFFIZIELLE REFERENZEN
+--------------------
+BMF Lohnsteuer 2026:
+https://www.bundesfinanzministerium.de/Content/DE/Downloads/Steuern/Steuerarten/Lohnsteuer/Programmablaufplan/2025-11-12-PAP-2026.html
+Einkommensteuertarif 2026:
+https://www.gesetze-im-internet.de/estg/__32a.html
+BMG Krankenversicherungsbeiträge 2026:
+https://www.bundesgesundheitsministerium.de/beitraege
+BMG Pflegeversicherung / Kinderstaffel:
+https://www.bundesgesundheitsministerium.de/themen/pflege/online-ratgeber-pflege/die-pflegeversicherung/finanzierung
+BMAS Beitragsbemessungsgrenzen 2026:
+https://www.bmas.de/DE/Service/Gesetze-und-Gesetzesvorhaben/sozialversicherungs-rechengroessenverordnung-2026.html
+BA Kurzarbeitergeld:
+https://www.arbeitsagentur.de/arbeitslos-arbeit-finden/arbeitslosengeld/finanzielle-hilfen/kurzarbeitergeld-arbeitnehmer
+BMG Krankengeld:
+https://www.bundesgesundheitsministerium.de/krankengeld/
+BMG Kinderkrankengeld:
+https://www.bundesgesundheitsministerium.de/themen/praevention/kindergesundheit/faq-kinderkrankengeld
+
+TESTUMFANG
+----------
+- 12 Node.js-Rechenprüfungen der Lohnmodul-Funktionen
+- 8 Chromium-Browserprüfungen (Formular, Hinzufügen, Speichern, Monatswechsel,
+  simulierte Entsperrung mit erneuter State-Übernahme)
+- Offline-Service-Worker: Pflichtdateien, Navigation, JS offline,
+  fehlendes Lohn-Modul verhindert neue Installation
+- 7 bisherige 1.9.0-Komponententests (Papierkorb, Suche, Stunden, Jahresstatistik)
+- Syntax-Check aller gelieferten JavaScript-Dateien
+Kein Test mit persönlichen iPhone-Daten oder echter Krankenkassen-/Lohnabrechnung.

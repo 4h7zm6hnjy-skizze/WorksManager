@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.0",
-  "build": 2026100803,
+  "version": "1.9.1",
+  "build": 2026100804,
   "released": "2026-10-08",
   "coreCompatibility": "1.8.4",
-  "notes": "Eintraege bearbeiten, Arbeitszeitkonto, verbesserte Suche, Erinnerungen, Backup-Pruefung, Jahresstatistik, Papierkorb und Aenderungsverlauf"
+  "notes": "Version 1.9.0 plus Lohnberechnung 2026: Schichtzuschläge, Überstunden, Kurzarbeit, Krankengeld, Kinderkrankengeld, individuelle KV/PV/RV/AV, Steuerklassen, Kinderfreibetrag, Monatsnotizen und CSV/Druck."
 }
