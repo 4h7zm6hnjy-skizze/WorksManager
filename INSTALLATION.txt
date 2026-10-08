@@ -1,52 +1,60 @@
-WorksManager 1.9.3 – GROSSE STEMPELUHR AUF DER STARTSEITE
-=====================================================
+WorksManager 1.9.4 – Stempeluhr mit Bruttolohn und automatischer Lohnübernahme
+Stand: 08.10.2026
 
-NEU
-- Große Stempeluhr auf der Startseite, unmittelbar unter „Meine Arbeitsübersicht“.
-- LÄUFT: große Arbeitszeit, Überschrift und Status GRÜN.
-- PAUSIERT: große Arbeitszeit, Überschrift und Status ROT. Pause zählt nicht als Arbeitszeit.
-- GESTOPPT: große Arbeitszeit, Überschrift und Status ROT. Zeigt letzte gestoppte Stempelzeit.
-- Start, Pause/Weiter und Stopp direkt auf der Startseite; ebenso im Schichtplan.
-- Normale Zeit (HH:MM) und Industriestunden (Dezimalstunden): 7:30 = 7,50.
-- Zusätzliche Pausenminuten beim Stoppen auf der Startseite separat einstellbar.
-- Stempelzeiten nachträglich bearbeiten über „Stempelzeiten ansehen und nachbearbeiten“.
-- Bestehende Zeit-/Überstundenkonten, Lohnabrechnung, Profile und Papierkorb bleiben erhalten.
+VOR DEM UPDATE
+1. Im bislang funktionierenden WorksManager unter „Sicherheit & Backup“ ein vollständiges, verschlüsseltes Backup exportieren.
+2. Die Backup-Datei unabhängig von der App sichern, etwa in der iPhone-Dateien-App oder einem externen Speicher.
+3. Aktuelle Stempelungen möglichst beenden, bevor die neue Version eingespielt wird.
+4. Die App oder gespeicherte Website-Daten keinesfalls löschen. Die Daten bleiben lokal auf deinem Gerät.
 
-INSTALLATION
-1. ZUERST in WorksManager ein externes VERSCHLÜSSELTES BACKUP erstellen.
-2. ZIP entpacken; diese 7 Dateien im HAUPTVERZEICHNIS deines GitHub-Repositories
-   hochladen und gleichnamige Dateien ersetzen:
+INSTALLATION IN GITHUB
+Öffne https://github.com/4h7zm6hnjy-skizze/WorksManager
+Die acht Dateien direkt im Hauptverzeichnis hochladen, gleichnamige ersetzen:
+  index.html
+  worksmanager-uhr.js
+  worksmanager-lohn.js
+  worksmanager-plus.js
+  worksmanager-profiles.js
+  sw.js
+  worksmanager-release.json
+  manifest.json
 
-   index.html
-   worksmanager-uhr.js
-   worksmanager-plus.js
-   worksmanager-profiles.js  (technisch unverändert)
-   sw.js
-   worksmanager-release.json
-   manifest.json
+Nicht löschen oder ersetzen: app.js, styles.css, worksmanager-19.js, Logos, Favicons und Icons.
+Das Paket ist ein vollständiges UPDATE für dein vorhandenes WorksManager-Repository, keine allein lauffähige Website.
 
-3. app.js (Kern 1.8.4), styles.css, worksmanager-19.js,
-   worksmanager-lohn.js und sämtliche Bilder/Icons UNVERÄNDERT lassen.
-4. WorksManager auf dem iPhone mit Internet öffnen, ganz schließen und neu öffnen.
-5. Auf der Startseite erscheint die große Stempeluhr. Einmal Start, Pause/Weiter,
-   Stopp und Nachbearbeiten kontrollieren.
+NEUE FUNKTIONEN
+- Große Stempeluhr auf der Startseite zeigt live den Brutto-Grundlohn für die laufende Stempelung und die Summe pro Arbeitstag.
+- Unter „Schichtplan“: individuellen Brutto-Stundenlohn in EUR eintragen und speichern.
+- Abgeschlossene Einträge behalten den jeweils gültigen Stundenlohn als Momentaufnahme.
+- Tagesstatistik: normale Stunden (HH:MM), Industriestunden, Tagessoll, Überstunden und Brutto-Grundlohn.
+- Monatsstatistik: Stunden, Überstunden, Brutto-Grundlohn und Zahl erfasster Arbeitstage.
+- Optionales Häkchen: Stunden/Überstunden automatisch in die bestehende Lohnberechnung übertragen.
+- Die Übernahme aktualisiert monatliche Stundenfelder, OHNE sie zusätzlich zu addieren.
+- Bei Aktivierung ist eine ausdrückliche Bestätigung erforderlich, da vorhandene Monatsstunden ersetzt werden.
+- Nach Änderungen, Löschen und Wiederherstellen aktualisiert die Synchronisierung die betroffenen Monate.
+- Zuschläge, Lohnsteuer, Sozialversicherung, Kurzarbeitergeld, Krankengeld und weitere Einstellungen der Lohnabrechnung bleiben unabhängig editierbar.
 
-WICHTIG ZU PAUSEN
-- Beim Betätigen von „Pause“ bis zu „Weiter“ wird die Zeit nicht als Arbeitszeit
-  gerechnet. Auch ein direkter Stopp in der Pause berücksichtigt diese Pause.
-- Manuelle „weitere unbezahlte Pausenminuten“ sind zusätzlich zur Pause/Weiter-Zeit.
-  Trage dort nur Pausen ein, die du nicht bereits per Pause/Weiter erfasst hast.
-- Zeiten der Stempeluhr laufen im gesperrten Zustand weiter, solange das Profil
-  und seine verschlüsselte Speicherung erhalten bleiben.
-- Die Anzeige aktualisiert sich rund alle 15 Sekunden; nach einer Rückkehr in die App
-  werden die Zeiten aus den gespeicherten Zeitstempeln neu berechnet.
-- Stempelungen über 24 Stunden müssen nötigenfalls verworfen und manuell nachgetragen
-  werden. Die Stempeluhr ist ein privates Hilfsmittel, keine amtliche Zeiterfassung.
+HINWEISE ZUR BERECHNUNG
+Die Stempeluhr zeigt Brutto-Grundlohn = erfasste Arbeitsstunden × gespeicherter Brutto-Stundenlohn.
+Schicht-, Überstunden-, Feiertags- und Nachtzuschläge sind NICHT in dieser Grundlohnanzeige enthalten.
+Diese Zuschläge sind gesondert in der Lohnberechnung zu pflegen.
+Die Lohnberechnung bleibt eine unverbindliche Modellrechnung und ist keine offizielle Lohnabrechnung.
+Bei wechselnden Stundenlöhnen innerhalb eines Monats: Die Stempeluhr berechnet jeden Eintrag mit seinem gespeicherten Satz;
+die bestehende Lohnberechnung verwendet jedoch einen monatlichen Stundenlohn und muss daher bei wechselndem Satz geprüft werden.
+Die Stempelung einer Nachtschicht zählt zum Arbeitstag des Schichtbeginns.
 
-DATENSICHERHEIT
-- Das Update ändert das bestehende Datenbankformat nicht.
-- Alle Arbeitszeit- und Pausendaten bleiben im verschlüsselten Profilzustand.
-- Website-Daten auf iPhone NICHT löschen und die App NICHT deinstallieren.
-- Kein E-Mail-Passwort-Reset ohne Server; Wiederherstellungsschlüssel behalten.
+NACH DER INSTALLATION
+1. WorksManager auf dem iPhone mit Internet öffnen.
+2. Die App vollständig schließen und neu starten.
+3. Versionsanzeige 1.9.4 prüfen, danach mit dem vorhandenen Profil entsperren.
+4. Im Schichtplan einen Brutto-Stundenlohn eintragen, speichern und die Stundenstatistik kontrollieren.
+5. Die optionale Lohnübernahme einschalten und bestätigen, wenn bestehende Monatsstunden ersetzt werden dürfen.
+6. Unter „Abrechnungen“ die Monatswerte und Zuschläge kontrollieren.
 
-Version: WorksManager 1.9.3, Build 2026100806 / 08.10.2026
+DATENSCHUTZ
+Die Programmdateien enthalten keine persönlichen Daten. Die vorhandene verschlüsselte IndexedDB und ihre Profile werden nicht gelöscht oder migriert.
+Es wurden nur Modul-Dateien verändert; der bestehende Programmkern app.js bleibt bestehen.
+
+Technische Tests: JavaScript-Syntax, Tages- und Monatsstunden, Nachtschichten, Brutto-Berechnung,
+optionale Lohnübernahme, Bearbeiten/Löschen/Wiederherstellen, Profilwechsel und Browser-Bedienung geprüft.
+Der vollständige Betrieb mit den persönlichen Daten auf deinem iPhone ist noch nicht überprüft.

@@ -1,10 +1,10 @@
-/* WorksManager 1.9.1 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
+/* WorksManager 1.9.4 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
  * KEINE Lohnabrechnungssoftware für amtliche Abrechnung. Lohnsteuer nur Näherung,
  * Ersatzleistungen nur Orientierung; alle kritischen Werte manuell überschreibbar.
  */
 (() => {
  'use strict';
- const VERSION='1.9.1',BUILD=2026100804;
+ const VERSION='1.9.4',BUILD=2026100807;
  const $=id=>document.getElementById(id);
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const round=x=>Math.round((Number(x)+Number.EPSILON)*100)/100;
@@ -42,7 +42,7 @@
  function draw(){
   const target=$('wmpayRoot');if(!target)return;
   target.innerHTML=`<div class="wmpay-head"><div><h3>Lohnberechnung · Deutschland 2026</h3><p>Monatliche Musterrechnung. Alles manuell anpassbar; Änderungen erst mit „Monat speichern“ übernehmen.</p></div><label class="wmpay-field">Monat<input type="month" id="wmpayMonth" value="${esc(curMonth)}"></label></div>
-  <div class="wmpay-actions"><button id="wmpayCalc">Berechnen</button><button id="wmpaySave">Monat speichern</button><button id="wmpayLoad" class="secondary">Monat laden</button><button id="wmpayImportTime" class="secondary">Arbeitsstunden übernehmen</button></div>
+  <div id="wmpayClockSync" class="wmpay-warning"></div><div class="wmpay-actions"><button id="wmpayCalc">Berechnen</button><button id="wmpaySave">Monat speichern</button><button id="wmpayLoad" class="secondary">Monat laden</button><button id="wmpayImportTime" class="secondary">Arbeitsstunden übernehmen</button></div>
   <p class="wmpay-warning">Hinweis: Keine verbindliche Entgeltabrechnung. Lohnsteuer I–IV wird näherungsweise anhand des Einkommensteuertarifs modelliert, nicht nach dem vollständigen BMF-Programmablaufplan. Für Steuerklasse V/VI oder Faktorverfahren die tatsächlichen Steuerabzüge eintragen. Bei Lohnersatzleistungen die Werte deiner Krankenkasse/Arbeitsagentur eintragen.</p>
   ${fig('1 · Grunddaten, Krankenkasse und Steuern',
     input('hourlyRate','Stundenlohn (€/Std.)')+input('weeklyHours','Wochenstunden','p','number','0.1')+input('monthlySalary','Festgehalt (€)')+
@@ -114,7 +114,7 @@
   $('wmpayCalc').onclick=()=>refresh();
   $('wmpaySave').onclick=()=>safe(saveMonth);
   $('wmpayLoad').onclick=()=>{if(dirty&&!confirm('Ungespeicherte Eingaben verwerfen und den Monat neu laden?'))return;load(curMonth);};
-  $('wmpayImportTime').onclick=()=>{if(dirty&&!confirm('Arbeitsstunden aus dem Zeitkonto übernehmen? Die übrigen Eingaben bleiben erhalten.'))return;const rows=state.wm19?.timeRows||[],eligible=rows.filter(x=>String(x.date||'').startsWith(curMonth)); const h=eligible.reduce((total,r)=>{if(Number.isFinite(Number(r.hours)))return total+Number(r.hours);if(!r.start||!r.end)return total;const [sh,sm]=r.start.split(':').map(Number),[eh,em]=r.end.split(':').map(Number);let t=eh*60+em-sh*60-sm;if(t<0)t+=1440;return total+Math.max(0,t-Number(r.breakMinutes||0))/60;},0);draftM.hours=round(h);dirty=true;draw();notify(`${eligible.length} Arbeitszeiteinträge → ${draftM.hours} Stunden übernommen. Bitte bezahlte Fehlzeiten ergänzen.`);};
+  $('wmpayImportTime').onclick=()=>{if(state.wm20?.autoPayroll){alert('Automatische Stempeluhr-Übernahme ist aktiv. Sie überschreibt die Lohnstunden beim Speichern. Für eine manuelle Übernahme bitte zuerst die Automatik unter Schichtplan deaktivieren.');return;}if(dirty&&!confirm('Arbeitsstunden aus dem Zeitkonto übernehmen? Die übrigen Eingaben bleiben erhalten.'))return;const rows=state.wm19?.timeRows||[],eligible=rows.filter(x=>String(x.date||'').startsWith(curMonth)); const h=eligible.reduce((total,r)=>{if(Number.isFinite(Number(r.hours)))return total+Number(r.hours);if(!r.start||!r.end)return total;const [sh,sm]=r.start.split(':').map(Number),[eh,em]=r.end.split(':').map(Number);let t=eh*60+em-sh*60-sm;if(t<0)t+=1440;return total+Math.max(0,t-Number(r.breakMinutes||0))/60;},0);draftM.hours=round(h);dirty=true;draw();notify(`${eligible.length} Arbeitszeiteinträge → ${draftM.hours} Stunden übernommen. Bitte bezahlte Fehlzeiten ergänzen.`);};
   $('wmpayMonth').onchange=e=>{const next=e.target.value;if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(next))return;if(dirty&&!confirm('Ungespeicherte Eingaben verwerfen und Monat wechseln?')){e.target.value=curMonth;return;}load(next);};
   $('wmpayAddItem').onclick=()=>{draftM.items.push({id:ID(),name:'',kind:'premium',hours:0,rate:'',pct:25,amount:0,taxable:true,sv:true});dirty=true;renderItems();};
   $('wmpayCsv').onclick=()=>safe(exportCSV);
@@ -219,11 +219,13 @@
   <hr>${draftM.shortEnabled?row('Kurzarbeitergeld (gesonderte Leistung)',r.kug):''}${n(draftM.sickDays)>0||draftM.sickActualPaid!==''?row('Krankengeld / Krankenkasse (geschätzt)',r.sickPaid):''}${n(draftM.childSickDays)>0||draftM.childSickActualPaid!==''?row('Kinderkrankengeld / Krankenkasse (geschätzt)',r.childPaid):''}
   ${row('Summe Arbeitgeber + sonstige Leistungen (nur Vergleich)',r.combined,'major')}
   <p class="wmpay-warning">${r.warnings.length?r.warnings.map(x=>`• ${esc(x)}`).join('<br>'):'Näherung – mit tatsächlicher Abrechnung abgleichen.'}</p>`;
+  const autoClock=!!state.wm20?.autoPayroll,clock=$('wmpayClockSync');if(clock){clock.textContent=autoClock?'Stempeluhr-Synchronisierung aktiv: Normale Stunden und Überstunden werden aus abgeschlossenen Stempelzeiten übernommen; bereits vorhandene Werte werden nicht addiert. Falls du abweichende Stunden manuell eintragen möchtest, deaktiviere die Automatik unter Schichtplan.':'Stempeluhr-Synchronisierung aus: Stunden können manuell aus dem Zeitkonto übernommen werden.';}
   const status=$('wmpayStatus');if(status)status.textContent=dirty?'Noch nicht gespeicherte Eingaben.':'Berechnung geladen; keine ausstehenden Änderungen.';
  }
  async function saveMonth(){const month=curMonth,existing=store(),before=clone(existing);
   if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw Error('Ungültiger Monat.');
   const newP=clone(draftP),newM=clone({...draftM,month,editedAt:new Date().toISOString(),profileSnapshot:clone(draftP)});
+  if(state.wm20?.autoPayroll&&typeof window.WMClockPayrollTotals==='function'){const totals=window.WMClockPayrollTotals(month);newM.hours=totals.regularHours;newM.overtimeHours=totals.overtimeHours;newM.profileSnapshot.hourlyRate=Math.max(0,Number(state.wm20.hourlyGrossRate)||0);newM.wmClockSync=true;newM.wmClockSyncedAt=new Date().toISOString();}
   for(const key of [...pkeys.map(k=>[newP,k]),...mkeys.map(k=>[newM,k])]){const [obj,k]=key;const v=obj[k];if(typeof PROFILE[k]==='number'||typeof MONTH[k]==='number'){if(!Number.isFinite(n(v)))throw Error('Ungültiger Wert: '+k);}}
   for(const it of newM.items){if(!it.id)it.id=ID();if(['reimbursement','deduction'].includes(it.kind)&&n(it.amount)<0)throw Error('Betrag darf nicht negativ sein.');}
   try{const dbstore=store();const latest=Object.keys(dbstore.months).sort().slice(-1)[0];if(!latest||month>=latest)dbstore.profile=newP;dbstore.months[month]=newM;await save('Lohnmonat und Einstellungen gespeichert');dirty=false;draftP={...PROFILE,...clone(newP)};draftM=mergedMonth(month);draw();notify('Lohnmonat '+month+' verschlüsselt gespeichert.');}
@@ -272,6 +274,7 @@
  }
  function init(){if($('wmpayRoot'))return;if(typeof save!=='function'||typeof state==='undefined')return;
   mount();
+  document.addEventListener('wm-clock-payroll-synced',ev=>{if(ev.detail?.month!==curMonth||!$('wmpayRoot'))return;if(dirty){notify('Stempeluhr wurde synchronisiert. Ungespeicherte Lohnänderungen erst speichern oder Monat erneut laden.');return;}load(curMonth);});
   // Beim Entsperren ersetzt WorksManager den globalen State durch den entschlüsselten Inhalt.
   // Ohne Reload würden alte/leere Entwürfe beim ersten Speichern vorhandene Monatsdaten überschreiben.
   let stateRef=state;

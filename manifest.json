@@ -2,7 +2,7 @@
   "name": "WorksManager",
   "short_name": "WorksManager",
   "description": "Private Arbeits-, Foto- und Dokumentenverwaltung",
-  "start_url": "./?build=1.9.3",
+  "start_url": "./?build=1.9.4",
   "display": "standalone",
   "background_color": "#f3f7fa",
   "theme_color": "#062f4f",

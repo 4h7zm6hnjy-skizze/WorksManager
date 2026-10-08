@@ -4,8 +4,8 @@
 */
 (() => {
   'use strict';
-  const PLUS_VERSION = '1.9.3';
-  const RELEASE_BUILD = 2026100806;
+  const PLUS_VERSION = '1.9.4';
+  const RELEASE_BUILD = 2026100807;
   let advertisedBuild = RELEASE_BUILD;
   let availableRelease = null;
   let updateReady = false;
@@ -75,7 +75,7 @@
     if(dash && !$p('wmplusUpdateBar')){
       const bar=document.createElement('div');
       bar.id='wmplusUpdateBar';bar.className='wmplus-update-bar';
-      bar.innerHTML='<div><strong>App-Updates</strong><br><small>WorksManager 1.9.3</small><div id="wmplusQuickUpdateState" class="wmplus-state" aria-live="polite"></div></div><button type="button" id="wmplusQuickUpdateCheck" class="wmplus-btn secondary">Updates suchen</button>';
+      bar.innerHTML='<div><strong>App-Updates</strong><br><small>WorksManager 1.9.4</small><div id="wmplusQuickUpdateState" class="wmplus-state" aria-live="polite"></div></div><button type="button" id="wmplusQuickUpdateCheck" class="wmplus-btn secondary">Updates suchen</button>';
       const hero=dash.querySelector('.dashboard-hero');
       if(hero)hero.insertAdjacentElement('afterend',bar);else dash.insertAdjacentElement('afterbegin',bar);
       const banner=document.createElement('div');banner.id='wmplusUpdateBanner';banner.className='wmplus-update-banner';banner.hidden=true;
@@ -235,7 +235,7 @@
       const names=(await caches.keys()).filter(k=>k.startsWith('worksmanager-v'));
       let ready=false;
       for(const key of names){
-        const c=await caches.open(key),all=await Promise.all(['./index.html','./app.js?v=1.8.4','./styles.css?v=1.8.4','./worksmanager-plus.js?v=1.9.3','./worksmanager-19.js?v=1.9.1','./worksmanager-lohn.js?v=1.9.1','./worksmanager-profiles.js?v=1.9.3','./worksmanager-uhr.js?v=1.9.3','./worksmanager-release.json'].map(url=>c.match(url)));
+        const c=await caches.open(key),all=await Promise.all(['./index.html','./app.js?v=1.8.4','./styles.css?v=1.8.4','./worksmanager-plus.js?v=1.9.4','./worksmanager-19.js?v=1.9.1','./worksmanager-lohn.js?v=1.9.4','./worksmanager-profiles.js?v=1.9.4','./worksmanager-uhr.js?v=1.9.4','./worksmanager-release.json'].map(url=>c.match(url)));
         if(all.every(Boolean)){ready=true;break;}
       }
       offline.textContent=ready?'Bereit':'Noch nicht vollständig';
@@ -267,7 +267,7 @@
         if(reg){await reg.update();if(reg.waiting){offerUpdate(release,true);return;}}
       }
       if(!updateReady){
-        const msg=`Aktuell: WorksManager 1.9.3 (Stand ${RELEASE_BUILD}). Kein neueres Update gemeldet.`;
+        const msg=`Aktuell: WorksManager 1.9.4 (Stand ${RELEASE_BUILD}). Kein neueres Update gemeldet.`;
         setUpdateMessage(msg);
         const banner=$p('wmplusUpdateBanner');if(banner)banner.hidden=true;
       }
