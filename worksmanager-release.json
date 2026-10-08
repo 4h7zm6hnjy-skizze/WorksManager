@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.2",
-  "build": 2026100805,
+  "version": "1.9.3",
+  "build": 2026100806,
   "released": "2026-10-08",
   "coreCompatibility": "1.8.4",
-  "notes": "Mehrere voneinander getrennte verschlüsselte lokale Profile mit E-Mail-Kennung und Offline-Wiederherstellungsschlüssel; Stempeluhr mit Start/Stopp, manueller Korrektur, Tages-Soll, Überstunden und Industriestunden."
+  "notes": "Große Stempeluhr auf der Startseite mit grüner Laufanzeige, roter Pausen-/Stoppanzeige, Pause/Fortsetzen und korrekten Zeiten in Normal- und Industriestunden."
 }
