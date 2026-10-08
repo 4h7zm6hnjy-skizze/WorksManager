@@ -1,22 +1,48 @@
-WORKSMANAGER 1.8.4 + ERWEITERUNGEN 1.1.0
+WORKSMANAGER 1.9.0 – VOLLSTÄNDIGE DATEIEN FÜR DAS UPDATE
+============================================================
 
-SCHUTZ DEINER DATEN
-1) In WorksManager > Sicherheit & Backup erst ein verschlüsseltes Backup erstellen.
-2) Prüfen, dass die Sicherungsdatei in der iPhone-Dateien-App vorhanden ist.
-3) App nicht löschen, keine Website-Daten löschen, Passwort merken.
+WICHTIG VORHER
+1) WorksManager öffnen → Sicherheit & Backup → verschlüsseltes Backup exportieren.
+2) Prüfen, ob die Sicherungsdatei in der iPhone-Dateien-App gespeichert wurde.
+3) Passwort merken. Auf keinen Fall die Web-App löschen oder die Browserdaten löschen!
 
-INSTALLATION – im Repository 4h7zm6hnjy-skizze/WorksManager (GitHub)
-1) worksmanager-plus.js ersetzen.
-2) worksmanager-release.json neu anlegen.
-3) sw.js ersetzen.
-4) index.html nach EINBAU-IN-INDEX.html.txt minimal bearbeiten und speichern.
-5) WebApp online laden. Falls noch die alte Oberfläche sichtbar ist, vollständig schließen und erneut online öffnen.
-6) Auf der Startseite ist dann direkt unter „Meine Arbeitsübersicht“ die Leiste „App-Updates“ mit „Updates suchen“.
-7) Ganz unten nach „Private Daten“ folgen die Such- und Statuskarten aus dem Zusatzmodul.
-8) Offlinebetrieb im Flugmodus und Backup-Export nach dem Update testen.
+HOCHLADEN NACH GITHUB
+Repository: 4h7zm6hnjy-skizze/WorksManager
+Alle 6 Dateien aus diesem ZIP in den Stammordner (Root) hochladen:
 
-VERSIONEN / SPÄTERE UPDATES
-worksmanager-release.json enthält einen numerischen Build-Wert. Wenn ein neues Release veröffentlicht wird, neue Haupt-/Zusatzdateien bereitstellen, den numerischen Build in der nächsten Clientversion aktualisieren und zuletzt den Build in der Versionsdatei erhöhen. Die neue Update-Anzeige erkennt eine höhere Build-Zahl über einen Online-Abruf.
-Die App kann nicht automatisch eigenständig Dateien auf GitHub ändern. Browser- und iOS-Speicher können trotz Service Worker gelöscht werden, daher externe Backups aufbewahren.
+- index.html (vollständige Startseite, vorhandene ersetzen)
+- worksmanager-plus.js (vorhandene ersetzen)
+- worksmanager-19.js (neu hinzufügen)
+- sw.js (vorhandene ersetzen)
+- worksmanager-release.json (vorhandene ersetzen)
+- manifest.json (vorhandene ersetzen)
 
-Dies ist ein vorbereitetes Update, nicht auf GitHub veröffentlicht. Haupt-App v1.8.4 und verschlüsselte IndexedDB bleiben unverändert.
+WICHTIG: Die bisherige app.js, styles.css, Bilder und Icons bleiben ERHALTEN und dürfen
+NICHT gelöscht werden. Die bestehende app.js 1.8.4 ist die kompatible technische Basis.
+Die sichtbare Produktversion ist 1.9.0.
+
+DANACH
+- App mit Internet öffnen, vollständig schließen und wieder öffnen.
+- Neue Buttons „Bearbeiten“ prüfen. Testeintrag erstellen und bearbeiten.
+- In „Sicherheit & Backup“ Papierkorb, Änderungsverlauf und Backupprüfung prüfen.
+- Arbeitszeitkonto in „Schicht“, Termine auf der Startseite, erweiterten PDF-Bericht testen.
+- Flugmodus testen, nachdem die App einmal online vollständig geladen wurde.
+- Unbedingt bei einem Testeintrag prüfen, ob das Rückspielen aus dem Papierkorb funktioniert.
+
+DATENSCHUTZ UND DATENERHALTUNG
+Die verschlüsselte IndexedDB heißt unverändert WorksManagerSecure.
+Die Datensatzstruktur v7 und das bestehende AES-GCM-Backupformat bleiben unverändert.
+Zusatzdaten wie Papierkorb, Arbeitszeiten und Änderungshistorie werden in den
+verschlüsselten Daten unter state.wm19 gespeichert.
+Nicht auf die alte Version zurückwechseln: alte Dateibereinigung kann Papierkorb-Dateien
+sonst als verwaist behandeln und löschen.
+Achtung: Die lokale Speicherung kann vom Browser gelöscht werden. Externe Backups sind
+weiterhin nötig. Erfasstes Ist und theoretisches Soll sind getrennte Werte.
+Auf dem iPhone bestehen keine garantierten Hintergrund-Pushbenachrichtigungen.
+
+VERSIONSSYSTEM
+worksmanager-release.json: build 2026100803. Bei einer nachfolgenden Veröffentlichung
+muss die numerische Build-Version der Clientdatei und der Versionsdatei erhöht werden.
+
+Die Dateien wurden erstellt, aber NICHT direkt auf GitHub hochgeladen. Der GitHub-Zugriff
+hat im bisherigen Verlauf keine Schreibrechte erteilt.

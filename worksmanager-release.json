@@ -1,7 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.8.4 + Erweiterungen 1.1.0",
-  "build": 2026100802,
+  "version": "1.9.0",
+  "build": 2026100803,
   "released": "2026-10-08",
-  "notes": "Update-Suche, sichtbare Updateanzeige und direkte Einbindung der Erweiterungen über index.html"
+  "coreCompatibility": "1.8.4",
+  "notes": "Eintraege bearbeiten, Arbeitszeitkonto, verbesserte Suche, Erinnerungen, Backup-Pruefung, Jahresstatistik, Papierkorb und Aenderungsverlauf"
 }
