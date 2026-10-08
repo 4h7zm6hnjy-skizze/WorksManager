@@ -1,0 +1,79 @@
+WorksManager 1.9.2 – getrennte Benutzerprofile und Stempeluhr
+==============================================================
+
+UPLOAD IN DEIN BESTEHENDES GITHUB-REPOSITORY
+
+1. ZUERST in der bestehenden WorksManager-App ein verschlüsseltes Backup
+   erstellen. Speichere das Backup außerhalb der App in der Dateien-App.
+2. Die ZIP-Datei entpacken.
+3. Diese SIEBEN Dateien im HAUPTVERZEICHNIS des WorksManager-Repositories
+   hochladen. Gleichnamige Dateien ersetzen, die beiden neuen JS-Dateien
+   neu hinzufügen:
+
+   index.html                      ersetzen
+   worksmanager-profiles.js        NEU
+   worksmanager-uhr.js             NEU
+   worksmanager-plus.js            ersetzen
+   sw.js                           ersetzen
+   worksmanager-release.json       ersetzen
+   manifest.json                   ersetzen
+
+4. app.js (Kern 1.8.4), styles.css, worksmanager-19.js,
+   worksmanager-lohn.js, Bilder und Icons UNVERÄNDERT LASSEN.
+5. Mit Internet öffnen; App vollständig schließen und neu öffnen.
+   Die App kann weiterhin die Sperre des bisherigen Profils verlangen.
+   Bestehende Website-Daten auf dem iPhone niemals löschen, sonst gehen
+   die lokalen Daten verloren.
+
+WO FINDEST DU DIE FUNKTIONEN?
+
+- Profile: Auf dem Anmeldebildschirm Profil auswählen / Profil anlegen.
+  Nach dem Entsperren: "Profile verwalten" oben unter der Kopfzeile.
+- Stempeluhr: Im bisherigen Menü "Schichtplan", unterhalb des
+  bisherigen Arbeitszeitkontos.
+
+PROFILSICHERHEIT – BITTE LESEN
+
+- Das alte Profil benutzt unverändert WorksManagerSecure (IndexedDB).
+  Die anderen Profile erhalten jeweils eine separate verschlüsselte DB.
+- E-Mail ist eine LOKALE Profilkennung. Die Adresse wird für die
+  Auswahl unverschlüsselt im lokalen Gerätespeicher vorgehalten.
+- Die App verschickt KEINE E-Mail und besitzt KEINEN Server.
+  Daher sind Passwortlinks per E-Mail nicht verfügbar.
+- Beim Anlegen eines neuen Profils wird ein persönlicher, zufälliger
+  Wiederherstellungsschlüssel erzeugt. Sicher und getrennt aufbewahren!
+- Bestehendes Profil: Nach dem Entsperren unter "Profile verwalten"
+  zuerst E-Mail hinterlegen und "Wiederherstellung aktivieren" wählen.
+  Dafür das aktuelle Passwort bestätigen.
+- Ohne Passwort UND ohne vorher eingerichteten Wiederherstellungsschlüssel
+  ist ein Zurücksetzen verschlüsselter Daten nicht möglich.
+- Wiederherstellung verarbeitet verschlüsselte Dokumente auf dem Gerät.
+  Bei sehr großen Profilen kann dies Zeit/Speicher beanspruchen. Vorher
+  ein externes Backup anlegen.
+- Backups sind PRO PROFIL anzulegen und am besten entsprechend umbenennen.
+  Beim Wiederherstellen immer das richtige Profil auswählen.
+
+STEMPELUHR
+
+- "Start" startet die laufende Stempelung. Sie läuft zeitlich weiter,
+  wenn die App im Hintergrund ist; der Startzeitpunkt bleibt gespeichert.
+- "Stopp" speichert Endzeit, Pause und Notiz. Die Verknüpfung mit dem
+  Arbeitszeitkonto erfolgt nur, wenn kein anderer Eintrag am Tag existiert.
+- "Zeit nachtragen" erlaubt Datum, Beginn, Ende, Folgetag, Pause,
+  individuelles Tages-Soll und Notiz.
+- Tages-Soll ist frei einstellbar, Standard 7 Stunden 30 Minuten.
+- Industrieanzeige sind DEZIMALSTUNDEN: 7:30 = 7,50;
+  8:00 = 8,00; 0:45 = 0,75.
+- Positive und negative Abweichung zum Soll werden getrennt sichtbar.
+  Für mehrere Zeitintervalle am Tag wird das Soll nicht doppelt gezählt.
+- Eine vergessene, länger als 24 Stunden laufende Stempelung kannst
+  du verwerfen und die Zeit anschließend manuell nachtragen.
+- Stempelzeit-Papierkorb hat eine Wiederherstellen-Funktion.
+
+WICHTIG
+
+Die Stempeluhr ist ein privates Arbeitszeit-Hilfsmittel und kein
+behördlich geprüftes Zeiterfassungssystem. Das ist keine Änderung der
+amtlichen Lohnabrechnung. Das Lohnmodul 1.9.1 bleibt unverändert.
+
+Version: 1.9.2 / Build 2026100805 / 08.10.2026

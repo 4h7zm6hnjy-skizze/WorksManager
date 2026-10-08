@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.1",
-  "build": 2026100804,
+  "version": "1.9.2",
+  "build": 2026100805,
   "released": "2026-10-08",
   "coreCompatibility": "1.8.4",
-  "notes": "Version 1.9.0 plus Lohnberechnung 2026: Schichtzuschläge, Überstunden, Kurzarbeit, Krankengeld, Kinderkrankengeld, individuelle KV/PV/RV/AV, Steuerklassen, Kinderfreibetrag, Monatsnotizen und CSV/Druck."
+  "notes": "Mehrere voneinander getrennte verschlüsselte lokale Profile mit E-Mail-Kennung und Offline-Wiederherstellungsschlüssel; Stempeluhr mit Start/Stopp, manueller Korrektur, Tages-Soll, Überstunden und Industriestunden."
 }
