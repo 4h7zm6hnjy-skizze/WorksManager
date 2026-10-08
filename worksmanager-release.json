@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.4",
-  "build": 2026100807,
+  "version": "1.9.5",
+  "build": 2026100808,
   "released": "2026-10-08",
   "coreCompatibility": "1.8.4",
-  "notes": "Stempeluhr: Tages-/Monatsstatistik mit Brutto-Stundenlohn, Tagesverdienst, Industriezeit und optionaler automatischer monatsweiser Übernahme von Normalstunden und Überstunden in die Lohnberechnung."
+  "notes": "Zeitkonto mit Ausgleich, automatische Schichtzuschläge, historische Brutto-Stundenlöhne, geschützte Lohnübernahme, Stempelprüfung, Kalender, Abrechnungsvergleich, Profil-Backupprüfung, automatische Versionsanzeige."
 }

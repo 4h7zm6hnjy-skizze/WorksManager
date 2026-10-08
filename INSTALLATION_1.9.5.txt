@@ -1,0 +1,86 @@
+WORKSMANAGER 1.9.5 – INSTALLATION UND FUNKTIONSHINWEISE
+Stand: 08.10.2026
+
+WICHTIG VOR DEM UPDATE
+1. WorksManager im iPhone öffnen, das gewünschte Profil entsperren.
+2. Unter „Sicherheit & Backup“ ein verschlüsseltes Backup erzeugen.
+3. Sicherstellen, dass die Sicherungsdatei in der Dateien-App vorhanden ist.
+4. Bei mehreren Profilen jedes Profil getrennt sichern; Passwort und
+   Wiederherstellungsschlüssel an einem sicheren Ort aufbewahren.
+5. Die installierte iPhone-App NICHT löschen und KEINE Websitedaten entfernen.
+
+INSTALLATION AUF GITHUB
+Repository: https://github.com/4h7zm6hnjy-skizze/WorksManager
+1. ZIP-Datei in der iPhone-Dateien-App entpacken.
+2. Die neun unten genannten Programmdateien in das HAUPTVERZEICHNIS des
+   Repositories (Branch main) hochladen. Gleichnamige Dateien ersetzen.
+3. Die neue Datei „worksmanager-195.js“ zusätzlich anlegen.
+4. „app.js“, „styles.css“, „worksmanager-19.js“ und alle Bilddateien
+   unverändert lassen. Bestehende GitHub-Dateien nicht pauschal löschen.
+5. Erst nach erfolgtem Upload WorksManager online starten. Komplett schließen,
+   erneut starten und die angezeigte Version „1.9.5“ kontrollieren.
+
+DIE NEUN PROGRAMMDATEIEN
+index.html
+worksmanager-plus.js
+worksmanager-profiles.js
+worksmanager-lohn.js
+worksmanager-uhr.js
+worksmanager-195.js (NEU)
+sw.js
+worksmanager-release.json
+manifest.json
+
+„INSTALLATION_1.9.5.txt“ gehört nicht zu den benötigten Programmdateien.
+
+NEUE BEREICHE
+Startseite: Monatliche Arbeits-/Lohnzusammenfassung unmittelbar bei der Uhr.
+Schichtplan: Zuschlagsregeln, Überstundenkonto, Zeitkorrektur-Prüfung, Kalender.
+Abrechnungen: Vergleich der tatsächlichen Abrechnung mit der Modellrechnung.
+Sicherheit & Backup: Profilbezogener Export und Backup-Prüfung.
+
+AUTOMATISCHE LOHNÜBERNAHME
+- Wie bisher unter der Stempeluhr zuschaltbar.
+- Schützt bestehende manuelle Monatsstunden durch eine Bestätigungsabfrage.
+- Überträgt die Grundlohn- und Überstundenpositionen nach historischem Tagessatz.
+- Schichtzuschläge werden erst nach Aktivierung der Zuschlags-Automatik
+  als separate Lohnarten übernommen.
+- Bestehende selbst angelegte Lohnarten, Kurzarbeit, Krankengeld, Urlaub,
+  Kinderkrankengeld und andere persönliche Eingaben bleiben erhalten.
+- Bereits manuell erfasste gleichartige Zuschläge können sonst doppelt
+  auftauchen. Daher die Einzelpositionen in der Lohnabrechnung prüfen.
+- Nach Korrektur alter Zeiten werden die zugehörigen Monate neu berechnet.
+
+BERECHNUNGSHINWEISE
+- Industriestunden: 07:30 Stunden = 7,50 Industriestunden.
+- Nacht-, Sonn- und Feiertagszuschläge sind individuelle Modellwerte.
+- Ohne gesonderte Pausenzeitpunkte werden Pausen anteilig auf Zeitfenster
+  verteilt. Die genaue tarifliche/gesetzliche Abrechnung kann abweichen.
+- Steuerfreiheit von Zuschlägen hängt von § 3b EStG und Bedingungen ab.
+  Das Modul setzt erzeugte Zuschläge vorsichtig steuer-/SV-pflichtig an.
+- Die Lohnsteuerberechnung ist eine Näherung, kein amtliches PAP-Verfahren.
+- Zeitkonto basiert auf erfassten Arbeitstagen. Fehlende Stempeltage werden
+  nicht automatisch als Minusstunden gezählt.
+- Krankheits-, Urlaubs- und Feiertagsstunden werden nicht mit Arbeitsstempeln
+  verwechselt und können in der Lohnabrechnung separat eingetragen werden.
+
+DATENSICHERHEIT
+- Die Kern-Datenbank wird weder gelöscht noch migriert.
+- Die Ergänzungen werden in dem verschlüsselten Profil-State gespeichert.
+- Profil-Backups nur für das aktuell entsperrte Profil erstellen.
+- Eine Backup-Prüfung verifiziert die AES-GCM-Verschlüsselung, ersetzt aber
+  keinen echten Wiederherstellungstest auf einem anderen Gerät.
+- Die hinterlegte E-Mail-Adresse bei lokalen Profilen verschickt keine Links.
+  Ein vergessenes Passwort lässt sich nur mit vorbereitetem Wiederherstellungs-
+  schlüssel oder einer geeigneten verschlüsselten Sicherung zurücksetzen.
+
+TESTSTATUS
+- Syntaxprüfung sämtlicher JS-Dateien
+- Rechnungs-/Regressionsprüfungen inklusive historischer Lohnsätze,
+  Nacht-/Feiertagszuschläge, sicherer Synchronisierung und Zeitkonto
+- Browser-Test von Startseite, Monatswerten, Zuschlägen, Zeitkonto,
+  Kalender, Abrechnungsvergleich und Profilwechsel
+- Prüfung der statischen Versions-, Script- und Offline-Referenzen
+
+Der tatsächliche Betrieb in der installierten iPhone-PWA mit persönlichen
+Daten konnte hier nicht geprüft werden. Bitte zuerst eine Sicherung erstellen.

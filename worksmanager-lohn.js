@@ -4,7 +4,7 @@
  */
 (() => {
  'use strict';
- const VERSION='1.9.4',BUILD=2026100807;
+ const VERSION='1.9.5',BUILD=2026100808;
  const $=id=>document.getElementById(id);
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const round=x=>Math.round((Number(x)+Number.EPSILON)*100)/100;
@@ -225,7 +225,7 @@
  async function saveMonth(){const month=curMonth,existing=store(),before=clone(existing);
   if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw Error('Ungültiger Monat.');
   const newP=clone(draftP),newM=clone({...draftM,month,editedAt:new Date().toISOString(),profileSnapshot:clone(draftP)});
-  if(state.wm20?.autoPayroll&&typeof window.WMClockPayrollTotals==='function'){const totals=window.WMClockPayrollTotals(month);newM.hours=totals.regularHours;newM.overtimeHours=totals.overtimeHours;newM.profileSnapshot.hourlyRate=Math.max(0,Number(state.wm20.hourlyGrossRate)||0);newM.wmClockSync=true;newM.wmClockSyncedAt=new Date().toISOString();}
+  if(state.wm20?.autoPayroll&&window.WM195?.prepareSavedPayroll){window.WM195.prepareSavedPayroll(month,newM,newP);}else if(state.wm20?.autoPayroll){throw Error('Sichere automatische Lohnsynchronisierung nicht geladen. Bitte App neu starten.');}
   for(const key of [...pkeys.map(k=>[newP,k]),...mkeys.map(k=>[newM,k])]){const [obj,k]=key;const v=obj[k];if(typeof PROFILE[k]==='number'||typeof MONTH[k]==='number'){if(!Number.isFinite(n(v)))throw Error('Ungültiger Wert: '+k);}}
   for(const it of newM.items){if(!it.id)it.id=ID();if(['reimbursement','deduction'].includes(it.kind)&&n(it.amount)<0)throw Error('Betrag darf nicht negativ sein.');}
   try{const dbstore=store();const latest=Object.keys(dbstore.months).sort().slice(-1)[0];if(!latest||month>=latest)dbstore.profile=newP;dbstore.months[month]=newM;await save('Lohnmonat und Einstellungen gespeichert');dirty=false;draftP={...PROFILE,...clone(newP)};draftM=mergedMonth(month);draw();notify('Lohnmonat '+month+' verschlüsselt gespeichert.');}
@@ -289,6 +289,7 @@
   window.addEventListener('pageshow',()=>{if(!$('wmpayRoot')&&$('payroll'))mount();});
   console.info('WorksManager Lohnmodul '+VERSION+' geladen');
  }
+ window.WM195PayrollCalc=month=>{const rec=state.wmPayroll?.months?.[month];if(!rec)return null;const profile={...PROFILE,...state.wmPayroll?.profile,...(rec.profileSnapshot||{})};const m={...MONTH,...rec};return calc(profile,m);};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
  // Nur für automatisierte Regressionstests, keine UI-Funktion.
  if(typeof module!=='undefined'&&module.exports)module.exports={calc,taxTariff2026,social,getCarePercent,PROFILE,MONTH};

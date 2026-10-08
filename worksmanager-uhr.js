@@ -41,6 +41,9 @@ function payrollMonthTotals(month){
  const data=wageStats(rows,s);return {month,entries:rows.length,regularHours:Math.round(data.regularMinutes/60*100)/100,overtimeHours:Math.round(data.overtimeMinutes/60*100)/100,totalHours:Math.round(data.totalMinutes/60*100)/100,gross:data.gross};
 }
 function syncMonthToPayroll(month){
+ if(window.WM195?.syncPayrollMonth)return window.WM195.syncPayrollMonth(month);
+ // Sicherer Fallback: ohne geladenes Modul 1.9.5 nicht automatisch alte Lohndaten ersetzen.
+ return false;
  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))return;
  const s=store();if(!s.autoPayroll)return;
  const totals=payrollMonthTotals(month);
@@ -51,9 +54,9 @@ function syncMonthToPayroll(month){
 }
 function alertPayrollSynced(months){if(typeof document==='undefined')return;for(const month of new Set(months))document.dispatchEvent(new CustomEvent('wm-clock-payroll-synced',{detail:{month}}));}
 const saveSafe=async(message,change,months=[])=>{
- const prev=JSON.stringify(store()),prev19=JSON.stringify(state.wm19??null),prevPay=JSON.stringify(state.wmPayroll??null);
+ const prev=JSON.stringify(store()),prev19=JSON.stringify(state.wm19??null),prevPay=JSON.stringify(state.wmPayroll??null),prev195=JSON.stringify(state.wm195??null);
  try{change();if(store().autoPayroll)for(const month of new Set(months))syncMonthToPayroll(month);await save(message)}
- catch(e){state.wm20=JSON.parse(prev);state.wm19=JSON.parse(prev19);state.wmPayroll=JSON.parse(prevPay);throw e}
+ catch(e){state.wm20=JSON.parse(prev);state.wm19=JSON.parse(prev19);state.wmPayroll=JSON.parse(prevPay);state.wm195=JSON.parse(prev195);throw e}
  refresh();if(store().autoPayroll)alertPayrollSynced(months);
 };
 async function saveWageSettings(){
@@ -91,7 +94,7 @@ async function pauseActive(){if(!isOpen())throw Error('Bitte Profil entsperren.'
 async function resumeActive(){if(!isOpen())throw Error('Bitte Profil entsperren.');const s=store(),a=s.active;if(!a?.pausedAt)throw Error('Keine angehaltene Stempeluhr vorhanden.');const delta=Math.max(0,Date.now()-new Date(a.pausedAt).getTime());await saveSafe('Stempeluhr fortgesetzt',()=>{a.totalPausedMs=(Number(a.totalPausedMs)||0)+delta;a.pausedAt=null;});}
 async function stop(source='detail'){if(!isOpen())throw Error('Bitte Profil entsperren.');const s=store(),a=s.active;if(!a)throw Error('Die Stempeluhr läuft nicht.');const at=new Date(),manualPause=escapeNumber($(source==='home'?'wmClockHomeExtraBreak':'wmClockPause')?.value||0,0,1440),autoPauseMs=(Number(a.totalPausedMs)||0)+(a.pausedAt?Math.max(0,at.getTime()-new Date(a.pausedAt).getTime()):0),autoPause=Math.round(autoPauseMs/60000),pause=autoPause+manualPause,note=$('wmClockNote')?.value.trim()||'';const minutes=compute(a.startAt,at.toISOString(),pause),record={id:a.id,startAt:a.startAt,endAt:at.toISOString(),workDate:a.workDate||date(new Date(a.startAt)),pauseMinutes:pause,autoPauseMinutes:autoPause,manualPauseMinutes:manualPause,minutes,targetMinutes:a.targetMinutes,hourlyRate:Number.isFinite(Number(a.hourlyRate))?Number(a.hourlyRate):hourlyRate(s),note,createdAt:new Date().toISOString()};
  let sync;
- await saveSafe('Stempeluhr gestoppt',()=>{s.active=null;s.entries.push(record);sync=linkedSync(record);},[record.workDate.slice(0,7)]);
+ await saveSafe('Stempeluhr gestoppt',()=>{s.active=null;s.entries.push(record);sync=linkedSync(record);window.WM195?.log('Stempelung abgeschlossen',record.id,null,record);},[record.workDate.slice(0,7)]);
  if($('wmClockNote'))$('wmClockNote').value='';
  if($('wmClockHomeExtraBreak'))$('wmClockHomeExtraBreak').value='0';
  $('wmClockStatus').textContent=`Gestoppt: ${hhm(minutes)} Std. / ${industrial(minutes)} Industriestunden. ${sync?.message||''}`;
@@ -101,17 +104,18 @@ async function saveTarget(){const h=escapeNumber($('wmClockTargetH').value,0,24)
 function manualForm(row=null){if(!isOpen())return;const r=row||{startAt:new Date().toISOString(),endAt:new Date().toISOString(),pauseMinutes:30,note:'',targetMinutes:store().targetMinutes},d1=new Date(r.startAt),d2=new Date(r.endAt);
  modal(`<div class="sheet-head"><strong>Stempelzeit ${row?'bearbeiten':'nachtragen'}</strong><button onclick="closeModal()">✕</button></div><form id="wmClockForm" class="wmc-form"><label>Arbeitstag<input name="day" type="date" value="${r.workDate||date(d1)}" required></label><label>Beginn<input name="begin" type="time" value="${time(d1)}" required></label><label>Ende<input name="end" type="time" value="${row?time(d2):time(new Date(d1.getTime()+8*3600000))}" required></label><label>Ende am Folgetag?<select name="next"><option value="auto">Automatisch bei Ende vor Beginn</option><option value="yes" ${row&&date(d1)!==date(d2)?'selected':''}>Ja</option><option value="no">Nein</option></select></label><label>Pause (Minuten)<input name="pause" type="number" min="0" max="1440" step="1" value="${Number(r.pauseMinutes)||0}" required></label><label>Brutto-Stundenlohn (€)<input name="rate" type="number" min="0" max="10000" step="0.01" value="${rateForRecord(r).toFixed(2)}" required></label><label>Tagessoll (Minuten)<input name="target" type="number" min="0" max="1440" step="1" value="${slotTarget(r)}" required></label><label>Notiz<input name="note" value="${esc(r.note||'')}"></label><button type="submit" class="primary">Speichern</button></form><p class="wmc-small">Nachtschichten werden dem Starttag zugeordnet. Berechnung über die tatsächliche Zeit einschließlich Zeitumstellung.</p>`);
  $('wmClockForm').onsubmit=event=>{event.preventDefault();const btn=event.target.querySelector('button[type=submit]');btn.disabled=true;(async()=>{const f=Object.fromEntries(new FormData(event.target)),startAt=parseISOTime(f.day,f.begin),endAt=parseISOTime(f.day,f.end),pause=escapeNumber(f.pause,0,1440),target=escapeNumber(f.target,0,1440),rate=Number(f.rate);if(!Number.isFinite(rate)||rate<0||rate>10000)throw Error('Ungültiger Stundenlohn.');if(f.next==='yes'||(f.next==='auto'&&endAt<startAt))endAt.setDate(endAt.getDate()+1);const minutes=compute(startAt.toISOString(),endAt.toISOString(),pause),obj={id:row?.id||uid(),startAt:startAt.toISOString(),endAt:endAt.toISOString(),pauseMinutes:pause,targetMinutes:target,hourlyRate:rate,workDate:f.day,minutes,note:String(f.note||'').trim(),createdAt:row?.createdAt||new Date().toISOString()};
- const data=store(),old=JSON.stringify(data),old19=JSON.stringify(state.wm19||null),oldPay=JSON.stringify(state.wmPayroll??null);try{
+ const data=store(),old=JSON.stringify(data),old19=JSON.stringify(state.wm19||null),oldPay=JSON.stringify(state.wmPayroll??null),old195=JSON.stringify(state.wm195??null);try{
  if(row){const ix=data.entries.findIndex(x=>x.id===row.id);if(ix<0)throw Error('Eintrag nicht mehr vorhanden.');data.entries[ix]=obj;
  // Editing the date clears old linked time row; do not silently leave old hours in summary.
  if(state.wm19?.timeRows){state.wm19.timeRows=state.wm19.timeRows.filter(x=>x.wmClockId!==row.id)}
  }else data.entries.push(obj);
+ window.WM195?.log(row?'Stempelung geändert':'Stempelung nachgetragen',obj.id,row||null,obj);
  const synced=linkedSync(obj);if(store().autoPayroll){syncMonthToPayroll((row?.workDate||date(new Date(row?.startAt||obj.startAt))).slice(0,7));syncMonthToPayroll(f.day.slice(0,7));}await save('Stempelzeit gespeichert');refresh();if(store().autoPayroll)alertPayrollSynced([(row?.workDate||date(new Date(row?.startAt||obj.startAt))).slice(0,7),f.day.slice(0,7)]);closeModal();if($('wmClockStatus'))$('wmClockStatus').textContent=synced.message;
- }catch(e){state.wm20=JSON.parse(old);state.wm19=JSON.parse(old19);state.wmPayroll=JSON.parse(oldPay);throw e}
+ }catch(e){state.wm20=JSON.parse(old);state.wm19=JSON.parse(old19);state.wmPayroll=JSON.parse(oldPay);state.wm195=JSON.parse(old195);throw e}
  })().catch(err).finally(()=>btn.disabled=false)};
 }
-async function remove(id){const s=store(),r=s.entries.find(x=>x.id===id);if(!r)return;if(!confirm('Stempelzeit löschen? Der Eintrag wird im Stempelzeit-Papierkorb aufgehoben.'))return;await saveSafe('Stempelzeit gelöscht',()=>{s.deleted??=[];s.deleted.push({...r,deletedAt:new Date().toISOString()});s.entries=s.entries.filter(x=>x.id!==id);if(state.wm19?.timeRows)state.wm19.timeRows=state.wm19.timeRows.filter(x=>x.wmClockId!==id)},[(r.workDate||date(new Date(r.startAt))).slice(0,7)])}
-async function restore(id){const s=store(),r=(s.deleted||[]).find(x=>x.id===id);if(!r)return;await saveSafe('Stempelzeit wiederhergestellt',()=>{s.entries.push({...r});s.deleted=s.deleted.filter(x=>x.id!==id);linkedSync(r)},[(r.workDate||date(new Date(r.startAt))).slice(0,7)])}
+async function remove(id){const s=store(),r=s.entries.find(x=>x.id===id);if(!r)return;if(!confirm('Stempelzeit löschen? Der Eintrag wird im Stempelzeit-Papierkorb aufgehoben.'))return;await saveSafe('Stempelzeit gelöscht',()=>{s.deleted??=[];s.deleted.push({...r,deletedAt:new Date().toISOString()});s.entries=s.entries.filter(x=>x.id!==id);window.WM195?.log('Stempelung im Papierkorb',id,r,null);if(state.wm19?.timeRows)state.wm19.timeRows=state.wm19.timeRows.filter(x=>x.wmClockId!==id)},[(r.workDate||date(new Date(r.startAt))).slice(0,7)])}
+async function restore(id){const s=store(),r=(s.deleted||[]).find(x=>x.id===id);if(!r)return;await saveSafe('Stempelzeit wiederhergestellt',()=>{s.entries.push({...r});s.deleted=s.deleted.filter(x=>x.id!==id);linkedSync(r);window.WM195?.log('Stempelung wiederhergestellt',id,null,r)},[(r.workDate||date(new Date(r.startAt))).slice(0,7)])}
 function fmtLong(s){return new Date(s).toLocaleString('de-DE',{dateStyle:'short',timeStyle:'short'})}
 function renderEntries(){const s=store(),list=$('wmClockEntries');if(!list)return;const month=$('wmClockMonth')?.value||today().slice(0,7),rows=[...s.entries].filter(x=>(x.workDate||date(new Date(x.startAt))).startsWith(month)).sort((a,b)=>b.startAt.localeCompare(a.startAt));const days=daySummary(rows);const mins=rows.reduce((n,x)=>n+x.minutes,0),targets=days.reduce((n,x)=>n+x.goal,0);const extra=days.reduce((n,x)=>n+x.overtime,0),delta=mins-targets,wages=wageStats(rows,s);
  $('wmClockMonthSummary').innerHTML=`<div class="wmc-stats"><span><strong>${hhm(mins)}</strong><small>Ist (normal)</small></span><span><strong>${industrial(mins)}</strong><small>Ist (Industrie)</small></span><span><strong>${hhm(extra)}</strong><small>Überstunden</small></span><span><strong>${industrial(extra)}</strong><small>Überstunden Industrie</small></span><span><strong>${hhm(delta)}</strong><small>Saldo inkl. Minusstunden</small></span><span><strong>${euros(wages.gross)}</strong><small>Brutto-Grundlohn (Monat)</small></span><span><strong>${wages.days}</strong><small>Erfasste Arbeitstage</small></span></div><p class="wmc-small">Soll: ${hhm(targets)} (${industrial(targets)} Industriestunden) für ${days.length} erfasste Arbeitstage. Fehlende Tage werden hier nicht als Minusstunden gezählt.</p>`;
@@ -165,8 +169,8 @@ function mount(){if($('wmClockRoot'))return;const shift=$('shift');if(!shift)ret
  const anchor=$('wm19TimeCard');if(anchor)anchor.insertAdjacentElement('afterend',panel);else shift.appendChild(panel);bind();refresh();
  let ref=state;if(typeof window.renderAll==='function'){const previous=window.renderAll;window.renderAll=function(...args){const changed=state!==ref;const result=previous.apply(this,args);if(changed)ref=state;setTimeout(refresh,0);return result}}
  window.WMClockPayrollTotals=payrollMonthTotals;
- const updateTitle=$('wmplusQuickUpdateCheck')?.closest('#wmplusQuickUpdateBar')?.querySelector('strong');if(updateTitle)updateTitle.textContent='App-Updates · WorksManager 1.9.4';
- window.addEventListener('pageshow',()=>setTimeout(refresh,150));setInterval(live,15000);console.info('WorksManager Stempeluhr 1.9.4 geladen');
+ const updateTitle=$('wmplusQuickUpdateCheck')?.closest('#wmplusQuickUpdateBar')?.querySelector('strong');if(updateTitle)updateTitle.textContent='App-Updates · WorksManager 1.9.5';
+ window.addEventListener('pageshow',()=>setTimeout(refresh,150));setInterval(live,15000);console.info('WorksManager Stempeluhr 1.9.5 geladen');
 }
 if(typeof module!=='undefined'&&module.exports)module.exports={compute,hhm,industrial,daySummary,parseISOTime,wageStats,payrollMonthTotals,syncMonthToPayroll};
 else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();
