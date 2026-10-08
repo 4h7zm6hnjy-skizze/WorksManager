@@ -1,7 +1,7 @@
 'use strict';
 /* WorksManager 1.9.1: cache-first offline shell; encryptierte lokale DB wird nicht angefasst. */
 const CACHE_PREFIX='worksmanager-v';
-const CACHE_NAME='worksmanager-v1.9.1-20261008';
+const CACHE_NAME='worksmanager-v1.9.1-versionfix-20261008';
 const REQUIRED=['./index.html','./styles.css?v=1.8.4','./app.js?v=1.8.4',
                 './worksmanager-plus.js?v=1.9.1','./worksmanager-19.js?v=1.9.1','./worksmanager-lohn.js?v=1.9.1',
                 './manifest.json?v=1.9.1','./worksmanager-release.json'];
