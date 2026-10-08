@@ -1,0 +1,22 @@
+WORKSMANAGER 1.8.4 + ERWEITERUNGEN 1.1.0
+
+SCHUTZ DEINER DATEN
+1) In WorksManager > Sicherheit & Backup erst ein verschlüsseltes Backup erstellen.
+2) Prüfen, dass die Sicherungsdatei in der iPhone-Dateien-App vorhanden ist.
+3) App nicht löschen, keine Website-Daten löschen, Passwort merken.
+
+INSTALLATION – im Repository 4h7zm6hnjy-skizze/WorksManager (GitHub)
+1) worksmanager-plus.js ersetzen.
+2) worksmanager-release.json neu anlegen.
+3) sw.js ersetzen.
+4) index.html nach EINBAU-IN-INDEX.html.txt minimal bearbeiten und speichern.
+5) WebApp online laden. Falls noch die alte Oberfläche sichtbar ist, vollständig schließen und erneut online öffnen.
+6) Auf der Startseite ist dann direkt unter „Meine Arbeitsübersicht“ die Leiste „App-Updates“ mit „Updates suchen“.
+7) Ganz unten nach „Private Daten“ folgen die Such- und Statuskarten aus dem Zusatzmodul.
+8) Offlinebetrieb im Flugmodus und Backup-Export nach dem Update testen.
+
+VERSIONEN / SPÄTERE UPDATES
+worksmanager-release.json enthält einen numerischen Build-Wert. Wenn ein neues Release veröffentlicht wird, neue Haupt-/Zusatzdateien bereitstellen, den numerischen Build in der nächsten Clientversion aktualisieren und zuletzt den Build in der Versionsdatei erhöhen. Die neue Update-Anzeige erkennt eine höhere Build-Zahl über einen Online-Abruf.
+Die App kann nicht automatisch eigenständig Dateien auf GitHub ändern. Browser- und iOS-Speicher können trotz Service Worker gelöscht werden, daher externe Backups aufbewahren.
+
+Dies ist ein vorbereitetes Update, nicht auf GitHub veröffentlicht. Haupt-App v1.8.4 und verschlüsselte IndexedDB bleiben unverändert.

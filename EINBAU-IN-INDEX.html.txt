@@ -1,0 +1,15 @@
+WorksManager index.html auf GitHub bearbeiten. Ganz am Ende steht:
+
+  <script src="app.js?v=1.8.4"></script>
+</body>
+</html>
+
+Diesen Abschnitt ersetzen durch:
+
+  <script src="app.js?v=1.8.4"></script>
+  <script src="worksmanager-plus.js?v=1.1.0"></script>
+</body>
+</html>
+
+Keine anderen Zeilen, App-Versionen oder Speicher-Einstellungen verändern.
+Die vorherige Version von index.html zur Sicherheit lokal speichern.

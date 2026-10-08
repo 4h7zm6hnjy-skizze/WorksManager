@@ -4,7 +4,11 @@
 */
 (() => {
   'use strict';
-  const PLUS_VERSION = '1.0.0';
+  const PLUS_VERSION = '1.1.0';
+  const RELEASE_BUILD = 2026100802;
+  let advertisedBuild = RELEASE_BUILD;
+  let availableRelease = null;
+  let updateReady = false;
   const METADATA_KEY = 'worksmanager_plus_backup_export_1'; // Ausschließlich Export-Zeitpunkt, keine Dokumentdaten.
   const REQUIRED = ['renderAll','save','go','vacationDaysForRecords','vacationWorkdayDetails','nrwHolidays','isoDayNumber','monthBounds','yearBounds','dbGet','dbFileEntries','referencedFileKeys','lock','exportBackup'];
   const $p = id => document.getElementById(id);
@@ -49,6 +53,11 @@
   .wmplus-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line,#dfe7ef)}
   .wmplus-row div{min-width:0;overflow-wrap:anywhere;font-size:13px}
   .wmplus-row small{display:block;color:var(--muted,#6a7a8e)}
+  .wmplus-update-bar{border:1px solid var(--line,#dfe7ef);background:var(--card,#fff);border-radius:14px;padding:10px 12px;margin:12px 0;display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px;box-shadow:var(--shadow,0 3px 12px #0001)}
+  .wmplus-update-bar strong{font-size:13px;color:var(--ink,#082f4c)}
+  .wmplus-update-bar small{font-size:11px;color:var(--muted,#6a7a8e)}
+  .wmplus-update-banner[hidden]{display:none!important}
+  .wmplus-update-banner{position:sticky;top:0;z-index:70;border:2px solid #dc921c;border-radius:12px;background:#fff8e9;color:#5a3606;padding:12px;margin:10px 0}
   .wmplus-banner{border-left:4px solid var(--accent,#087d79);background:var(--bg,#f4f7fb);padding:10px;border-radius:8px;margin:8px 0;font-size:13px}
   .wmplus-alert{border-left-color:#b91c1c}
   @media(max-width:380px){.wmplus-grid{grid-template-columns:1fr}}
@@ -63,11 +72,21 @@
   function safeAction(fn){return async (...args)=>{try{await fn(...args);}catch(e){console.error('WorksManager-Erweiterung:',e);setNote('wmplusBackupInfo','Aktion fehlgeschlagen: '+(e?.message||e));alert('Aktion fehlgeschlagen: '+(e?.message||e));}};}
   function addCards(){
     const dash=$p('dashboard');
+    if(dash && !$p('wmplusUpdateBar')){
+      const bar=document.createElement('div');
+      bar.id='wmplusUpdateBar';bar.className='wmplus-update-bar';
+      bar.innerHTML='<div><strong>App-Updates</strong><br><small>WorksManager 1.8.4 · Erweiterungen 1.1.0</small><div id="wmplusQuickUpdateState" class="wmplus-state" aria-live="polite"></div></div><button type="button" id="wmplusQuickUpdateCheck" class="wmplus-btn secondary">Updates suchen</button>';
+      const hero=dash.querySelector('.dashboard-hero');
+      if(hero)hero.insertAdjacentElement('afterend',bar);else dash.insertAdjacentElement('afterbegin',bar);
+      const banner=document.createElement('div');banner.id='wmplusUpdateBanner';banner.className='wmplus-update-banner';banner.hidden=true;
+      banner.innerHTML='<strong id="wmplusUpdateTitle">Update verfügbar</strong><p id="wmplusUpdateText"></p><button id="wmplusInstallUpdate" type="button" class="wmplus-btn">Jetzt aktualisieren</button>';
+      bar.insertAdjacentElement('afterend',banner);
+    }
     if(dash && !$p('wmplusSearch')) dash.insertAdjacentHTML('beforeend',card('wmplusSearch','Dokumente und Einträge suchen',
       `<p>Suche nach Namen, Zeitraum, Jahr, Titel und Dateinamen. Keine Texterkennung oder Cloud-Suche.</p><label class="wmplus-field">Suchbegriff<input id="wmplusSearchInput" type="search" placeholder="z. B. 2026, Krankschreibung, Abrechnung"></label><div id="wmplusSearchResults" class="wmplus-list"></div>`));
     if(dash && !$p('wmplusStatus')) dash.insertAdjacentHTML('beforeend',card('wmplusStatus','App-Status',
       `<div class="wmplus-summary"><div class="wmplus-metric"><strong id="wmplusConnection">—</strong><small>Verbindung</small></div><div class="wmplus-metric"><strong id="wmplusCached">—</strong><small>Offline-Vorbereitung</small></div></div>`+note('wmplusUpdateInfo')+
-      `<div class="wmplus-buttons">${button('Update prüfen','wmplusCheckUpdate',true)}</div>`));
+      `<div class="wmplus-buttons">${button('Updates suchen','wmplusCheckUpdate',true)}</div>`));
     const backup=$p('backup');const danger=backup?.querySelector('.danger-zone');
     if(backup && !$p('wmplusBackup')){
       const html=card('wmplusBackup','Datensicherung und Gerätespeicher',
@@ -216,20 +235,66 @@
       const names=(await caches.keys()).filter(k=>k.startsWith('worksmanager-v'));
       let ready=false;
       for(const key of names){
-        const c=await caches.open(key),all=await Promise.all(['./index.html','./app.js?v=1.8.4','./styles.css?v=1.8.4','./worksmanager-plus.js'].map(url=>c.match(url)));
+        const c=await caches.open(key),all=await Promise.all(['./index.html','./app.js?v=1.8.4','./styles.css?v=1.8.4','./worksmanager-plus.js?v=1.1.0','./worksmanager-release.json'].map(url=>c.match(url)));
         if(all.every(Boolean)){ready=true;break;}
       }
       offline.textContent=ready?'Bereit':'Noch nicht vollständig';
     }catch(e){offline.textContent='Unbekannt';}
   }
-  async function checkUpdates(){
-    if(!navigator.onLine){setNote('wmplusUpdateInfo','Offline: Updates können erst mit Internet geprüft werden.');return;}
-    if(!('serviceWorker' in navigator)){setNote('wmplusUpdateInfo','Automatische Updates werden von diesem Browser nicht unterstützt.');return;}
-    const reg=await navigator.serviceWorker.getRegistration('./');if(!reg){setNote('wmplusUpdateInfo','Offline-Service noch nicht registriert. Bitte die App neu öffnen.');return;}
-    setNote('wmplusUpdateInfo','Prüfe aktuelle Service-Worker-Datei ...');await reg.update();
-    if(reg.waiting){setNote('wmplusUpdateInfo','Update bereit. Bitte App schließen und erneut öffnen.');}
-    else{setNote('wmplusUpdateInfo','Updateprüfung abgeschlossen. Änderungen erscheinen gegebenenfalls beim nächsten Start.');}
+  function setUpdateMessage(msg){setNote('wmplusUpdateInfo',msg);setNote('wmplusQuickUpdateState',msg);}
+  function offerUpdate(release,waiting=false){
+    updateReady=true;
+    if(release && release.build>advertisedBuild)advertisedBuild=release.build;
+    if(release)availableRelease=release;
+    const banner=$p('wmplusUpdateBanner');if(!banner)return;
+    banner.hidden=false;
+    setNote('wmplusUpdateTitle','Update verfügbar');
+    setNote('wmplusUpdateText',release?.version?`Neue Version ${release.version} ist verfügbar. Deine gespeicherten Daten werden beim Aktualisieren nicht bewusst gelöscht.`:waiting?'Ein aktualisierter Offline-Dienst wartet auf Aktivierung.':'Neue Programmdateien sind verfügbar.');
+    setUpdateMessage(release?.version?`Update verfügbar: ${release.version}`:'Offline-Update verfügbar');
+  }
+  async function checkUpdates(manual=true){
+    if(!navigator.onLine){setUpdateMessage('Offline: Updates können nur mit Internet gesucht werden.');return;}
+    setUpdateMessage('Suche nach Updates ...');
+    let release=null,reg=null;
+    try{
+      const r=await fetch('./worksmanager-release.json?check='+Date.now(),{cache:'no-store'});
+      if(!r.ok)throw new Error(`Versionsdatei nicht abrufbar (HTTP ${r.status})`);
+      release=await r.json();
+      if(release?.app!=='WorksManager'||!Number.isSafeInteger(release.build))throw new Error('Versionsdatei ungültig');
+      if(release.build>RELEASE_BUILD){offerUpdate(release);return;}
+      if('serviceWorker' in navigator){
+        reg=await navigator.serviceWorker.getRegistration('./');
+        if(reg){await reg.update();if(reg.waiting){offerUpdate(release,true);return;}}
+      }
+      if(!updateReady){
+        const msg=`Aktuell: WorksManager 1.8.4 · Erweiterungen 1.1.0 (Stand ${RELEASE_BUILD}). Kein neueres Update gemeldet.`;
+        setUpdateMessage(msg);
+        const banner=$p('wmplusUpdateBanner');if(banner)banner.hidden=true;
+      }
+    }catch(e){
+      setUpdateMessage(`Updateprüfung fehlgeschlagen: ${e?.message||e}. Bitte Internetverbindung kontrollieren.`);
+      if(manual)console.warn('WorksManager Updateprüfung:',e);
+    }
     await checkOffline();
+  }
+  async function installUpdate(){
+    if(!navigator.onLine){setUpdateMessage('Bitte zum Aktualisieren eine Internetverbindung herstellen.');return;}
+    if(!updateReady){await checkUpdates(true);if(!updateReady)return;}
+    setUpdateMessage('Update wird vorbereitet ...');
+    try{
+      let reg='serviceWorker' in navigator?await navigator.serviceWorker.getRegistration('./'):null;
+      if(reg)await reg.update();
+      let reloading=false;
+      const reload=()=>{if(reloading)return;reloading=true;const url=new URL(location.href);url.searchParams.set('wm-update',String(availableRelease?.build||Date.now()));location.replace(url.toString());};
+      if(reg?.waiting){
+        navigator.serviceWorker?.addEventListener('controllerchange',reload,{once:true});
+        reg.waiting.postMessage({type:'SKIP_WAITING'});
+        setTimeout(reload,3000);
+        return;
+      }
+      // Bei neuer Serverversion wird bei Navigation die geänderte HTML-Datei abgerufen.
+      reload();
+    }catch(e){setUpdateMessage(`Aktualisierung fehlgeschlagen: ${e?.message||e}`);}
   }
   let lastActivity=Date.now(),timer=null;
   function noteActivity(){lastActivity=Date.now();}
@@ -245,7 +310,9 @@
   function bindPlus(){
     $p('wmplusSearchInput')?.addEventListener('input',results);
     $p('wmplusSearchResults')?.addEventListener('click',e=>{const b=e.target.closest('[data-wmplus-nav]');if(b)go(b.dataset.wmplusNav);});
-    $p('wmplusCheckUpdate')?.addEventListener('click',safeAction(checkUpdates));
+    $p('wmplusCheckUpdate')?.addEventListener('click',safeAction(()=>checkUpdates(true)));
+    $p('wmplusQuickUpdateCheck')?.addEventListener('click',safeAction(()=>checkUpdates(true)));
+    $p('wmplusInstallUpdate')?.addEventListener('click',safeAction(installUpdate));
     $p('wmplusVerifyBackup')?.addEventListener('click',safeAction(backupCheck));
     $p('wmplusCheckStorage')?.addEventListener('click',safeAction(storageCheck));
     $p('wmplusPersistStorage')?.addEventListener('click',safeAction(persistentStorage));
@@ -259,7 +326,7 @@
     document.addEventListener('click',e=>{if(e.target.closest('[data-go],#unlockBtn'))setTimeout(refreshPlus,120);},{passive:true});
     for(const e of ['pointerdown','keydown','touchstart'])document.addEventListener(e,noteActivity,{passive:true});
     document.addEventListener('visibilitychange',()=>{if(!document.hidden && !locked()&&idleMinutes()>0 && Date.now()-lastActivity>=idleMinutes()*60000){try{lock();}catch(e){console.warn(e);}lastActivity=Date.now();}});
-    window.addEventListener('online',checkOffline);window.addEventListener('offline',checkOffline);
+    window.addEventListener('online',()=>{checkOffline();checkUpdates(false);});window.addEventListener('offline',checkOffline);
     navigator.serviceWorker?.addEventListener('controllerchange',()=>{checkOffline();setNote('wmplusUpdateInfo','Offline-Dienst aktualisiert. App bei Gelegenheit neu starten.');});
   }
   function refreshPlus(){
@@ -286,6 +353,8 @@
       return result;
     };
     setTimeout(refreshPlus,300);
+    setTimeout(()=>checkUpdates(false),1200);
+    setInterval(()=>{if(!locked()&&navigator.onLine)checkUpdates(false);},3600000);
     console.info(`WorksManager Erweiterungen ${PLUS_VERSION} geladen`);
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',decorate,{once:true});else decorate();

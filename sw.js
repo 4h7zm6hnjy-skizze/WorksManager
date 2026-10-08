@@ -3,9 +3,9 @@
    Der Worker ergänzt das Erweiterungsskript nur bei Seitenaufrufen. Die unveränderte
    Haupt-App index.html/app.js kann deshalb weiterhin separat aktualisiert werden. */
 const CACHE_PREFIX='worksmanager-v';
-const CACHE_NAME='worksmanager-v1.8.4-plus1-20261008';
-const SCRIPT='./worksmanager-plus.js';
-const REQUIRED=['./index.html','./styles.css?v=1.8.4','./app.js?v=1.8.4','./manifest.json?v=1.8.4',SCRIPT];
+const CACHE_NAME='worksmanager-v1.8.4-plus1_1-20261008';
+const SCRIPT='./worksmanager-plus.js?v=1.1.0';
+const REQUIRED=['./index.html','./styles.css?v=1.8.4','./app.js?v=1.8.4','./manifest.json?v=1.8.4',SCRIPT,'./worksmanager-release.json'];
 const OPTIONAL=['./','./worksmanager-logo.png','./favicon.png','./apple-touch-icon.png','./icon-192.png','./icon-512.png','./icon-1024.png'];
 self.addEventListener('install',event=>{
   event.waitUntil((async()=>{
@@ -28,7 +28,7 @@ async function injectAddon(response){
   if(!response||!response.ok)return response;
   const source=await response.text();
   const html=source.includes('worksmanager-plus.js')||!source.includes('</body>')
-    ?source:source.replace('</body>','<script src="./worksmanager-plus.js"></script>\n</body>');
+    ?source:source.replace('</body>','<script src="./worksmanager-plus.js?v=1.1.0"></script>\n</body>');
   const headers=new Headers(response.headers);
   headers.delete('content-length');headers.delete('content-encoding');
   headers.set('content-type','text/html; charset=utf-8');
