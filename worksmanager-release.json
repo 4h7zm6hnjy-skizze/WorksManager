@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.13",
-  "build": 2026101327,
+  "version": "1.9.14",
+  "build": 2026101328,
   "released": "2026-10-13",
   "coreCompatibility": "1.8.4",
-  "notes": "Startseitenkalender mit Schichtfarben (Früh grün, Spät blau, Nacht gelb), Notizen und Einträgen für Tage, ausgewählte Wochentage oder ganze Wochen. Kurzarbeit mit Arbeitsausfall, 60/67 % bei Kinderauswahl und Übernahme in die bestehende KUG-Monatsberechnung; keine erfundenen Nettoentgelte."
+  "notes": "Kalender: ganzer/halber Urlaub, krank mit Entgeltfortzahlung oder Krankengeld, geplante Schichtzeiten von/bis inklusive Pause (Nacht über Mitternacht), automatische Monats-Stunden nach Kollisionsprüfung, Kurzarbeit nach geplanten Stunden; farbige Legende unter dem Kalender. Vorausschauend, vorhandene Stempel- und Monatswerte bleiben bestehen."
 }

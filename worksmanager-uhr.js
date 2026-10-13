@@ -1,4 +1,4 @@
-/* WorksManager 1.9.13 – Stempeluhr mit Startseitenanzeige mit verschlüsselter Speicherung im state.wm20.
+/* WorksManager 1.9.14 – Stempeluhr mit Startseitenanzeige mit verschlüsselter Speicherung im state.wm20.
    7:30 normal = 7,50 Industrie-Stunden; Überstunden nach Tages-Soll.
    Automatische Übernahme ins 1.9-Zeitkonto nur, wenn kein fremder Eintrag existiert.
 */
@@ -56,7 +56,7 @@ function payrollMonthTotals(month){
 }
 function syncMonthToPayroll(month){
  if(window.WM195?.syncPayrollMonth)return window.WM195.syncPayrollMonth(month);
- // Sicherer Fallback: ohne geladenes Modul 1.9.13 nicht automatisch alte Lohndaten ersetzen.
+ // Sicherer Fallback: ohne geladenes Modul 1.9.14 nicht automatisch alte Lohndaten ersetzen.
  return false;
  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))return;
  const s=store();if(!s.autoPayroll)return;
@@ -69,9 +69,9 @@ function syncMonthToPayroll(month){
 function alertPayrollSynced(months){if(typeof document==='undefined')return;for(const month of new Set(months))document.dispatchEvent(new CustomEvent('wm-clock-payroll-synced',{detail:{month}}));}
 const saveSafe=async(message,change,months=[])=>{
  const prev=JSON.stringify(store()),prev19=JSON.stringify(state.wm19??null),prevPay=JSON.stringify(state.wmPayroll??null),prev195=JSON.stringify(state.wm195??null);
- try{change();if(store().autoPayroll||state.wm195?.rates?.autoPremiums)for(const month of new Set(months))syncMonthToPayroll(month);await save(message)}
+ try{change();if(months.length)window.WMCalendar?.refreshAbsenceForMonths(months);if(store().autoPayroll||state.wm195?.rates?.autoPremiums)for(const month of new Set(months))syncMonthToPayroll(month);await save(message)}
  catch(e){state.wm20=JSON.parse(prev);state.wm19=JSON.parse(prev19);state.wmPayroll=JSON.parse(prevPay);state.wm195=JSON.parse(prev195);throw e}
- refresh();if(store().autoPayroll||state.wm195?.rates?.autoPremiums)alertPayrollSynced(months);
+ refresh();if(months.length&&window.WMCalendar)document.dispatchEvent(new CustomEvent('wm-calendar-payroll-updated',{detail:{months}}));if(store().autoPayroll||state.wm195?.rates?.autoPremiums)alertPayrollSynced(months);
 };
 async function saveWageSettings(){
  const rate=Number(String($('wmClockRate').value).replace(',','.'));
@@ -195,8 +195,10 @@ function manualForm(row=null){
     }else data.entries.push(obj);
     window.WM195?.log(row?'Stempelung geändert':'Stempelung nachgetragen',obj.id,row||null,obj);
     const linked=linkedSync(obj),months=[...new Set([(row?.workDate||date(new Date(row?.startAt||obj.startAt))).slice(0,7),f.day.slice(0,7)])];
+    window.WMCalendar?.refreshAbsenceForMonths(months);
     if(store().autoPayroll||state.wm195?.rates?.autoPremiums){for(const month of months)syncMonthToPayroll(month);}
     await save('Stempelzeit gespeichert');refresh();
+    if(window.WMCalendar)document.dispatchEvent(new CustomEvent('wm-calendar-payroll-updated',{detail:{months}}));
     if(store().autoPayroll||state.wm195?.rates?.autoPremiums)alertPayrollSynced(months);
     closeModal();setHomeMessage(`${row?'Stempelzeit korrigiert':'Arbeitszeit nachgetragen'}: ${hhm(minutes)} Std. · ${euros(roundMoney(minutes*rate/60))} Grundbrutto. ${linked.ok?'Zeitkonto übernommen.':linked.message}`);
     if($('wmClockStatus'))$('wmClockStatus').textContent=linked.message;
@@ -277,9 +279,9 @@ function mount(){if($('wmClockRoot'))return;const shift=$('shift');if(!shift)ret
  const anchor=$('wm19TimeCard');if(anchor)anchor.insertAdjacentElement('afterend',panel);else shift.appendChild(panel);bind();refresh();
  let ref=state;if(typeof window.renderAll==='function'){const previous=window.renderAll;window.renderAll=function(...args){const changed=state!==ref;const result=previous.apply(this,args);if(changed)ref=state;setTimeout(refresh,0);return result}}
  window.WMClockPayrollTotals=payrollMonthTotals;
- const updateTitle=$('wmplusQuickUpdateCheck')?.closest('#wmplusQuickUpdateBar')?.querySelector('strong');if(updateTitle)updateTitle.textContent='App-Updates · WorksManager 1.9.13';
+ const updateTitle=$('wmplusQuickUpdateCheck')?.closest('#wmplusQuickUpdateBar')?.querySelector('strong');if(updateTitle)updateTitle.textContent='App-Updates · WorksManager 1.9.14';
  document.addEventListener('wm-payroll-rate-updated',()=>{if(isOpen())refresh();});
- window.addEventListener('pageshow',()=>setTimeout(refresh,150));setInterval(live,1000);console.info('WorksManager Stempeluhr 1.9.13 geladen');
+ window.addEventListener('pageshow',()=>setTimeout(refresh,150));setInterval(live,1000);console.info('WorksManager Stempeluhr 1.9.14 geladen');
 }
 if(typeof module!=='undefined'&&module.exports)module.exports={compute,hhm,industrial,daySummary,parseISOTime,wageStats,payrollMonthTotals,syncMonthToPayroll,profileRate,store,saveWageSettings,repairMissingWageRates};
 else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();

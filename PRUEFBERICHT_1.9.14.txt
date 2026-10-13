@@ -1,0 +1,23 @@
+PRUEFBERICHT WorksManager 1.9.14 (Testumgebung, nicht iPhone)
+
+Bestanden:
+- JavaScript-Syntax der geänderten Kalender-, Stempeluhr- und Lohnmodule
+- Kalendermonat, 9 Farben/Farb-Legende direkt unter Monatsraster, mobiles Layout mit 390px Breite
+- Urlaub ganzer Tag (7:30 h), Urlaub halber Tag (3:45 h), Krankheit mit Entgeltfortzahlung, nachfolgend Krankengeld-Status
+- Individuelle von/bis Uhrzeiten und Pause, Nachtschicht über Mitternacht
+- Freie Notizen, Urlaub/Krankheit in Wochen-/Bereichseinträgen, Löschen und Neuberechnung
+- Kurzarbeit 50/100%, 60/67%-Auswahl, Monatszuordnung über Jahres-/Monatsgrenzen, Prüfung uneinheitlicher KUG-Sätze
+- Bereits gestempelte Stunden senken bezahlte Fehlstunden, auch nach einer nachträglichen Stempeluhränderung
+- Manuelle Kurzarbeit bleibt beim Nachtragen von Urlaub/Krankheit bestehen
+- Urlaub 7.5h × 14.90€ = 111.75€ Arbeitgeber-Brutto; manuelle + Kalender-Urlaubszeit wird nicht doppelt addiert
+- Kombination 5h Stempelung + 2.5h Resturlaub ergibt weiterhin 7.5h, nicht 12.5h
+- Festgehalt von 3000€ bleibt bei Abwesenheitsnachtrag 3000€, nicht 3000€ plus Stundenlohn
+- Fehlgeschlagener verschlüsselter Speichervorgang wird zurückgerollt
+- GitHub-Dateistruktur, Buildnummer und Offline-Cache-Version geprüft
+
+Hinweise/Grenzen:
+- Browserprüfungen erfolgten mit simuliertem Testprofil in Chromium; tatsächlicher iPhone-PWA-/GitHub-Pages-Test ausstehend.
+- KUG-Eurobeträge brauchen tatsächliche/pauschalierte Nettoentgelte bzw. Bescheid; keine vorgetäuschte Euro-Berechnung ohne Daten.
+- Die gesetzliche Urlaubsvergütung und Entgeltfortzahlung können nach Durchschnittsverdienst und individuellen Regeln abweichen. Die Berechnung über erfasste geplante Stunden ist eine Näherung.
+- Tatsächliche Urlaubsansprüche (Tageszahl/Resttage), Krankengeld der Kasse und steuerliche Lohnabrechnung bedürfen einer gesonderten Überprüfung.
+- Das Arbeitszeitkonto behandelt Fehlzeiten nicht als gestempelte Iststunden; die kalenderbasierten bezahlten Fehlzeiten werden getrennt in der Lohnberechnung berücksichtigt.

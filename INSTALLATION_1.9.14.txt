@@ -1,0 +1,28 @@
+WorksManager 1.9.14 – Schichtkalender, Urlaub/Krankheit, Uhrzeiten und Farb-Legende
+
+INSTALLATION
+1. Im laufenden WorksManager ein Backup erstellen (verschlüsselte Datenbank erhalten).
+2. Diese ZIP entpacken, nur die enthaltenen App-Dateien in das Hauptverzeichnis des GitHub-Repositories WorksManager hochladen und vorhandene Dateien ersetzen.
+3. Nicht ZIP-Datei selbst als neue Datei hochladen. Commit bestätigen.
+4. WorksManager auf dem iPhone neu öffnen. Falls alte Version erscheint: über Update-Suche aktualisieren oder im Browser einmal neu laden und erneut öffnen.
+5. Auf Startseite den Kalender prüfen. Ein Datum auswählen; Eingabe für Einzeltag/Woche/Zeitraum, Schicht und Planzeiten, Urlaub (halb/ganz), Krankheit, Kurzarbeit, Notiz.
+6. Unter Abrechnung den Lohnmonat neu laden, Kalender- und manuelle Stunden prüfen und Lohnberechnung ausführen.
+
+KALENDERFARBEN (Legende steht unter dem Monatsraster)
+Frühschicht = GRÜN; Spätschicht = BLAU; Nachtschicht = GELB
+Ganzer Urlaub = LILA; halber Urlaub = HELLLILA
+Krankheit mit Entgeltfortzahlung = ROT; Krankengeld nach Entgeltfortzahlung = ROSA
+Kurzarbeit = ORANGE; reine Notiz = GRAU
+Die Legende zeigt zusätzlich alle Farben schriftlich, damit keine Farberkennung nötig ist.
+
+BERECHNUNG
+- Geplante Schichtstunden: Ende minus Beginn minus unbezahlte Pausenminuten; Nacht über Mitternacht unterstützt.
+- Urlaub (halb/ganz) und bezahlte Krankheitsstunden werden getrennt erfasst und in die Lohnberechnung übernommen. Bereits gestempelte Stunden am selben Tag vermindern die anrechenbare Abwesenheit.
+- Vorhandene manuelle Urlaubs-/Krankstunden werden nicht zusätzlich zu Kalenderstunden aufaddiert: je Kategorie zählt der höhere Wert. Abweichende Tage daher überprüfen.
+- Für Festgehalt werden die Fehlzeitstunden nicht als zusätzliches Gehalt ausgezahlt.
+- Krankengeld nach Entgeltfortzahlung ist kein Arbeitgeberlohn; tatsächlichen Kassenbetrag separat prüfen/eingeben.
+- Kurzarbeit bleibt mit 60/67% (änderbar) verbunden. Der KUG-Eurobetrag benötigt pauschaliertes Soll-/Ist-Netto oder den Bescheid. Bereits manuell erfasste Kurzarbeit bleibt erhalten, wenn nur Urlaub/Krankheit im Kalender nachgetragen wird.
+- Schichten im Kalender sind Planung und erzeugen keine Stempelungen. Bestehende Schichten, Profile und verschlüsselte Daten werden durch das reine Software-Update nicht gelöscht.
+
+DATENSCHUTZ
+Die App-Dateien enthalten keine persönlichen Nutzer- oder Gehaltsdaten. Alle Kalenderbuchungen liegen im verschlüsselten lokalen Profil. Keine persönlichen Lohnprofil-JSON-Dateien nach GitHub hochladen.

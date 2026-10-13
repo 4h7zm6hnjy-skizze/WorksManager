@@ -1,10 +1,10 @@
-/* WorksManager 1.9.13 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
+/* WorksManager 1.9.14 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
  * KEINE Lohnabrechnungssoftware für amtliche Abrechnung. Lohnsteuer nur Näherung,
  * Ersatzleistungen nur Orientierung; alle kritischen Werte manuell überschreibbar.
  */
 (() => {
  'use strict';
- const VERSION='1.9.13',BUILD=2026101327;
+ const VERSION='1.9.14',BUILD=2026101327;
  const $=id=>document.getElementById(id);
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const round=x=>Math.round((Number(x)+Number.EPSILON)*100)/100;
@@ -18,7 +18,7 @@
   healthCap:5812.50,pensionCap:8450,annualWorkAllowance:1230,annualSpecialAllowance:36,monthlyTaxAllowance:0,
   monthlyDeductionFixed:0,notes:''};
  const MONTH={month:nowMonth(),hours:0,paidSickHours:0,vacationHours:0,holidayHours:0,overtimeHours:0,overtimePct:25,oneOffGross:0,oneOffTaxable:true,oneOffSV:true,
-  shortEnabled:false,shortSollGross:0,shortIstGross:'',shortNetSoll:'',shortNetIst:'',shortWithChild:true,shortRateWithoutChild:60,shortRateWithChild:67,shortRateOverride:'',shortPaymentOverride:'',shortCalendarDays:0,shortCalendarLostHours:0,
+  shortEnabled:false,shortSollGross:0,shortIstGross:'',shortNetSoll:'',shortNetIst:'',shortWithChild:true,shortRateWithoutChild:60,shortRateWithChild:67,shortRateOverride:'',shortPaymentOverride:'',shortCalendarDays:0,shortCalendarLostHours:0,calendarVacationHours:0,calendarPaidSickHours:0,calendarVacationDays:0,calendarHalfDays:0,calendarSickPaidDays:0,calendarSickBenefitDays:0,calendarTimeCollisions:0,
   sickDays:0,sickGrossDaily:0,sickNetDaily:0,sickPercentGross:70,sickMaxNetPercent:90,sickMaxDaily:135.63,sickActualPaid:'',sickBenefitDeductions:12.4,
   childSickDays:0,childSickNetDaily:0,childSickOneOff:false,childSickMaxDaily:135.63,childSickActualPaid:'',childSickDeductions:12.4,
   incomeTaxManual:'',soliManual:'',churchManual:'',actualPayslipNet:'',taxFreeReimbursement:0,advancePaid:0,otherNetDeduction:0,privateKVEmployee:0,
@@ -63,7 +63,7 @@
   </section>
   <section class="wmpay-mode-picker"><h3>1. Wie wirst du bezahlt?</h3><p>Wähle zuerst die Lohnart. Danach erscheinen die passenden Eingabefelder und weiteren Einstellungen.</p><label class="wmpay-field" for="wmpayModeSelect">Lohnart<select id="wmpayModeSelect"><option value="" ${!modeChosen?'selected':''}>Bitte auswählen</option><option value="hourly" ${modeChosen&&draftP.salaryMode==='hourly'?'selected':''}>Stundenlohn</option><option value="fixed" ${modeChosen&&draftP.salaryMode==='fixed'?'selected':''}>Festgehalt / Monatsgehalt</option></select></label><p id="wmpayModeHelp" class="wmpay-note"></p></section>
   <div id="wmpayModeDetails" ${modeChosen?'':'hidden'}>
-  <div id="wmpayClockSync" class="wmpay-warning"></div><div class="wmpay-actions"><button id="wmpayCalc">Berechnen</button><button id="wmpaySave">Monat speichern</button><button id="wmpayLoad" class="secondary">Monat laden</button><button id="wmpayImportTime" class="secondary">Arbeitsstunden übernehmen</button></div>
+  <div id="wmpayClockSync" class="wmpay-warning"></div><p id="wmpayCalendarAbsenceInfo" class="wmpay-note" role="status"></p><div class="wmpay-actions"><button id="wmpayCalc">Berechnen</button><button id="wmpaySave">Monat speichern</button><button id="wmpayLoad" class="secondary">Monat laden</button><button id="wmpayImportTime" class="secondary">Arbeitsstunden übernehmen</button></div>
   <p class="wmpay-warning">Hinweis: Keine verbindliche Entgeltabrechnung. Lohnsteuer I–IV wird näherungsweise anhand des Einkommensteuertarifs modelliert, nicht nach dem vollständigen BMF-Programmablaufplan. Für Steuerklasse V/VI oder Faktorverfahren die tatsächlichen Steuerabzüge eintragen. Bei Lohnersatzleistungen die Werte deiner Krankenkasse/Arbeitsagentur eintragen.</p>
   ${fig('1 · Grunddaten, Krankenkasse und Steuern',
     `<div class="wmpay-salary-only">`+input('hourlyRate','Brutto-Stundenlohn (€/Std.)')+`</div>`+
@@ -320,7 +320,13 @@
   if(m==='4')annualTax*=Math.max(0,n(p.taxFactor,1));return {value:round(annualTax/12),annualTaxable,manualNeeded:false};
  }
  function calc(p,m){const warnings=[],lines=[];
-  const rate=effectiveHourlyRate(p),paidHours=n(m.hours)+n(m.paidSickHours)+n(m.vacationHours)+n(m.holidayHours);
+  const rate=effectiveHourlyRate(p),usedVacation=Math.max(0,n(m.vacationHours),n(m.calendarVacationHours)),usedSick=Math.max(0,n(m.paidSickHours),n(m.calendarPaidSickHours));
+  const paidHours=n(m.hours)+usedSick+usedVacation+n(m.holidayHours);
+  if(n(m.calendarVacationHours)>0||n(m.calendarPaidSickHours)>0){
+   if(n(m.vacationHours)>0||n(m.paidSickHours)>0)warnings.push('Kalender und manuell erfasste Urlaub-/Krankstunden werden je Kategorie nur bis zum höheren Wert berücksichtigt, nicht addiert. Bitte abgleichen, wenn sie unterschiedliche Tage betreffen.');
+   if(n(m.calendarTimeCollisions)>0)warnings.push('An einigen Abwesenheitstagen wurde gestempelt: Nur die restliche Sollzeit zählt als bezahlte Fehlzeit.');
+  }
+  if(n(m.calendarSickBenefitDays)>0)warnings.push('Kalender: '+n(m.calendarSickBenefitDays)+' Krankheitstag(e) nach Ende der Entgeltfortzahlung. Krankengeld ist nicht als Arbeitgeberbrutto enthalten; Kassenbetrag gesondert erfassen.');
   const basic=p.salaryMode==='fixed'?(m.shortEnabled&&m.shortIstGross!==''?money(m.shortIstGross):money(p.monthlySalary)):round(rate*paidHours);
   const overtimeBase=round(rate*Math.max(0,n(m.overtimeHours))),overtimeBonus=round(overtimeBase*Math.max(0,n(m.overtimePct))/100);
   const oneOff=money(m.oneOffGross);
@@ -377,6 +383,10 @@
   results=calc(draftP,draftM);
   const r=results;
   const kugInfo=$('wmpayKugRateInfo');if(kugInfo){const withChild=draftM.shortWithChild===true||draftM.shortWithChild==='true';const defaultRate=withChild?n(draftM.shortRateWithChild,67):n(draftM.shortRateWithoutChild,60);const used=draftM.shortRateOverride!==''?n(draftM.shortRateOverride):defaultRate;kugInfo.textContent='Gewählter Leistungssatz: '+used.toLocaleString('de-DE')+' % ('+(withChild?'mit Kind':'ohne Kind')+'). Bei manuell eingetragener Ersatzquote hat diese Vorrang.';}
+  const absInfo=$('wmpayCalendarAbsenceInfo');if(absInfo){
+   const vH=Math.max(0,n(draftM.vacationHours),n(draftM.calendarVacationHours)),sH=Math.max(0,n(draftM.paidSickHours),n(draftM.calendarPaidSickHours));
+   absInfo.textContent=`Kalender: Urlaub ${n(draftM.calendarVacationDays)} ganze + ${n(draftM.calendarHalfDays)} halbe Tage (${n(draftM.calendarVacationHours).toLocaleString('de-DE')} Std.), Krankheit mit Lohnfortzahlung ${n(draftM.calendarSickPaidDays)} Tage (${n(draftM.calendarPaidSickHours).toLocaleString('de-DE')} Std.), Krankengeld-Fälle ${n(draftM.calendarSickBenefitDays)}. Berechnet: Urlaub ${vH.toLocaleString('de-DE')} Std., bezahlte Krankheit ${sH.toLocaleString('de-DE')} Std. (jeweils höherer Wert aus manueller Angabe/Kalender; keine Addition).`;
+  }
   const calInfo=$('wmpayCalendarKugInfo');if(calInfo){const count=n(draftM.shortCalendarDays),hrs=n(draftM.shortCalendarLostHours);calInfo.textContent=count?`Startseitenkalender: ${count} Kurzarbeitstag(e), rund ${hrs.toLocaleString('de-DE')} geplante Ausfallstunden. ${draftM.shortNetSoll===''||draftM.shortNetIst===''?'Für den KUG-Eurobetrag pauschaliertes Soll- und Ist-Netto aus der offiziellen Tabelle eintragen.':'Der KUG-Betrag wird aus der Nettoentgeltdifferenz und dem gewählten Satz berechnet.'} Die Ausfallstunden werden NICHT als Arbeitsstunden oder zusätzlicher Grundlohn gebucht.`:'Keine Kurzarbeitsplanung aus dem Startseitenkalender für diesen Monat übernommen.';}
   const rows=r.lines.map(l=>row(l.label+(l.payoutDeduct?' (netto)':l.reimbursement?' (Erstattung)':` ${l.taxable?'· LSt':''}${l.sv?' · SV':''}`),l.amount)).join('');
   $('wmpayResult').innerHTML=`<div class="wmpay-breakdown">${rows}</div><hr>${row('Gesamtbrutto',r.gross,'major')}${row('Lohnsteuerpflichtiger Bezug',r.taxBase)}${row('SV-pflichtiger Bezug',r.svBase)}<hr>
@@ -397,6 +407,10 @@
   if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw Error('Ungültiger Monat.');
   if(!modeChosen)throw Error('Bitte zuerst Stundenlohn oder Festgehalt auswählen.');
   const newP=clone(draftP),newM=clone({...draftM,month,editedAt:new Date().toISOString(),profileSnapshot:clone(draftP)});
+  // Calendar-origin fields may have changed while this payroll form was open.
+  // Always keep the latest encrypted calendar-derived totals when saving manual inputs.
+  const recent=state.wmPayroll?.months?.[month];
+  if(recent&&window.WMCalendar){for(const k of ['calendarVacationHours','calendarPaidSickHours','calendarVacationDays','calendarHalfDays','calendarSickPaidDays','calendarSickBenefitDays','calendarTimeCollisions','wmCalendarAbsence','wmCalendarAbsenceUpdatedAt'])if(Object.prototype.hasOwnProperty.call(recent,k))newM[k]=recent[k];}
   if((state.wm20?.autoPayroll||state.wm195?.rates?.autoPremiums)&&window.WM195?.prepareSavedPayroll){window.WM195.prepareSavedPayroll(month,newM,newP);}else if(state.wm20?.autoPayroll){throw Error('Sichere automatische Lohnsynchronisierung nicht geladen. Bitte App neu starten.');}
   for(const key of [...pkeys.map(k=>[newP,k]),...mkeys.map(k=>[newM,k])]){const [obj,k]=key;const v=obj[k];if(typeof PROFILE[k]==='number'||typeof MONTH[k]==='number'){if(!Number.isFinite(n(v)))throw Error('Ungültiger Wert: '+k);}}
   for(const it of newM.items){if(!it.id)it.id=ID();if(['reimbursement','deduction'].includes(it.kind)&&n(it.amount)<0)throw Error('Betrag darf nicht negativ sein.');}
@@ -473,7 +487,7 @@
   mount();
    document.addEventListener('wm-clock-rate-changed',()=>{if(!$('wmpayRoot'))return;if(dirty){notify('Stundenlohn wurde in der Stempeluhr geändert. Bitte deine offenen Lohn-Eingaben prüfen und erst danach speichern.');return;}load(curMonth);});
    document.addEventListener('wm-clock-payroll-synced',ev=>{if(ev.detail?.month!==curMonth||!$('wmpayRoot'))return;if(dirty){notify('Stempeluhr wurde synchronisiert. Ungespeicherte Lohnänderungen erst speichern oder Monat erneut laden.');return;}load(curMonth);});
-   document.addEventListener('wm-calendar-payroll-updated',ev=>{if(!ev.detail?.months?.includes(curMonth)||!$('wmpayRoot'))return;if(dirty){notify('Kurzarbeit im Kalender geändert. Bitte offene Lohn-Eingaben zuerst speichern oder den Monat neu laden.');return;}load(curMonth);});
+   document.addEventListener('wm-calendar-payroll-updated',ev=>{if(!ev.detail?.months?.includes(curMonth)||!$('wmpayRoot'))return;if(dirty){notify('Kalender-Lohnzeiten geändert. Bitte offene Lohn-Eingaben zuerst speichern oder den Monat neu laden.');return;}load(curMonth);});
   // Beim Entsperren ersetzt WorksManager den globalen State durch den entschlüsselten Inhalt.
   // Ohne Reload würden alte/leere Entwürfe beim ersten Speichern vorhandene Monatsdaten überschreiben.
   let stateRef=state;
