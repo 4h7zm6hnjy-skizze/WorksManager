@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.8",
-  "build": 2026101322,
+  "version": "1.9.9",
+  "build": 2026101323,
   "released": "2026-10-13",
   "coreCompatibility": "1.8.4",
-  "notes": "Live-Bruttozähler sekündlich mit Cent-Genauigkeit, Monatsbrutto mit transparenter Hochrechnung alter 0-Euro-Stempelungen, getrennte Auswahl Stundenlohn/Festgehalt mit passenden Formularfeldern, historische Daten erhalten, Offline-Funktionen."
+  "notes": "Überstundenvergütung ab frei definierbarer geleisteter Tagesarbeitszeit (HH:MM oder Dezimalstunden), getrennt von Tages-Soll und Zeitkonto. Berechnung von Grundlohn/Zuschlag ohne doppelte Zahlung, auch bei mehreren Stempelungen/Tag, Stundenlohn und Festgehalt. Überstunden-Zuschläge in Stempeluhr-Vorschau; ältere Lohnmonate nicht automatisch umgebucht. Funktionen 1.9.8 erhalten."
 }

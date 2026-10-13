@@ -1,4 +1,4 @@
-/* WorksManager 1.9.8 – Stempeluhr mit Startseitenanzeige mit verschlüsselter Speicherung im state.wm20.
+/* WorksManager 1.9.9 – Stempeluhr mit Startseitenanzeige mit verschlüsselter Speicherung im state.wm20.
    7:30 normal = 7,50 Industrie-Stunden; Überstunden nach Tages-Soll.
    Automatische Übernahme ins 1.9-Zeitkonto nur, wenn kein fremder Eintrag existiert.
 */
@@ -55,7 +55,7 @@ function payrollMonthTotals(month){
 }
 function syncMonthToPayroll(month){
  if(window.WM195?.syncPayrollMonth)return window.WM195.syncPayrollMonth(month);
- // Sicherer Fallback: ohne geladenes Modul 1.9.8 nicht automatisch alte Lohndaten ersetzen.
+ // Sicherer Fallback: ohne geladenes Modul 1.9.9 nicht automatisch alte Lohndaten ersetzen.
  return false;
  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))return;
  const s=store();if(!s.autoPayroll)return;
@@ -169,8 +169,8 @@ function live(){if(!isOpen())return;const s=store(),a=s.active,paused=!!a?.pause
   const session=a?{...a,endAt:a.pausedAt||new Date().toISOString(),minutes:elapsed,hourlyRate:currentRate}:recent;
   const premium=window.WM195?.sessionPremium?.(session);
   const premiumSum=Number(premium?.total)||0;
-  if($('wmClockHomePremium'))$('wmClockHomePremium').textContent='Zeitfenster-Zuschläge: '+euros(premiumSum)+(premium?.enabled?' (automatische Berechnung)':' (Vorschau; Lohnübernahme aus)');
-  if($('wmClockHomeGrossTotal'))$('wmClockHomeGrossTotal').textContent='Brutto inkl. Zeitfenster-Zuschlägen: '+euros(roundMoney(elapsedExact*currentRate/60+premiumSum))+' (Schätzung)';
+  if($('wmClockHomePremium'))$('wmClockHomePremium').textContent='Schicht- und Überstundenzuschläge: '+euros(premiumSum)+(premium?.enabled?' (automatische Berechnung)':' (Vorschau; Lohnübernahme aus)');
+  if($('wmClockHomeGrossTotal'))$('wmClockHomeGrossTotal').textContent='Brutto inkl. Zuschlägen: '+euros(roundMoney(elapsedExact*currentRate/60+premiumSum))+' (Schätzung)';
 
  const day=a?(a.workDate||date(new Date(a.startAt))):s.entries.some(r=>(r.workDate||date(new Date(r.startAt)))===today())?today():(recent?.workDate|| (recent?date(new Date(recent.startAt)):today())),closedToday=s.entries.filter(r=>(r.workDate||date(new Date(r.startAt)))===day),todayMinutes=closedToday.reduce((sum,r)=>sum+r.minutes,0),todayGross=closedToday.reduce((sum,r)=>sum+r.minutes*rateForRecord(r,s)/60,0);
  const activeToday=!!a&&(a.workDate||date(new Date(a.startAt)))===day;
@@ -215,9 +215,9 @@ function mount(){if($('wmClockRoot'))return;const shift=$('shift');if(!shift)ret
  const anchor=$('wm19TimeCard');if(anchor)anchor.insertAdjacentElement('afterend',panel);else shift.appendChild(panel);bind();refresh();
  let ref=state;if(typeof window.renderAll==='function'){const previous=window.renderAll;window.renderAll=function(...args){const changed=state!==ref;const result=previous.apply(this,args);if(changed)ref=state;setTimeout(refresh,0);return result}}
  window.WMClockPayrollTotals=payrollMonthTotals;
- const updateTitle=$('wmplusQuickUpdateCheck')?.closest('#wmplusQuickUpdateBar')?.querySelector('strong');if(updateTitle)updateTitle.textContent='App-Updates · WorksManager 1.9.8';
+ const updateTitle=$('wmplusQuickUpdateCheck')?.closest('#wmplusQuickUpdateBar')?.querySelector('strong');if(updateTitle)updateTitle.textContent='App-Updates · WorksManager 1.9.9';
  document.addEventListener('wm-payroll-rate-updated',()=>{if(isOpen())refresh();});
- window.addEventListener('pageshow',()=>setTimeout(refresh,150));setInterval(live,1000);console.info('WorksManager Stempeluhr 1.9.8 geladen');
+ window.addEventListener('pageshow',()=>setTimeout(refresh,150));setInterval(live,1000);console.info('WorksManager Stempeluhr 1.9.9 geladen');
 }
 if(typeof module!=='undefined'&&module.exports)module.exports={compute,hhm,industrial,daySummary,parseISOTime,wageStats,payrollMonthTotals,syncMonthToPayroll,profileRate,store,saveWageSettings,repairMissingWageRates};
 else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();

@@ -1,0 +1,19 @@
+WorksManager 1.9.9 – Überstundenvergütung ab einstellbarer Arbeitszeit
+
+INSTALLATION
+1. Im WorksManager unter „Sicherheit & Backup“ ein aktuelles verschlüsseltes Backup erstellen und außerhalb der App sichern.
+2. Diese ZIP entpacken und ALLE enthaltenen App-Dateien (nicht die ZIP selbst) ins Hauptverzeichnis von GitHub WorksManager hochladen und jeweils ersetzen. Kern-Dateien app.js, styles.css und Bestandsdaten bleiben unberührt.
+3. Die GitHub-Pages-App neu öffnen (bei Bedarf iOS-App schließen/neu starten), angezeigte Version 1.9.9 prüfen.
+
+EINSTELLUNG
+Schicht > Arbeitszeit-Analyse > Schichtzuschläge und Einstellungen
+- „Überstundenvergütung ab (geleistete Stunden/Tag)“: z. B. 08:00 oder 8,5. Leer = bisherige Tages-Sollzeit, um bisherige Einstellungen zu bewahren.
+- „Überstundenzuschlag (%)“ setzt den zusätzlichen Prozentbetrag (z. B. 25 %). Danach „Einstellungen speichern“.
+- Bei aktiviertem Lohnabgleich werden die neuen Beträge im aktuellen Lohnmonat berücksichtigt, frühere Monate werden nicht automatisch verändert.
+- Ohne automatische Übernahme: Zuschläge in der Vorschau prüfen und bei Bedarf Übernahme einschalten.
+
+BEISPIEL
+Tages-Soll 07:30, Vergütungsschwelle 08:00, tatsächlich 08:30 geleistet: Zeitkonto +01:00, vergütungsrelevante Überstunden 00:30. Bei 15 €/h und 25 % Zuschlag: 0,5×15×25%=1,88 € Zuschlag (ohne weitere Schichtzuschläge), normale Arbeitszeit wird nicht doppelt angesetzt.
+
+HINWEIS
+Der festgelegte Wert ist eine persönliche Berechnungsregel und kein gesetzlicher Anspruch. Vergütung/Zeitausgleich richten sich nach Vertrag, Tarifvertrag, Betriebsvereinbarung und tatsächlicher Abrechnung. Bestehende Stempelzeiten werden nicht geändert; Daten bleiben lokal verschlüsselt. Bei historischen Monaten bitte die Lohnabrechnung prüfen.

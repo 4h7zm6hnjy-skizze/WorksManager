@@ -1,0 +1,22 @@
+WorksManager 1.9.9 – Prüfbericht
+Datum: 13.10.2026
+Status: Lokale Code- und Browserprüfungen erfolgreich, kein Test mit persönlichen Nutzerdaten.
+
+UMSETZUNG
+- Optionaler Grenzwert für Überstundenvergütung ab gegebener geleisteter Arbeitszeit pro Arbeitstag (HH:MM oder Dezimalstunden).
+- Wert unabhängig von Sollstunden/Zeitkonto. Leer = bisherige Tages-Sollzeit.
+- Weitere Stempelungen desselben Arbeitstages werden für die Vergütungsgrenze mitgezählt. Nachtschichten bleiben dem Starttag zugeordnet.
+- Grundlohn für sämtliche erfassten Stunden nur einmal. Bei Festgehalt nur zusätzliche Stunden ab Vergütungsgrenze als Überstunden-Grundlohn.
+- Bisherige Überstundenzuschlags-Prozente bleiben individuell einstellbar.
+- Vorschau in Stempeluhr und Auswertung der vergütungsrelevanten Überstunden.
+- Keine automatische Neubuchung älterer gespeicherter Lohnmonate. Stempelzeiten und verschlüsselte Datenbank unangetastet.
+
+TESTS
+- 40 Node.js-Regressionstests erfolgreich: Krankenkassen, Spät-/Nachtzuschläge, Schichtüberschneidungen, Stundensätze, Zeitkonto, Tages-/Vergütungsgrenze, mehrere Sessions, Nachtschichten, Festgehalt, keine Doppelzählung, fehlerhafte Eingaben und Live-Vorschau.
+- Simulierter Chromium-Browsertest erfolgreich: Ansichten geladen, laufender Cent-Zähler, Pause, Lohnart-Wechsel, alte 0-Euro-Einträge, Eingabe/Speichern/Zurücksetzen der Überstundengrenze und Anzeige getrennte Zeitkonto-/Vergütungsminuten.
+- JavaScript-Syntax aller JS-Dateien mit node --check geprüft.
+- Release-, Cache- und Hauptmodul-Buildversion 1.9.9 / 2026101323 abgeglichen.
+
+NICHT GEPRÜFT
+- Öffentlich veröffentlichte GitHub-Pages-Website nach Upload, lokale IndexedDB-Daten des Nutzers und die tatsächliche iOS-PWA. GitHub-Schreibzugriff bleibt beschränkt.
+- Arbeits-, Tarif- und lohnsteuerrechtliche Ansprüche hängen von persönlichen Vereinbarungen ab und sind nicht Gegenstand der Tests.
