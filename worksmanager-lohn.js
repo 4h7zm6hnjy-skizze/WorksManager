@@ -1,10 +1,10 @@
-/* WorksManager 1.9.11 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
+/* WorksManager 1.9.12 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
  * KEINE Lohnabrechnungssoftware für amtliche Abrechnung. Lohnsteuer nur Näherung,
  * Ersatzleistungen nur Orientierung; alle kritischen Werte manuell überschreibbar.
  */
 (() => {
  'use strict';
- const VERSION='1.9.11',BUILD=2026101325;
+ const VERSION='1.9.12',BUILD=2026101326;
  const $=id=>document.getElementById(id);
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const round=x=>Math.round((Number(x)+Number.EPSILON)*100)/100;
@@ -18,7 +18,7 @@
   healthCap:5812.50,pensionCap:8450,annualWorkAllowance:1230,annualSpecialAllowance:36,monthlyTaxAllowance:0,
   monthlyDeductionFixed:0,notes:''};
  const MONTH={month:nowMonth(),hours:0,paidSickHours:0,vacationHours:0,holidayHours:0,overtimeHours:0,overtimePct:25,oneOffGross:0,oneOffTaxable:true,oneOffSV:true,
-  shortEnabled:false,shortSollGross:0,shortIstGross:'',shortNetSoll:'',shortNetIst:'',shortWithChild:true,shortRateOverride:'',shortPaymentOverride:'',
+  shortEnabled:false,shortSollGross:0,shortIstGross:'',shortNetSoll:'',shortNetIst:'',shortWithChild:true,shortRateWithoutChild:60,shortRateWithChild:67,shortRateOverride:'',shortPaymentOverride:'',
   sickDays:0,sickGrossDaily:0,sickNetDaily:0,sickPercentGross:70,sickMaxNetPercent:90,sickMaxDaily:135.63,sickActualPaid:'',sickBenefitDeductions:12.4,
   childSickDays:0,childSickNetDaily:0,childSickOneOff:false,childSickMaxDaily:135.63,childSickActualPaid:'',childSickDeductions:12.4,
   incomeTaxManual:'',soliManual:'',churchManual:'',actualPayslipNet:'',taxFreeReimbursement:0,advancePaid:0,otherNetDeduction:0,privateKVEmployee:0,
@@ -102,10 +102,13 @@
     input('shortIstGross','Tatsächliches Ist-Brutto bei Festgehalt (€) – alternativ','m','text')+
     input('shortNetSoll','Pauschaliertes Soll-Netto (€) aus offizieller Tabelle','m','text')+
     input('shortNetIst','Pauschaliertes Ist-Netto (€) aus offizieller Tabelle','m','text')+
-    check('shortWithChild','Kurzarbeitergeld mit Kind (67 % statt 60 %)')+
+    select('shortWithChild','KUG-Leistungssatz','m',[[false,'Ohne berücksichtigungsfähiges Kind (60 %)'],[true,'Mit berücksichtigungsfähigem Kind (67 %)']])+
+    input('shortRateWithoutChild','KUG ohne Kind – Prozentsatz (%)','m','number','0.1')+
+    input('shortRateWithChild','KUG mit Kind – Prozentsatz (%)','m','number','0.1')+
+    `<div class="wide" id="wmpayKugRateInfo" role="status"></div>`+
     input('shortRateOverride','KUG-Ersatzquote (%) – alternativ manuell','m','text')+
     input('shortPaymentOverride','Tatsächlich bewilligtes Kurzarbeitergeld (€) – alternativ manuell','m','text')+
-    `<p class="wide">Kurzarbeitergeld = 60 % bzw. 67 % der Differenz der <strong>pauschalierten</strong> Soll-/Ist-Nettoentgelte, nicht einfach der Bruttodifferenz. Ohne diese oder den KUG-Betrag wird kein KUG angenommen. Sozialbeiträge für Ausfallstunden werden nicht als Arbeitnehmerabzug berücksichtigt.</p>`)}
+    `<p class="wide">Kurzarbeitergeld = grundsätzlich 60 % ohne Kind bzw. 67 % mit berücksichtigungsfähigem Kind der Differenz der <strong>pauschalierten</strong> Soll-/Ist-Nettoentgelte, nicht einfach der Bruttodifferenz. Ohne diese oder den KUG-Betrag wird kein KUG angenommen. Sozialbeiträge für Ausfallstunden werden nicht als Arbeitnehmerabzug berücksichtigt.</p>`)}
   ${fig('5 · Krankengeld (eigene Krankheit, nach Entgeltfortzahlung)',
     input('sickDays','Krankengeld-Kalendertage')+input('sickGrossDaily','Regel-Brutto kalendertäglich (€)')+
     input('sickNetDaily','Regel-Netto kalendertäglich (€)')+input('sickPercentGross','Quote Brutto (%)','m')+
@@ -269,7 +272,7 @@
    const first=$('wmpayModeDetails')?.querySelector('details.wmpay-group');if(first)first.open=true;
    refresh();
   });
-  $('wmpayRoot').querySelectorAll('[data-wmpay]').forEach(el=>{const [sec,key]=el.dataset.wmpay.split(':');el.addEventListener(el.type==='checkbox'?'change':'input',()=>{const dest=sec==='p'?draftP:draftM;dest[key]=el.type==='checkbox'?el.checked:el.value;if(['insuranceName','additionalHealthRate','healthRate','healthEmployeeRate'].includes(key))draftP.insuranceRateDate='';dirty=true;refresh();});});
+  $('wmpayRoot').querySelectorAll('[data-wmpay]').forEach(el=>{const [sec,key]=el.dataset.wmpay.split(':');el.addEventListener(el.type==='checkbox'?'change':'input',()=>{const dest=sec==='p'?draftP:draftM;dest[key]=key==='shortWithChild'?(el.value==='true'):(el.type==='checkbox'?el.checked:el.value);if(['insuranceName','additionalHealthRate','healthRate','healthEmployeeRate'].includes(key))draftP.insuranceRateDate='';dirty=true;refresh();});});
    const insName=$('wmpayRoot').querySelector('[data-wmpay="p:insuranceName"]');
    if(insName)insName.addEventListener('change',()=>applyInsuranceRate(false));
    $('wmpayInsuranceFill')?.addEventListener('click',()=>applyInsuranceRate(true));
@@ -348,7 +351,7 @@
   if(p.insuranceType!=='public')warnings.push('Abweichende Krankenversicherung: Beiträge und Sonderregeln bitte individuell berücksichtigen.');
   const netEmployer=round(gross-sv.total-lst-soli-church+extraNet-fixedDeduction-privateKV);
   let kug=0;
-  if(m.shortEnabled){if(p.salaryMode==='fixed'&&m.shortIstGross==='')warnings.push('Bei Festgehalt: tatsächliches gekürztes Ist-Brutto eintragen, sonst bleibt der volle Monatslohn stehen.');const rawQuote=m.shortRateOverride!==''?n(m.shortRateOverride):(m.shortWithChild?67:60);
+  if(m.shortEnabled){if(p.salaryMode==='fixed'&&m.shortIstGross==='')warnings.push('Bei Festgehalt: tatsächliches gekürztes Ist-Brutto eintragen, sonst bleibt der volle Monatslohn stehen.');const child=m.shortWithChild===true||m.shortWithChild==='true';const rawQuote=m.shortRateOverride!==''?n(m.shortRateOverride):n(child?m.shortRateWithChild:m.shortRateWithoutChild,child?67:60);
    if(m.shortPaymentOverride!==''&&m.shortPaymentOverride!=null)kug=money(m.shortPaymentOverride);
    else if(m.shortNetSoll!==''&&m.shortNetIst!=='')kug=round(Math.max(0,n(m.shortNetSoll)-n(m.shortNetIst))*rawQuote/100);
    else warnings.push('Kurzarbeitergeld nicht berechnet: bitte pauschaliertes Soll-/Ist-Netto oder KUG-Betrag eintragen.');
@@ -372,6 +375,7 @@
  function refresh(){if(!$('wmpayResult')||!draftP||!draftM)return;
   results=calc(draftP,draftM);
   const r=results;
+  const kugInfo=$('wmpayKugRateInfo');if(kugInfo){const withChild=draftM.shortWithChild===true||draftM.shortWithChild==='true';const defaultRate=withChild?n(draftM.shortRateWithChild,67):n(draftM.shortRateWithoutChild,60);const used=draftM.shortRateOverride!==''?n(draftM.shortRateOverride):defaultRate;kugInfo.textContent='Gewählter Leistungssatz: '+used.toLocaleString('de-DE')+' % ('+(withChild?'mit Kind':'ohne Kind')+'). Bei manuell eingetragener Ersatzquote hat diese Vorrang.';}
   const rows=r.lines.map(l=>row(l.label+(l.payoutDeduct?' (netto)':l.reimbursement?' (Erstattung)':` ${l.taxable?'· LSt':''}${l.sv?' · SV':''}`),l.amount)).join('');
   $('wmpayResult').innerHTML=`<div class="wmpay-breakdown">${rows}</div><hr>${row('Gesamtbrutto',r.gross,'major')}${row('Lohnsteuerpflichtiger Bezug',r.taxBase)}${row('SV-pflichtiger Bezug',r.svBase)}<hr>
   ${row(`Krankenversicherung AN (${round(r.sv.kvPct)} %)`, -r.sv.kv)}${row(`Pflegeversicherung AN (${round(r.sv.carePct)} %)`, -r.sv.care)}${row('Rentenversicherung AN',-r.sv.rv)}${row('Arbeitslosenversicherung AN',-r.sv.av)}

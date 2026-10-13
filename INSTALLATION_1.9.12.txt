@@ -1,0 +1,15 @@
+WorksManager 1.9.12 – Installation und Prüfung
+
+1. Vor dem Update verschlüsseltes Profil-Backup erstellen, externe Kopie aufbewahren.
+2. Alle Dateien aus diesem ZIP direkt in das GitHub-Repository WorksManager hochladen und gleichnamige Dateien ersetzen. Kein eigener Unterordner. app.js und worksmanager-19.js bleiben auf ihren kompatiblen Kernversionen.
+3. WorksManager neu starten; Version 1.9.12 prüfen.
+4. Unter Schicht → Arbeitszeit-Analyse → Schichtzuschläge und Einstellungen prüfen:
+   - Nacht Grundstufe: 25 %, 22:00–06:00
+   - Nacht höhere Stufe: 35 %, 00:00–04:00
+   - Nachtschicht-Pause: 02:30, 30 Minuten
+   - Schichtzuschläge automatisch in die Lohnberechnung übernehmen: ausdrücklich aktivieren, wenn gewünscht.
+5. Unter Abrechnung → Lohnberechnung → Kurzarbeitergeld Leistungssatz auswählen: ohne Kind 60 % / mit Kind 67 %. Prozente bleiben editierbar.
+6. Bei manuellen Stempelzeiten müssen unbezahlte Pausenminuten vorhanden sein, damit die Pause einer Zuschlagsstufe zugeordnet wird. Nicht noch einmal abziehen.
+7. Bestehende historische Monate werden nicht automatisch neu berechnet; hierfür den vorhandenen manuellen Monatsabgleich verwenden.
+
+Wichtig: Ohne eine genau erfasste Pausenposition ist die Standard-Pausenlage eine vom Nutzer bestätigte Annahme. Kurzarbeitergeld wird auf die Differenz der pauschalierten Nettoentgelte angewandt; keine amtliche Lohnabrechnung.

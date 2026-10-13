@@ -1,11 +1,11 @@
-/* WorksManager 1.9.11 – sichere Lohnsynchronisation, Zuschläge, Zeitkonto,
+/* WorksManager 1.9.12 – sichere Lohnsynchronisation, Zuschläge, Zeitkonto,
    Stempelprüfung, Kalender, Abrechnungsabgleich und Profil-Backups.
    Zusatzdaten nur in AES-GCM-verschlüsseltem state.wm195.
    Die bestehende IndexedDB und die Kern-Anwendungsdateien bleiben unverändert.
 */
 (() => {
 'use strict';
-const VERSION='1.9.11', BUILD=2026101325;
+const VERSION='1.9.12', BUILD=2026101326;
 const $=id=>document.getElementById(id);
 const E=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[ch]));
 const nowDate=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
@@ -17,13 +17,16 @@ const IND=min=>(Math.round(min)/60).toLocaleString('de-DE',{minimumFractionDigit
 const uuid=()=>crypto.randomUUID?.()||String(Date.now())+Math.random().toString(36).slice(2);
 const deep=v=>JSON.parse(JSON.stringify(v));
 const def={
- rates:{overtimePayAfterMinutes:null,late:0,lateStart:'13:45',lateEnd:'21:45',enableLate:true,night:25,sunday:50,holiday:125,overtime:25,nightStart:'21:45',nightEnd:'05:45',enableNight:true,enableSunday:true,enableHoliday:true,autoPremiums:false,paidLeave:false,minimumBreak6:30,minimumBreak9:45,warningLongHours:12},
+ rates:{overtimePayAfterMinutes:null,late:0,lateStart:'13:45',lateEnd:'21:45',enableLate:true,night:25,nightHigh:35,nightHighStart:'00:00',nightHighEnd:'04:00',enableNightHigh:true,nightPauseStart:'02:30',nightPauseMinutes:30,sunday:50,holiday:125,overtime:25,nightStart:'22:00',nightEnd:'06:00',enableNight:true,enableSunday:true,enableHoliday:true,autoPremiums:false,paidLeave:false,minimumBreak6:30,minimumBreak9:45,warningLongHours:12},
  time:{openingMinutes:0,adjustments:[]},actuals:{},backupRequestedAt:'',audit:[],monthlyConfirmed:{},reportMonth:currentMonth(),calendarMonth:currentMonth()
 };
 function accessible(){return !!$('app')&&!$('app').classList.contains('hidden')&&typeof state!=='undefined';}
 function db(){if(!state.wm195||typeof state.wm195!=='object'||Array.isArray(state.wm195))state.wm195={};const x=state.wm195;
  if(!x.rates||typeof x.rates!=='object')x.rates=deep(def.rates);
- else for(const [k,v] of Object.entries(def.rates))if(x.rates[k]===undefined)x.rates[k]=v;
+ else {
+  if(x.rates.nightHigh===undefined&&x.rates.nightStart==='21:45'&&x.rates.nightEnd==='05:45'&&Number(x.rates.night)===25){x.rates.nightStart='22:00';x.rates.nightEnd='06:00';}
+  for(const [k,v] of Object.entries(def.rates))if(x.rates[k]===undefined)x.rates[k]=v;
+ }
  if(!x.time||typeof x.time!=='object')x.time=deep(def.time);if(!Array.isArray(x.time.adjustments))x.time.adjustments=[];
  if(!x.actuals||typeof x.actuals!=='object')x.actuals={};if(!Array.isArray(x.audit))x.audit=[];
  if(!x.monthlyConfirmed||typeof x.monthlyConfirmed!=='object')x.monthlyConfirmed={};
@@ -58,21 +61,52 @@ function holidayDates(year){try{return new Set((nrwHolidays(year)||[]).map(x=>x.
 const between=(s,e,t)=>{const f=x=>{const a=String(x).split(':').map(Number);return a[0]*60+a[1]};const start=f(s),end=f(e);return start===end?true:start<end?t>=start&&t<end:t>=start||t<end;};
 function premiumUnits(r,settings=db().rates){
  const start=new Date(r.startAt).getTime(),end=new Date(r.endAt).getTime(),span=Math.round((end-start)/60000),paid=Number(r.minutes)||0;
- if(!Number.isFinite(start)||!Number.isFinite(end)||span<=0||span>1440||paid<=0)return {late:0,night:0,sunday:0,holiday:0,approx:true};
- // Existing time records contain a total pause in minutes, not pause timestamps.
- // Pauses are proportionally attributed to windows, so wage premiums are estimates.
- const ratio=Math.min(1,Math.max(0,paid/span));let late=0,night=0,sunday=0,holiday=0;const holidayMap=new Map();
- for(let t=start;t<end;t+=60000){const d=new Date(t),y=d.getFullYear(),day=`${y}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
-  if(!holidayMap.has(y))holidayMap.set(y,holidayDates(y));
-  const timeOfDay=d.getHours()*60+d.getMinutes();
-  // Night wins over late in overlapping hours. Both are not added for the same minute.
-  if(settings.enableNight&&between(settings.nightStart,settings.nightEnd,timeOfDay))night++;
-  else if(settings.enableLate&&between(settings.lateStart,settings.lateEnd,timeOfDay))late++;
-  if(settings.enableHoliday&&holidayMap.get(y).has(day))holiday++;
-  else if(settings.enableSunday&&d.getDay()===0)sunday++;
+ if(!Number.isFinite(start)||!Number.isFinite(end)||span<=0||span>1440||paid<=0)return {late:0,night:0,nightHigh:0,sunday:0,holiday:0,approx:true};
+ // A break is already excluded from record.minutes. Locate it only for distributing
+ // night premiums: never subtract it a second time from worked hours or gross wages.
+ const unpaid=Math.min(span,Math.max(0,span-paid));
+ const breakLength=Math.max(0,Math.min(240,Number(settings.nightPauseMinutes)||0));
+ const breakStart=typeof settings.nightPauseStart==='string'?settings.nightPauseStart:'';
+ const slots=[],holidayMap=new Map();
+ for(let i=0;i<span;i++){
+  const d=new Date(start+i*60000),year=d.getFullYear(),day=`${year}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  if(!holidayMap.has(year))holidayMap.set(year,holidayDates(year));
+  const clock=d.getHours()*60+d.getMinutes();
+  let kind='';
+  if(settings.enableNight&&settings.enableNightHigh===true&&between(settings.nightHighStart,settings.nightHighEnd,clock))kind='nightHigh';
+  else if(settings.enableNight&&between(settings.nightStart,settings.nightEnd,clock))kind='night';
+  else if(settings.enableLate&&between(settings.lateStart,settings.lateEnd,clock))kind='late';
+  slots.push({kind,sunday:!!(settings.enableSunday&&d.getDay()===0&&!holidayMap.get(year).has(day)),holiday:!!(settings.enableHoliday&&holidayMap.get(year).has(day)),clock,at:start+i*60000,excluded:false});
  }
- const precision=x=>Math.round(x*10000)/10000;
- return {late:precision(late*ratio),night:precision(night*ratio),sunday:precision(sunday*ratio),holiday:precision(holiday*ratio),approx:span!==paid};
+ let allocated=0;
+ // Recorded pause segments take precedence whenever precise times are available.
+ const segments=Array.isArray(r.pauseSegments)?r.pauseSegments:[];
+ for(const seg of segments){
+  if(allocated>=unpaid)break;
+  const a=new Date(seg.startAt).getTime(),b=new Date(seg.endAt).getTime();
+  if(!Number.isFinite(a)||!Number.isFinite(b)||b<=a)continue;
+  for(const slot of slots){if(allocated>=unpaid)break;if(!slot.excluded&&slot.at>=a&&slot.at<b){slot.excluded=true;allocated++;}}
+ }
+ // For older/manual entries without exact pause timestamps, locate up to the
+ // configured pause minutes at 02:30 (default). Other pauses remain estimates.
+ const hasExact=segments.length>0;
+ if(!hasExact&&breakLength&&/^([01]\d|2[0-3]):[0-5]\d$/.test(breakStart)){
+  const baseClock=Number(breakStart.slice(0,2))*60+Number(breakStart.slice(3));
+  for(const slot of slots){if(allocated>=Math.min(unpaid,breakLength))break;
+   const dist=(slot.clock-baseClock+1440)%1440;
+   if(dist<breakLength&&!slot.excluded){slot.excluded=true;allocated++;}
+  }
+ }
+ const remaining=Math.max(0,unpaid-allocated),available=Math.max(0,span-allocated),ratio=available?Math.max(0,1-remaining/available):0;
+ const totals={late:0,night:0,nightHigh:0,sunday:0,holiday:0};
+ for(const slot of slots){if(slot.excluded)continue;
+  if(slot.kind)totals[slot.kind]+=ratio;
+  if(slot.sunday)totals.sunday+=ratio;
+  if(slot.holiday)totals.holiday+=ratio;
+ }
+ for(const k of Object.keys(totals))totals[k]=Math.round(totals[k]*10000)/10000;
+ // Scheduled pauses are only an assumption unless actual pause timestamps exist.
+ return {...totals,approx:unpaid>0&&!hasExact,scheduledPauseUsed:allocated>0&&!hasExact,unpaidMinutes:unpaid};
 }
 function splitPay(month,options={}){const groups=dayGroups(rows().filter(r=>recDay(r).startsWith(month)));const items=[];let total=0,regular=0,overtime=0,paidOvertime=0,gross=0;
  const rateMap=new Map(),premMap=new Map();
@@ -92,13 +126,13 @@ function splitPay(month,options={}){const groups=dayGroups(rows().filter(r=>recD
    aggregate(rateMap,'Regulär',rate,payRegular,0);
    aggregate(rateMap,'Überstunden-Grundlohn',rate,payExtra,0);
    aggregate(premMap,'Überstundenzuschlag',rate,payExtra,settings.overtime);
-   if(settings.autoPremiums||options.previewPremiums){const ps=premiumUnits(r,settings);for(const kind of ['late','night','sunday','holiday'])aggregate(premMap,kind,rate,ps[kind],Number(settings[kind])||0);}
+   if(settings.autoPremiums||options.previewPremiums){const ps=premiumUnits(r,settings);for(const kind of ['late','night','nightHigh','sunday','holiday'])aggregate(premMap,kind,rate,ps[kind],Number(settings[kind])||0);}
   }
  }
- const mapLabel={late:'Spätschicht',night:'Nachtschicht',sunday:'Sonntag',holiday:'NRW-Feiertag'};
+ const mapLabel={late:'Spätschicht',night:'Nachtschicht 25%-Stufe',nightHigh:'Nachtschicht 35%-Stufe',sunday:'Sonntag',holiday:'NRW-Feiertag'};
  for(const g of rateMap.values())items.push({id:`wm195:base:${g.category}:${g.rate}`,wm195Auto:true,name:`Stempeluhr ${g.category} (${g.rate.toFixed(2)} €/Std.)`,kind:'wage',hours:round(g.mins/60),rate:g.rate,pct:0,amount:0,taxable:true,sv:true});
  for(const g of premMap.values()){if(!g.pct||!g.mins)continue;const label=mapLabel[g.category]||g.category;
-  items.push({id:`wm195:premium:${g.category}:${g.rate}`,wm195Auto:true,name:`Automatisch ${label} (${g.pct} %; Pausen anteilig)`,kind:'premium',hours:Math.round(g.mins/60*10000)/10000,rate:g.rate,pct:g.pct,amount:0,taxable:true,sv:true});
+  items.push({id:`wm195:premium:${g.category}:${g.rate}`,wm195Auto:true,name:`Automatisch ${label} (${g.pct} %; Pause gemäß Einstellungen)`,kind:'premium',hours:Math.round(g.mins/60*10000)/10000,rate:g.rate,pct:g.pct,amount:0,taxable:true,sv:true});
  }
  return {month,entries:rows().filter(r=>recDay(r).startsWith(month)).length,total,regular,overtime,paidOvertime,gross:round(gross),items};
 }
@@ -143,7 +177,7 @@ function log(action,recordId,from,to){const a=db().audit;a.push({id:uuid(),at:ne
 function sessionPremium(record){
  if(!record||!Number.isFinite(Number(record.minutes))||Number(record.minutes)<=0)return {total:0,items:[],enabled:db().rates.autoPremiums};
  const pct=db().rates,units=premiumUnits(record,pct),rate=recordRate(record);let total=0;
- const items=[];for(const kind of ['late','night','sunday','holiday']){
+ const items=[];for(const kind of ['late','night','nightHigh','sunday','holiday']){
   const minutes=Number(units[kind])||0,percentage=Number(pct[kind])||0;
   if(!minutes||!percentage)continue;
   const amount=round(minutes/60*rate*percentage/100);total+=amount;
@@ -200,8 +234,8 @@ function mount(){if($('wm195Root'))return;const dash=$('dashboard'),shift=$('shi
  const dashCard=document.createElement('section');dashCard.id='wm195Dashboard';dashCard.className='wm195';dashCard.innerHTML=`<div class="wm195-top"><div><h3>Arbeitsmonat und Brutto</h3><small class="wm195-muted">Stempeluhr · Arbeitszeitkonto · Lohnvorschau</small></div>${field('Monat','wm195HomeMonth',currentMonth(),'month')}</div><div id="wm195HomeStats" class="wm195-stats" style="margin-top:12px"></div><p id="wm195HomeHint" class="wm195-muted"></p>`;
  const clockHome=$('wmClockHome');if(clockHome)clockHome.insertAdjacentElement('afterend',dashCard);else dash.insertAdjacentElement('afterbegin',dashCard);
  const settings=db().rates;
- const clockPanel=document.createElement('section');clockPanel.id='wm195Root';clockPanel.className='wm195';clockPanel.innerHTML=`<h3>Arbeitszeit-Analyse 1.9.11</h3><div class="wm195-top">${field('Auswertungsmonat','wm195Month',currentMonth(),'month')}<span class="wm195-pill" id="wm195ClockSyncStatus"></span></div><div id="wm195Hours" style="margin-top:12px">${TXT}</div><p class="wm195-muted">Industriestunden = Minuten ÷ 60. Sollzeit und Saldo beziehen sich auf erfasste Tage, nicht auf zukünftige oder fehlende Arbeitstage.</p>
- ${section('Schichtzuschläge und Einstellungen',`<div class="wm195-grid">${field('Spätschichtzuschlag (%)','wm195Late',settings.late,'number','0.5')}${field('Spätschicht ab','wm195LateStart',settings.lateStart,'time')}${field('Spätschicht bis','wm195LateEnd',settings.lateEnd,'time')}${field('Nachtzuschlag (%)','wm195Night',settings.night,'number','0.5')}${field('Sonntagszuschlag (%)','wm195Sun',settings.sunday,'number','0.5')}${field('Feiertagszuschlag (%)','wm195Holiday',settings.holiday,'number','0.5')}${field('Überstundenzuschlag (%)','wm195Over',settings.overtime,'number','0.5')}<label class="wm195-field">Überstundenvergütung ab (geleistete Stunden/Tag)<input id="wm195OvertimePayAfter" type="text" inputmode="decimal" placeholder="z. B. 08:00" value="${E(settings.overtimePayAfterMinutes==null?'':HM(settings.overtimePayAfterMinutes))}" maxlength="6"></label>${field('Nachtbeginn','wm195NightStart',settings.nightStart,'time')}${field('Nachtende','wm195NightEnd',settings.nightEnd,'time')}</div><div class="wm195-flex" style="margin:10px 0">${check('Spätschicht erkennen','wm195EnableLate',settings.enableLate)}${check('Nachtstunden erkennen','wm195EnableNight',settings.enableNight)}${check('Sonntag erkennen','wm195EnableSun',settings.enableSunday)}${check('NRW-Feiertage erkennen','wm195EnableHol',settings.enableHoliday)}${check('Zuschläge automatisch in die Lohnberechnung übernehmen','wm195AutoPrem',settings.autoPremiums)}</div>${btn('Einstellungen speichern','wm195SaveRates')}<p class="wm195-muted">Überstundenvergütung: z. B. 08:00 = Zuschlag für Arbeitszeit nach 8 Stunden am selben Arbeitstag. Leer lassen = wie bisher ab individueller Tages-Sollzeit. Die Grenze verändert NICHT das Zeitkonto und ist keine gesetzliche Vergütungsregel. Bei Stundenlohn wird der Grundlohn für alle gearbeiteten Stunden nur einmal berechnet; bei Festgehalt sind zusätzliche Überstunden ab dieser Grenze extra. Änderungen gelten automatisch für den laufenden Monat bei eingeschaltetem Lohnabgleich; ältere Abrechnungen bleiben gespeichert. Spät/Nacht: Beginn, Ende und Prozente sind veränderbar (Vorgaben nur Beispielwerte). Bei zeitlicher Überschneidung hat Nacht Vorrang. Ohne exakte Pausenzeiten werden Pausen anteilig verteilt. Für automatische Übernahme der Zuschläge die Checkbox aktivieren; Stunden können unabhängig davon manuell bleiben. Steuer-/SV-Pflicht wird vorsichtig voreingestellt. Ob ein Zuschlag tatsächlich steuerfrei ist, hängt vom Arbeitsvertrag und gesetzlichen Voraussetzungen ab. Pausenzeiten bleiben geschätzt.</p><div id="wm195PremiumPreview" class="wm195-muted"></div>`)}
+ const clockPanel=document.createElement('section');clockPanel.id='wm195Root';clockPanel.className='wm195';clockPanel.innerHTML=`<h3>Arbeitszeit-Analyse 1.9.12</h3><div class="wm195-top">${field('Auswertungsmonat','wm195Month',currentMonth(),'month')}<span class="wm195-pill" id="wm195ClockSyncStatus"></span></div><div id="wm195Hours" style="margin-top:12px">${TXT}</div><p class="wm195-muted">Industriestunden = Minuten ÷ 60. Sollzeit und Saldo beziehen sich auf erfasste Tage, nicht auf zukünftige oder fehlende Arbeitstage.</p>
+ ${section('Schichtzuschläge und Einstellungen',`<div class="wm195-grid">${field('Spätschichtzuschlag (%)','wm195Late',settings.late,'number','0.5')}${field('Spätschicht ab','wm195LateStart',settings.lateStart,'time')}${field('Spätschicht bis','wm195LateEnd',settings.lateEnd,'time')}${field('Nachtzuschlag Grundstufe (%)','wm195Night',settings.night,'number','0.5')}${field('Nachtzuschlag höhere Stufe (%)','wm195NightHigh',settings.nightHigh,'number','0.5')}${field('Höhere Nachtstufe ab','wm195NightHighStart',settings.nightHighStart,'time')}${field('Höhere Nachtstufe bis','wm195NightHighEnd',settings.nightHighEnd,'time')}${field('Nachtschicht-Pause ab','wm195NightPauseStart',settings.nightPauseStart,'time')}${field('Nachtschicht-Pause (Minuten)','wm195NightPauseMinutes',settings.nightPauseMinutes,'number','1')}${field('Sonntagszuschlag (%)','wm195Sun',settings.sunday,'number','0.5')}${field('Feiertagszuschlag (%)','wm195Holiday',settings.holiday,'number','0.5')}${field('Überstundenzuschlag (%)','wm195Over',settings.overtime,'number','0.5')}<label class="wm195-field">Überstundenvergütung ab (geleistete Stunden/Tag)<input id="wm195OvertimePayAfter" type="text" inputmode="decimal" placeholder="z. B. 08:00" value="${E(settings.overtimePayAfterMinutes==null?'':HM(settings.overtimePayAfterMinutes))}" maxlength="6"></label>${field('Nachtbeginn','wm195NightStart',settings.nightStart,'time')}${field('Nachtende','wm195NightEnd',settings.nightEnd,'time')}</div><div class="wm195-flex" style="margin:10px 0">${check('Spätschicht erkennen','wm195EnableLate',settings.enableLate)}${check('Nachtstunden erkennen','wm195EnableNight',settings.enableNight)}${check('Höhere Nachtstufe aktiv','wm195EnableNightHigh',settings.enableNightHigh)}${check('Sonntag erkennen','wm195EnableSun',settings.enableSunday)}${check('NRW-Feiertage erkennen','wm195EnableHol',settings.enableHoliday)}${check('Zuschläge automatisch in die Lohnberechnung übernehmen','wm195AutoPrem',settings.autoPremiums)}</div>${btn('Einstellungen speichern','wm195SaveRates')}<p class="wm195-muted">Überstundenvergütung: z. B. 08:00 = Zuschlag für Arbeitszeit nach 8 Stunden am selben Arbeitstag. Leer lassen = wie bisher ab individueller Tages-Sollzeit. Die Grenze verändert NICHT das Zeitkonto und ist keine gesetzliche Vergütungsregel. Bei Stundenlohn wird der Grundlohn für alle gearbeiteten Stunden nur einmal berechnet; bei Festgehalt sind zusätzliche Überstunden ab dieser Grenze extra. Änderungen gelten automatisch für den laufenden Monat bei eingeschaltetem Lohnabgleich; ältere Abrechnungen bleiben gespeichert. Nachtzuschläge: Grundstufe 25 % von 22:00 bis 06:00 Uhr; höhere Stufe 35 % von 00:00 bis 04:00 Uhr hat Vorrang. Die Standard-Nachtschichtpause 02:30 bis 03:00 Uhr wird NUR bei bereits erfassten unbezahlten Pausenminuten der höheren Stufe zugeordnet, nicht zusätzlich abgezogen. Ohne tatsächliche Pausenzeit kann die Aufteilung geschätzt sein. Spät/Nacht: alle Zeiten und Prozente bleiben änderbar. Bei zeitlicher Überschneidung hat Nacht Vorrang. Ohne exakte Pausenzeiten werden Pausen anteilig verteilt. Für automatische Übernahme der Zuschläge die Checkbox aktivieren; Stunden können unabhängig davon manuell bleiben. Steuer-/SV-Pflicht wird vorsichtig voreingestellt. Ob ein Zuschlag tatsächlich steuerfrei ist, hängt vom Arbeitsvertrag und gesetzlichen Voraussetzungen ab. Pausenzeiten bleiben geschätzt.</p><div id="wm195PremiumPreview" class="wm195-muted"></div>`)}
  ${section('Überstundenkonto und Ausgleich',`<div class="wm195-grid">${field('Anfangssaldo in Minuten (+/−)','wm195Opening',db().time.openingMinutes)}${field('Datum','wm195AdjustmentDate',nowDate(),'date')}</div><div class="wm195-grid"><label class="wm195-field">Art<select id="wm195AdjustKind"><option value="payout">Überstunden ausgezahlt</option><option value="leave">Freizeitausgleich</option><option value="correction">Manuelle Korrektur (+/−)</option></select></label>${field('Minuten (+/− bei Korrektur)','wm195AdjustMinutes',60)}</div>${field('Notiz','wm195AdjustNote','','text')}${btn('Anfangssaldo speichern','wm195SaveOpening')} ${btn('Ausgleich buchen','wm195AddAdjustment')}<div id="wm195AdjustList"></div><small class="wm195-muted">Auszahlung/Freizeitausgleich verändert nur das Zeitkonto, nicht automatisch das Bruttogehalt. Auszahlungsbetrag gegebenenfalls in der Lohnabrechnung erfassen.</small>`)}
  ${section('Stempelfehler und Änderungsverlauf',`<div class="wm195-grid">${field('Pausenprüfung ab 6 Std. (Min.)','wm195Break6',settings.minimumBreak6)}${field('Pausenprüfung ab 9 Std. (Min.)','wm195Break9',settings.minimumBreak9)}${field('Lange Schicht ab (Std.)','wm195Long',settings.warningLongHours)}</div>${btn('Prüfwerte speichern','wm195SaveWarnings')}<div id="wm195Warnings"></div><h4>Letzte Korrekturen</h4><div id="wm195Audit"></div>`)}
  ${section('Kalender',`<div class="wm195-top">${field('Monat','wm195CalendarMonth',currentMonth(),'month')}</div><div class="wm195-legend"><span>Grün: Arbeit</span><span>Rot: AU</span><span>Blau: Urlaub</span><span>Gelb: Feiertag</span></div><div id="wm195Calendar" class="wm195-calendar"></div><div class="wm195-msg" id="wm195DayDetails">Tag auswählen.</div>`)}
@@ -215,19 +249,22 @@ function mount(){if($('wm195Root'))return;const dash=$('dashboard'),shift=$('shi
 }
 function uiMessage(message){const el=$('wm195Error');if(el)el.textContent=message;}
 async function commit(change,label){if(!accessible())return;const original=deep(db()),oldPay=state.wmPayroll===undefined?undefined:deep(state.wmPayroll);try{change();await save(label);refresh();}catch(e){state.wm195=original;if(oldPay===undefined)delete state.wmPayroll;else state.wmPayroll=oldPay;refresh();throw e;}}
-const guard=f=>async()=>{try{await f();}catch(e){console.error('WorksManager 1.9.11:',e);uiMessage('Fehler: '+(e.message||e));alert(e.message||String(e));}};
+const guard=f=>async()=>{try{await f();}catch(e){console.error('WorksManager 1.9.12:',e);uiMessage('Fehler: '+(e.message||e));alert(e.message||String(e));}};
 function wire(){
  for(const id of ['wm195HomeMonth','wm195Month','wm195PayMonth','wm195CalendarMonth'])$(id)?.addEventListener('change',()=>{if(id==='wm195Month')db().reportMonth=$(id).value;if(id==='wm195CalendarMonth')db().calendarMonth=$(id).value;refresh();});
  $('wm195SaveRates')?.addEventListener('click',guard(async()=>{
-  const values={late:'wm195Late',night:'wm195Night',sunday:'wm195Sun',holiday:'wm195Holiday',overtime:'wm195Over'};const next={...db().rates};
+  const values={late:'wm195Late',night:'wm195Night',nightHigh:'wm195NightHigh',sunday:'wm195Sun',holiday:'wm195Holiday',overtime:'wm195Over'};const next={...db().rates};
   next.overtimePayAfterMinutes=parsePayThreshold($('wm195OvertimePayAfter').value);
   for(const [k,id] of Object.entries(values)){const v=Number($(id).value);if(!Number.isFinite(v)||v<0||v>500)throw Error('Zuschläge müssen zwischen 0 und 500 % liegen.');next[k]=v;}
-  for(const [prefix,startId,endId] of [['late','wm195LateStart','wm195LateEnd'],['night','wm195NightStart','wm195NightEnd']]){
+  for(const [prefix,startId,endId] of [['late','wm195LateStart','wm195LateEnd'],['night','wm195NightStart','wm195NightEnd'],['nightHigh','wm195NightHighStart','wm195NightHighEnd']]){
    const from=$(startId).value,to=$(endId).value;
    const valid=v=>/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(v);
    if(!valid(from)||!valid(to)||from===to)throw Error('Ungültige Uhrzeiten für '+(prefix==='late'?'Spätschicht':'Nachtschicht')+'.');
    next[prefix+'Start']=from;next[prefix+'End']=to;
   }
+  next.nightPauseStart=$('wm195NightPauseStart').value;next.nightPauseMinutes=Number($('wm195NightPauseMinutes').value);
+  if(!/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(next.nightPauseStart)||!Number.isInteger(next.nightPauseMinutes)||next.nightPauseMinutes<0||next.nightPauseMinutes>240)throw Error('Nachtschichtpause prüfen (Uhrzeit und 0–240 Minuten).');
+  next.enableNightHigh=$('wm195EnableNightHigh').checked;
   next.enableLate=$('wm195EnableLate').checked;next.enableNight=$('wm195EnableNight').checked;next.enableSunday=$('wm195EnableSun').checked;next.enableHoliday=$('wm195EnableHol').checked;next.autoPremiums=$('wm195AutoPrem').checked;
   await commit(()=>{db().rates=next;syncMonthsIfEnabled();},'Zuschläge gespeichert');uiMessage('Zuschlagsregeln gespeichert. Aktive automatische Lohnübernahme neu berechnet.');
  }));
@@ -345,17 +382,17 @@ function drawPayslip(month){const data=db().actuals[month],el=$('wm195PayslipCom
  const prev=$('wm195PayrollPreview');if(prev){const s=splitPay(month),estimate=splitPay(month,{previewPremiums:true});
   const premium=estimate.items.filter(x=>x.wm195Auto&&x.kind==='premium'&&/Spätschicht|Nachtschicht/.test(x.name));
   const parts=premium.map(x=>`${x.name.replace(/ \(.*$/,'')}: ${EUR(Number(x.hours)*Number(x.rate)*Number(x.pct)/100)} (${x.hours.toLocaleString('de-DE')} Std. × ${x.pct} %)`).join(' · ');
-  prev.textContent=`Stempeluhr ${month}: ${HM(s.total)} erfasst, ${HM(s.regular)} Normalzeit, ${HM(s.overtime)} Zeitkonto-Überstunden, ${HM(s.paidOvertime)} vergütungsrelevante Überstunden (Grenze: ${payThresholdLabel(db().rates.overtimePayAfterMinutes)}), ${EUR(s.gross)} Grundlohn. Spät-/Nacht-Zuschläge laut Zeitfenstern: ${parts||'keine'} (ohne exakte Pause nur Näherung). ${db().rates.autoPremiums?'Zuschlagseinstellung an.':'Zuschläge nicht zur Lohnabrechnung übernommen.'} ${state.wm20?.autoPayroll?'Automatische Lohnübernahme an.':'Automatische Lohnübernahme aus.'}`;
+  prev.textContent=`Stempeluhr ${month}: ${HM(s.total)} erfasst, ${HM(s.regular)} Normalzeit, ${HM(s.overtime)} Zeitkonto-Überstunden, ${HM(s.paidOvertime)} vergütungsrelevante Überstunden (Grenze: ${payThresholdLabel(db().rates.overtimePayAfterMinutes)}), ${EUR(s.gross)} Grundlohn. Spät-/Nacht-Zuschläge laut Zeitfenstern und hinterlegter Pausenlage: ${parts||'keine'} (ohne tatsächlich erfasste Pausenlage ggf. Schätzung). ${db().rates.autoPremiums?'Zuschlagseinstellung an.':'Zuschläge nicht zur Lohnabrechnung übernommen.'} ${state.wm20?.autoPayroll?'Automatische Lohnübernahme an.':'Automatische Lohnübernahme aus.'}`;
  }
 }
 let renderInit=false,lastState=null;
-function resetProfileControls(){const rates=db().rates;for(const [id,key] of Object.entries({wm195Late:'late',wm195LateStart:'lateStart',wm195LateEnd:'lateEnd',wm195Night:'night',wm195Sun:'sunday',wm195Holiday:'holiday',wm195Over:'overtime',wm195NightStart:'nightStart',wm195NightEnd:'nightEnd',wm195Break6:'minimumBreak6',wm195Break9:'minimumBreak9',wm195Long:'warningLongHours'}))if($(id))$(id).value=rates[key];
- for(const [id,key] of Object.entries({wm195EnableLate:'enableLate',wm195EnableNight:'enableNight',wm195EnableSun:'enableSunday',wm195EnableHol:'enableHoliday',wm195AutoPrem:'autoPremiums'}))if($(id))$(id).checked=!!rates[key];
+function resetProfileControls(){const rates=db().rates;for(const [id,key] of Object.entries({wm195Late:'late',wm195LateStart:'lateStart',wm195LateEnd:'lateEnd',wm195Night:'night',wm195NightHigh:'nightHigh',wm195NightHighStart:'nightHighStart',wm195NightHighEnd:'nightHighEnd',wm195NightPauseStart:'nightPauseStart',wm195NightPauseMinutes:'nightPauseMinutes',wm195Sun:'sunday',wm195Holiday:'holiday',wm195Over:'overtime',wm195NightStart:'nightStart',wm195NightEnd:'nightEnd',wm195Break6:'minimumBreak6',wm195Break9:'minimumBreak9',wm195Long:'warningLongHours'}))if($(id))$(id).value=rates[key];
+ for(const [id,key] of Object.entries({wm195EnableLate:'enableLate',wm195EnableNight:'enableNight',wm195EnableNightHigh:'enableNightHigh',wm195EnableSun:'enableSunday',wm195EnableHol:'enableHoliday',wm195AutoPrem:'autoPremiums'}))if($(id))$(id).checked=!!rates[key];
  if($('wm195OvertimePayAfter'))$('wm195OvertimePayAfter').value=rates.overtimePayAfterMinutes==null?'':HM(rates.overtimePayAfterMinutes);
  if($('wm195Opening'))$('wm195Opening').value=db().time.openingMinutes;
  if($('wm195PayMonth'))delete $('wm195PayMonth').dataset.loaded;
 }
-function init(){if($('wm195Root'))return;const required=['save','renderAll','exportBackup','deriveKey','decryptPayload','unb64','referencedFileKeys','nrwHolidays'];if(!required.every(x=>typeof window[x]==='function')){console.error('WorksManager 1.9.11: Kernfunktionen fehlen',required.filter(x=>typeof window[x]!=='function'));return;}
+function init(){if($('wm195Root'))return;const required=['save','renderAll','exportBackup','deriveKey','decryptPayload','unb64','referencedFileKeys','nrwHolidays'];if(!required.every(x=>typeof window[x]==='function')){console.error('WorksManager 1.9.12: Kernfunktionen fehlen',required.filter(x=>typeof window[x]!=='function'));return;}
  mount();updateVersionLabel();let prior=window.renderAll;window.renderAll=function(...args){const changed=state!==lastState;const r=prior.apply(this,args);if(changed){lastState=state;resetProfileControls();}setTimeout(()=>{if(accessible())refresh();},60);return r;};
  window.addEventListener('pageshow',()=>setTimeout(()=>{if(accessible())refresh();},100));
  document.addEventListener('wm-clock-payroll-synced',()=>setTimeout(()=>{if(accessible())refresh();},100));
@@ -365,7 +402,7 @@ function init(){if($('wm195Root'))return;const required=['save','renderAll','exp
  fetch('./worksmanager-release.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(x=>{if(x?.build===BUILD&&x?.version===VERSION)updateVersionLabel();}).catch(()=>{});
  console.info('WorksManager '+VERSION+' Erweiterungen geladen');
 }
-function refresh(){if(!accessible())return;try{report();}catch(e){console.error('WorksManager 1.9.11 Ansicht:',e);}}
+function refresh(){if(!accessible())return;try{report();}catch(e){console.error('WorksManager 1.9.12 Ansicht:',e);}}
 if(typeof module!=='undefined'&&module.exports)module.exports={splitPay,premiumUnits,dayGroups,account,anomalies,HM,IND,calendarDayStatus,parsePayThreshold,paidOvertimeThreshold,sessionPremium};
 else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();

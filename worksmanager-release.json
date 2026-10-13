@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.11",
-  "build": 2026101325,
+  "version": "1.9.12",
+  "build": 2026101326,
   "released": "2026-10-13",
   "coreCompatibility": "1.8.4",
-  "notes": "Privater, lokaler JSON-Import für Lohnprofil aus Abrechnung; keine privaten Gehalts- oder Steuerdaten im öffentlichen App-Code. Bearbeitbare Grundeinstellungen und optionale Ist-Abrechnung als verschlüsselter Vergleich. Bestehende Daten bleiben bei Import ohne Speichern unverändert."
+  "notes": "Zwei editierbare Nachtzuschläge (25% 22-06, 35% 00-04) und pausengenaue 02:30-03:00-Nachtpause als konfigurierbare Annahme, ohne doppelte Pausenabzüge. Kurzarbeitergeld: manuell wählbare und anpassbare 60% ohne Kind / 67% mit Kind auf pauschalierten Nettoentgeltausfall. Bestehende Arbeitszeiten, private Profile und bisherige Monatsabrechnungen werden nicht automatisch überschrieben."
 }

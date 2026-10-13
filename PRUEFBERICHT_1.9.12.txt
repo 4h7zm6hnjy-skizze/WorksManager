@@ -1,0 +1,27 @@
+WorksManager 1.9.12 – Prüfbericht
+Stand: 13. Oktober 2026
+
+Bestand: GitHub-Hauptbranch 1.9.11 als Ausgangsbasis.
+Regression: 40 vorhandene automatische Prüfungen erfolgreich.
+Neue Funktionsprüfungen: 13 erfolgreich.
+Simulierter Browser: 5 bestehende Import-/Datenschutzprüfungen und 3 neue UI-Prüfungen erfolgreich.
+JavaScript-Syntax: alle enthaltenen JS-Dateien fehlerfrei (node --check).
+Versionen: index.html, Moduldateien, Service Worker und Release JSON stimmen mit 1.9.12 überein.
+
+Rechenkontrolle auf Basis Nutzer-Abrechnung (3 Nachtschichten à 21:45–05:45, davon 30 Min Pause 02:30–03:00, Grundlohn 14,90 EUR):
+3 x 3:45 Stunden = 11,25 Stunden für 25 Prozent -> 41,91 EUR.
+3 x 3:30 Stunden = 10,50 Stunden für 35 Prozent -> 54,76 EUR.
+Zuschläge zusammen: 96,67 EUR.
+
+KUG-Test bei pauschaliertem Soll-Netto 1.600 EUR und Ist-Netto 1.000 EUR:
+Ohne Kind 60 Prozent von 600 EUR = 360 EUR.
+Mit berücksichtigungsfähigem Kind 67 Prozent von 600 EUR = 402 EUR.
+Frei angepasste Prozentquote ebenfalls getestet.
+
+Wichtige Grenzen:
+- Die Uhrzeit der Pause wird für ältere Einträge aus einer vom Nutzer bestätigten Voreinstellung abgeleitet; bei abweichender realer Pausenlage muss diese korrigiert werden.
+- Pausenminuten müssen in der erfassten Nettoarbeitszeit bereits abgezogen sein; keine zweite Kürzung.
+- Es wird keine rechtliche Steuer-/Sozialversicherungsfreiheit von Zuschlägen behauptet oder automatisch angenommen.
+- Kein echter iPhone-Test, keine verbindliche Entgeltabrechnung.
+- Keine privaten personenbezogenen Lohndaten in der öffentlichen Update-ZIP.
+- Historisch gespeicherte Monate werden nicht automatisch neu überschrieben.
