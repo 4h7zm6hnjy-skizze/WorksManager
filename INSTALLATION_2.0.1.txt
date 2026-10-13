@@ -1,0 +1,15 @@
+WorksManager 2.0.1 – Laufendes Netto inklusive steuerbegünstigter Schichtzuschläge, Kierspe/NRW
+
+1. VORHER vollständiges verschlüsseltes Backup erstellen und auf dem Gerät sichern.
+2. ZIP entpacken, alle darin enthaltenen App-Dateien ins Stammverzeichnis des GitHub-Repositorys hochladen, vorhandene Dateien ersetzen. Integritätsmanifest inklusive.
+3. Nach Commit und Veröffentlichung WorksManager schließen, neu öffnen und auf Version 2.0.1 prüfen.
+4. Im privaten Lohnprofil Steuerklasse, Krankenkassenbeitrag, Anzahl für Pflegeversicherung berücksichtigungsfähiger Kinder, Kirchensteuer, 37 Wochenstunden und aktuellen Stundenlohn (z.B. 14,90 €) kontrollieren. Persönliche Angaben NIE nach GitHub hochladen.
+5. Stempeluhr starten. Die Anzeige aktualisiert Grundlohn-Netto und Netto inklusive gesetzlich möglicherweise steuerbegünstigter SFN-Zuschläge sowie heutige und monatliche Stempelwerte.
+
+GESETZLICHE BASIS: § 3b EStG (Nachtarbeit 20:00–06:00, 00:00–04:00 unter Voraussetzungen bis 40 %, Sonntag bis 50 %, NRW-Feiertag grundsätzlich bis 125 %, 01.05. und Weihnachten bis 150 %). Lohnsteuerfreier Grundlohn max. 50 €/Std.; in der Sozialversicherung max. 25 €/Std. (§ 1 SvEV).
+
+Die Vorschau nutzt einen individuellen monatlichen Nettoschätzfaktor. Ein vollständig offizieller BMF-PAP 2026 ist noch nicht implementiert. Zuschläge sind nur bei tatsächlich geleisteter Arbeit und separater Zahlung bis zu gesetzlichen Grenzen steuerbegünstigt. Ungeklärte Pausen und tatsächliche Tarif-/Lohnabrechnungswerte können abweichen. ANWENDUNG LIEGT LOKAL: keine Cloud-Übertragung. Für die tatsächliche Lohnabrechnung werden automatisch generierte Zuschläge weiter vorsichtig als steuer-/SV-pflichtig gekennzeichnet; die neue Steuerbegünstigung wird nur in der LIVE-SCHÄTZUNG berücksichtigt, bis genaue Arbeitsnachweise/Beträge überprüft sind.
+
+Quellen:
+https://www.gesetze-im-internet.de/estg/__3b.html
+https://www.deutsche-rentenversicherung.de/DRV/DE/Experten/Arbeitgeber-und-Steuerberater/summa-summarum/Lexikon/S/steuerfreie_sfn_zuschlaege.html

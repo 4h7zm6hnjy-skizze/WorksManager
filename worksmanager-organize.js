@@ -1,4 +1,4 @@
-/* WorksManager 2.0.0 – Präsentation und Navigation. Keine Datenmigration.
+/* WorksManager 2.0.1 – Präsentation und Navigation. Keine Datenmigration.
  * Die bestehenden Module und deren Event-Handler werden nur umsortiert.
  * Vertrauliche Daten verbleiben im bestehenden verschlüsselten Profil.
  */
@@ -102,6 +102,6 @@ function arrange(){const dash=$('dashboard');if(!dash||$('wmoLayout')||!$('wmCal
  }));
  // Calendar and quality panels are still mounted; their DOM nodes/handlers were moved, not cloned.
 }
-function init(){style();reorderMenu();pageBacks();arrange();if(!$('wmoLayout'))console.warn('WorksManager 2.0.0: Kalender/Stempeluhr werden erst nach dem Laden geordnet.');}
+function init(){style();reorderMenu();pageBacks();arrange();if(!$('wmoLayout'))console.warn('WorksManager 2.0.1: Kalender/Stempeluhr werden erst nach dem Laden geordnet.');}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();

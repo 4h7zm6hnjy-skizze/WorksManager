@@ -1,0 +1,10 @@
+WorksManager 2.0.1 – Technischer Prüfbericht
+
+- Live-Netto zu laufender Stempelung, Netto inklusive SFN-Zuschlägen, Netto des Tages und Monats netto aus tatsächlich gestempelten Stunden.
+- Gesetzliche Einstufung SFN mit gesetzlichen Feiertagen der Arbeitsstätte NRW/Kierspe, getrennten Steuer-/SV-Freibetragsgrenzen 50 €/25 € Grundlohn.
+- Spät-/Nacht-/Sonntag-/Feiertag-/Überstundenzuschläge getrennt; die steuerliche Vergünstigung gilt nur für tatsächliche zeitliche SFN-Anteile.
+- Bis zur vollständigen Implementierung amtlicher Lohnsteuertabellen: individuelle Netto-Schätzung über normalen Vertragsmonat, NICHT rechtlich verbindlich.
+- Bestehende verschlüsselte Profile, Stempel-, Monats- und AU-Daten werden nicht migriert oder überschrieben.
+- Auto-Lohnabrechnung bleibt konservativ steuerpflichtig, Live-Schätzung behandelt voraussichtlich steuerfreie SFN-Anteile gesondert (siehe Begrenzung).
+- Browser- und Regressionsprüfung plus Offline-Integritycheck wird vor der Übergabe durchgeführt.
+- Echter iPhone/WebKit-Gerätetest und Abgleich mit einer echten Lohnabrechnung stehen aus.

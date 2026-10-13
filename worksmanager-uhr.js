@@ -1,4 +1,4 @@
-/* WorksManager 2.0.0 – Stempeluhr mit Startseitenanzeige mit verschlüsselter Speicherung im state.wm20.
+/* WorksManager 2.0.1 – Stempeluhr mit Startseitenanzeige mit verschlüsselter Speicherung im state.wm20.
    7:30 normal = 7,50 Industrie-Stunden; Überstunden nach Tages-Soll.
    Automatische Übernahme ins 1.9-Zeitkonto nur, wenn kein fremder Eintrag existiert.
 */
@@ -49,6 +49,69 @@ function wageStats(rows,s=store()){
   return sum+roundMoney(items.reduce((v,r)=>v+(r.minutes*rateForRecord(r,s)/60),0));
  },0));
  return {days:byDay.length,regularMinutes,overtimeMinutes,totalMinutes,gross,byDay};
+}
+// Laufende Netto-SCHÄTZUNG: Grundlohn und steuerbegünstigte SFN-Zuschläge
+// getrennt behandeln. Das persönliche Netto/Brutto-Verhältnis ist selbst eine
+// Monatsnäherung (kein BMF-PAP, keine rechtsverbindliche Lohnabrechnung).
+let netFactorMemo={key:null,ratio:null,note:''};
+function liveNetRatio(workMonth){
+ const p=state.wmPayroll?.profile;
+ if(!p||typeof window.WMNettoEstimator!=='function')return {ratio:null,note:'Lohnprofil unter „Lohn & Abrechnung“ speichern, um die Netto-Schätzung zu aktivieren.'};
+ const key=JSON.stringify(p)+'|'+workMonth;
+ if(netFactorMemo.key===key)return netFactorMemo;
+ let result;try{result=window.WMNettoEstimator(workMonth);}catch(e){console.warn('WorksManager Netto-Vorschau nicht verfügbar:',e);}
+ const ratio=result?.available&&Number.isFinite(Number(result.net))&&Number(result.gross)>0?
+  Math.max(0,Math.min(1,Number(result.net)/Number(result.gross))):null;
+ let note=ratio===null?(result?.message||'Netto-Schätzung nicht verfügbar – Lohnprofil prüfen.'):
+  'Schätzung nach § 3b EStG / NRW: Nachtarbeit ab 20 Uhr, Sonntage und NRW-Feiertage nur für tatsächlich geleistete Stunden steuerbegünstigt. Spät- und Überstundenzuschläge außerhalb dieser Zeiten steuerpflichtig. Ohne bestätigte Pausenlage bleibt die Aufteilung vorläufig.';
+ if(!/^2026-/.test(workMonth))note+=' Steuersätze und Prognosegrundlage sind auf 2026 ausgerichtet.';
+ netFactorMemo={key,ratio,note};return netFactorMemo;
+}
+function liveEstimatedNet(gross,ratio){return ratio===null||!Number.isFinite(Number(gross))?null:roundMoney(Math.max(0,Number(gross))*ratio)}
+function emptyWages(){return {base:0,premiums:0,taxFree:0,svFree:0,approx:false};}
+function netWageParts(record,s=store(),preview=null){
+ if(!record)return emptyWages();
+ const base=Math.max(0,Number(record.minutes)||0)*rateForRecord(record,s)/60;
+ let p=preview;
+ if(p===null&&typeof window.WM195?.sessionPremium==='function'){
+  try{p=window.WM195.sessionPremium(record);}catch(e){console.warn('SFN-Zuschlagsvorschau fehlgeschlagen:',e);}
+ }
+ const prem=Math.max(0,Number(p?.total)||0);
+ return {base,premiums:prem,taxFree:Math.min(prem,Math.max(0,Number(p?.taxFree)||0)),
+  svFree:Math.min(prem,Math.max(0,Number(p?.svFree)||0)),approx:!!p?.approx};
+}
+function sumWageParts(rows,s=store()){
+ const out=emptyWages();for(const r of rows){const v=netWageParts(r,s);for(const k of ['base','premiums','taxFree','svFree'])out[k]+=v[k];out.approx||=v.approx;}
+ return out;
+}
+function combineWageParts(...inputs){
+ const o=emptyWages();for(const x of inputs){if(!x)continue;for(const k of ['base','premiums','taxFree','svFree'])o[k]+=Number(x[k])||0;o.approx||=!!x.approx;}return o;
+}
+function netFromWageParts(parts,ratio,profile){
+ if(ratio===null)return null;
+ const gross=parts.base+parts.premiums,taxFree=Math.min(gross,Math.max(0,parts.taxFree));
+ const svFree=Math.min(taxFree,Math.max(0,parts.svFree));
+ // Bereits steuer- UND SV-frei: 1:1 Netto; nur steuerfrei: geschätzte
+ // AN-SV einbehalten, mit Beitragsbemessungsgrenzen als weiterer Unsicherheit.
+ const kv=(profile.insuranceType==='public'?(profile.healthEmployeeRate!==''&&profile.healthEmployeeRate!=null?Number(profile.healthEmployeeRate):(Number(profile.healthRate??14.6)+Number(profile.additionalHealthRate??2.9))/2):0);
+ const pv=(profile.insuranceType==='public'?(profile.careEmployeeRate!==''&&profile.careEmployeeRate!=null?Number(profile.careEmployeeRate):(Number(profile.careBase??1.8)+(profile.careSaxony?.5:0)+(profile.careChildlessExtra&&!profile.hasChildren?Number(profile.careChildless??0.6):0)-(profile.hasChildren?Math.min(4,Math.max(0,Number(profile.childrenUnder25||0)-1))*Number(profile.careChildReduction??0.25):0))):0);
+ const svRate=Math.max(0,(Number(profile.pensionEmployeeRate??9.3)+Number(profile.unemploymentEmployeeRate??1.3)+(Number.isFinite(kv)?kv:0)+(Number.isFinite(pv)?pv:0))/100);
+ const taxablePart=Math.max(0,gross-taxFree),taxExemptSvLiable=Math.max(0,taxFree-svFree);
+ return roundMoney(Math.max(0,taxablePart*ratio+svFree+taxExemptSvLiable*(1-Math.min(.6,svRate))));
+}
+function renderLiveNet({day,session,sessionOnly,dayWages,monthWages}){
+ const f=liveNetRatio(day.slice(0,7)),profile=state.wmPayroll?.profile||{};
+ const fields={wmClockHomeNetSession:sessionOnly,wmClockHomeNetTotal:session,wmClockHomeNetToday:dayWages,wmClockHomeNetMonth:monthWages};
+ for(const [id,parts] of Object.entries(fields)){
+  const el=$(id);if(!el)continue;
+  const value=netFromWageParts(parts,f.ratio,profile);
+  el.textContent=value===null?'—':'ca. '+euros(value);
+ }
+ const hint=$('wmClockHomeNetHint');if(hint){const exemption=session.taxFree;
+  hint.textContent=f.note+(f.ratio!==null?` Zuschlagsvorschau: ${euros(session.premiums)} gesamt, davon voraussichtlich ${euros(exemption)} steuerfrei und ${euros(session.svFree)} sozialversicherungsfrei. Steuerfreibeträge: Grundlohn bis 50 €/Std., SV-frei bis 25 €/Std. (§ 3b EStG / SvEV).`:'')+(session.approx?' Pausenlage nur näherungsweise auf Zuschlagszeiten verteilt.':'');
+ }
+ const todayLabel=$('wmClockHomeNetTodayLabel');if(todayLabel)todayLabel.textContent=day===today()?'Heute (Stempelungen)':'Letzter Arbeitstag (Stempelungen)';
+ const monthLabel=$('wmClockHomeNetMonthLabel');if(monthLabel)monthLabel.textContent='Monat '+day.slice(0,7)+' bisher (nur Stempelungen)';
 }
 function payrollMonthTotals(month){
  const s=store(),rows=s.entries.filter(r=>String(r.workDate||date(new Date(r.startAt))).startsWith(month));
@@ -235,6 +298,18 @@ function live(){if(!isOpen())return;const s=store(),a=s.active,paused=!!a?.pause
  const day=a?(a.workDate||date(new Date(a.startAt))):s.entries.some(r=>(r.workDate||date(new Date(r.startAt)))===today())?today():(recent?.workDate|| (recent?date(new Date(recent.startAt)):today())),closedToday=s.entries.filter(r=>(r.workDate||date(new Date(r.startAt)))===day),todayMinutes=closedToday.reduce((sum,r)=>sum+r.minutes,0),todayGross=closedToday.reduce((sum,r)=>sum+r.minutes*rateForRecord(r,s)/60,0);
  const activeToday=!!a&&(a.workDate||date(new Date(a.startAt)))===day;
  if($('wmClockHomeToday'))$('wmClockHomeToday').textContent=(day===today()?'Heute':'Letzter Arbeitstag')+' '+day.split('-').reverse().join('.')+': '+hhm(todayMinutes+(activeToday?elapsed:0))+' Std. · '+euros(roundMoney(todayGross+(activeToday?elapsedExact*currentRate/60:0)))+' brutto';
+ // Tatsächlich erfasste Arbeitszeit und aktuelle Stempelung: keine Doppelzählung.
+ // Monatliche Summen enthalten weder Urlaub/Entgeltfortzahlung noch Kurzarbeitergeld.
+ const liveSession=netWageParts(session,s,premium);
+ if(a)liveSession.base=elapsedExact*currentRate/60;
+ const noBonus={...liveSession,premiums:0,taxFree:0,svFree:0};
+ const dayClosed=sumWageParts(closedToday,s);
+ const month=day.slice(0,7),closedMonth=s.entries.filter(r=>String(r.workDate||date(new Date(r.startAt))).startsWith(month));
+ const monthClosed=sumWageParts(closedMonth,s);
+ const activeMonth=!!a&&String(a.workDate||date(new Date(a.startAt))).startsWith(month);
+ renderLiveNet({day,session:liveSession,sessionOnly:noBonus,
+  dayWages:combineWageParts(dayClosed,activeToday?liveSession:null),
+  monthWages:combineWageParts(monthClosed,activeMonth?liveSession:null)});
  if($('wmClockHomeHint'))$('wmClockHomeHint').textContent=a?(paused?'Angehalten seit '+time(new Date(a.pausedAt))+' · Pausenzeit zählt nicht':`Gestartet um ${time(new Date(a.startAt))} · zusätzliche Pause wird beim Stoppen abgezogen`):recent?`Letzter abgeschlossener Arbeitstag: ${date(new Date(recent.startAt))}`:'Bereit für deine nächste Schicht';
  const liveStatus=$('wmClockLive');if(liveStatus){liveStatus.textContent=a?(paused?`Pausiert · ${hhm(elapsed)} Arbeitszeit`:`Läuft seit ${time(new Date(a.startAt))} · ${hhm(elapsed)} bisher`):'Gestoppt / nicht eingestempelt';liveStatus.classList.toggle('wmc-live-running',running);liveStatus.classList.toggle('wmc-live-stopped',!running)}
  for(const prefix of ['wmClock','wmClockHome']){
@@ -271,18 +346,28 @@ function mount(){if($('wmClockRoot'))return;const shift=$('shift');if(!shift)ret
 .wmc-home-actions button{min-height:52px;font-size:16px;font-weight:850;border:1px solid currentColor;border-radius:10px;background:white;color:inherit;padding:9px 5px;cursor:pointer}
 .wmc-home-actions button:disabled{opacity:.4;cursor:default}.wmc-home-actions button:not(:disabled):active{transform:scale(.98)}
 .wmc-home-corrections{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin:5px 0 10px}.wmc-home-corrections button{min-height:52px;padding:9px 10px;border:1px solid currentColor;border-radius:10px;background:white;color:inherit;font:700 14px system-ui;text-wrap:balance}.wmc-home-corrections button.wmc-home-danger{background:transparent}.wmc-home-corrections button:disabled{opacity:.35;cursor:default}.wmc-home-action-message{font-size:13px;line-height:1.45;font-weight:650;min-height:0;margin:8px 0}.wmc-home-corrections-hint{font-size:12px;line-height:1.5;margin:4px 0 12px;color:inherit}@media(max-width:380px){.wmc-home-corrections{grid-template-columns:1fr}}
+.wmc-net-box{background:#ffffffbd;border:1px solid #8ecba8;border-radius:12px;margin:13px 0;padding:12px 14px;min-width:0;overflow-wrap:anywhere;color:#125e35}
+.wmc-net-main,.wmc-net-row{display:flex;justify-content:space-between;align-items:baseline;gap:9px;flex-wrap:wrap}
+.wmc-net-main{font-size:clamp(15px,3.5vw,19px);font-weight:800;margin-bottom:5px}
+.wmc-net-value{font-size:clamp(22px,5vw,30px);font-variant-numeric:tabular-nums;white-space:nowrap}
+.wmc-net-row{border-top:1px solid #cfead8;padding:6px 0;font-size:clamp(12px,2.8vw,15px);line-height:1.4}
+.wmc-net-row strong{font-variant-numeric:tabular-nums;font-weight:800;white-space:nowrap}
+.wmc-net-note{font-size:11px;line-height:1.45;margin:8px 0 0;color:#32694e;font-weight:450}
+@media(max-width:380px){.wmc-net-box{padding:10px}.wmc-net-value{font-size:22px}}
+
 .wmc-home-details{background:none;border:0;font-size:13px;font-weight:700;color:inherit;text-decoration:underline;padding:10px 0;cursor:pointer}
 @media(max-width:380px){.wmc-home-actions button{font-size:14px}.wmc-home{padding:14px}}`;
  document.head.appendChild(css);
- const dashboard=$('dashboard');if(dashboard&&!$('wmClockHome')){const box=document.createElement('section');box.id='wmClockHome';box.className='wmc-home is-stopped';box.setAttribute('aria-label','Stempeluhr Startseite');box.innerHTML=`<div class="wmc-home-head"><h3>Stempeluhr</h3><span id="wmClockHomeState" class="wmc-home-status" role="status">GESTOPPT</span></div><div class="wmc-home-clock" id="wmClockHomeTimer">00:00</div><div id="wmClockHomeIndustrie" class="wmc-home-industrie">0,00 Industriestunden</div><p class="wmc-home-gross" id="wmClockHomeGross" aria-live="off">0,00 € brutto (diese Stempelung)</p><p class="wmc-home-today" id="wmClockHomePremium">Zeitfenster-Zuschläge: 0,00 €</p><p class="wmc-home-today" id="wmClockHomeGrossTotal" aria-live="off">Brutto inkl. Zeitfenster-Zuschlägen: 0,00 €</p><p class="wmc-home-today" id="wmClockHomeToday">Heute gesamt: 00:00 Std. · 0,00 € brutto</p><p id="wmClockHomeHint" class="wmc-home-hint">Bereit für deine nächste Schicht</p><label class="wmc-home-break">Weitere unbezahlte Pausenminuten<input type="number" id="wmClockHomeExtraBreak" min="0" max="1440" step="1" value="0"></label><div class="wmc-home-actions"><button id="wmClockHomeStart" type="button">▶ Start</button><button id="wmClockHomePause" type="button">Ⅱ Pause</button><button id="wmClockHomeStop" type="button">■ Stopp</button></div><div class="wmc-home-corrections"><button id="wmClockHomeManual" type="button">＋ Arbeitszeit nachtragen</button><button id="wmClockHomeDelete" class="wmc-home-danger" type="button" disabled>✕ Fehlerhafte Stempelung verwerfen</button></div><p id="wmClockHomeActionMessage" role="status" aria-live="polite" class="wmc-home-action-message"></p><p class="wmc-home-corrections-hint">Vergessen einzustempeln? Zeit manuell nachtragen. Eine falsche laufende Stempelung verwerfen oder den letzten gespeicherten Eintrag in den Papierkorb verschieben.</p><button id="wmClockHomeDetails" type="button" class="wmc-home-details">Stempelzeiten ansehen und nachbearbeiten →</button>`;const hero=dashboard.querySelector('.dashboard-hero');if(hero)hero.insertAdjacentElement('afterend',box);else dashboard.insertAdjacentElement('afterbegin',box);}
+ const dashboard=$('dashboard');if(dashboard&&!$('wmClockHome')){const box=document.createElement('section');box.id='wmClockHome';box.className='wmc-home is-stopped';box.setAttribute('aria-label','Stempeluhr Startseite');box.innerHTML=`<div class="wmc-home-head"><h3>Stempeluhr</h3><span id="wmClockHomeState" class="wmc-home-status" role="status">GESTOPPT</span></div><div class="wmc-home-clock" id="wmClockHomeTimer">00:00</div><div id="wmClockHomeIndustrie" class="wmc-home-industrie">0,00 Industriestunden</div><p class="wmc-home-gross" id="wmClockHomeGross" aria-live="off">0,00 € brutto (diese Stempelung)</p><p class="wmc-home-today" id="wmClockHomePremium">Zeitfenster-Zuschläge: 0,00 €</p><p class="wmc-home-today" id="wmClockHomeGrossTotal" aria-live="off">Brutto inkl. Zeitfenster-Zuschlägen: 0,00 €</p><section class="wmc-net-box" id="wmClockHomeNetBox" aria-label="Geschätztes Netto aus Stempelzeiten"><div class="wmc-net-main"><span>Netto diese Stempelung (geschätzt)</span><strong id="wmClockHomeNetSession" class="wmc-net-value">—</strong></div><div class="wmc-net-row"><span>Netto inkl. SFN-Zuschlägen (geschätzt)</span><strong id="wmClockHomeNetTotal">—</strong></div><div class="wmc-net-row"><span id="wmClockHomeNetTodayLabel">Heute (Stempelungen)</span><strong id="wmClockHomeNetToday">—</strong></div><div class="wmc-net-row"><span id="wmClockHomeNetMonthLabel">Monat bisher (nur Stempelungen)</span><strong id="wmClockHomeNetMonth">—</strong></div><p id="wmClockHomeNetHint" class="wmc-net-note">Netto-Schätzung wird aus dem privaten Lohnprofil berechnet.</p></section><p class="wmc-home-today" id="wmClockHomeToday">Heute gesamt: 00:00 Std. · 0,00 € brutto</p><p id="wmClockHomeHint" class="wmc-home-hint">Bereit für deine nächste Schicht</p><label class="wmc-home-break">Weitere unbezahlte Pausenminuten<input type="number" id="wmClockHomeExtraBreak" min="0" max="1440" step="1" value="0"></label><div class="wmc-home-actions"><button id="wmClockHomeStart" type="button">▶ Start</button><button id="wmClockHomePause" type="button">Ⅱ Pause</button><button id="wmClockHomeStop" type="button">■ Stopp</button></div><div class="wmc-home-corrections"><button id="wmClockHomeManual" type="button">＋ Arbeitszeit nachtragen</button><button id="wmClockHomeDelete" class="wmc-home-danger" type="button" disabled>✕ Fehlerhafte Stempelung verwerfen</button></div><p id="wmClockHomeActionMessage" role="status" aria-live="polite" class="wmc-home-action-message"></p><p class="wmc-home-corrections-hint">Vergessen einzustempeln? Zeit manuell nachtragen. Eine falsche laufende Stempelung verwerfen oder den letzten gespeicherten Eintrag in den Papierkorb verschieben.</p><button id="wmClockHomeDetails" type="button" class="wmc-home-details">Stempelzeiten ansehen und nachbearbeiten →</button>`;const hero=dashboard.querySelector('.dashboard-hero');if(hero)hero.insertAdjacentElement('afterend',box);else dashboard.insertAdjacentElement('afterbegin',box);}
  const panel=document.createElement('section');panel.id='wmClockRoot';panel.className='wmc';panel.innerHTML=`<h3>Stempeluhr</h3><p class="wmc-small">Start/Stopp oder Zeiten nachtragen. Zeitangaben bleiben im aktiven verschlüsselten Profil.</p><div id="wmClockLive" class="wmc-live">Nicht eingestempelt</div><h3>Bruttolohn &amp; automatische Abrechnung</h3><div class="wmc-grid"><label>Brutto-Stundenlohn (€)<input id="wmClockRate" type="number" step="0.01" min="0" max="10000" value="0"></label><div class="wmc-toolbar"><button id="wmClockSaveRate" type="button">Stundenlohn speichern</button></div></div><p id="wmClockRateHint" class="wmc-small" aria-live="polite"></p><div class="wmc-toolbar"><button class="secondary" id="wmClockRepairRate" type="button">Alte 0-€-Stempelungen prüfen</button></div><label class="wmc-autosync"><input type="checkbox" id="wmClockAutoPayroll"> Abgeschlossene Stempelzeiten automatisch in die Lohnberechnung übernehmen</label><p class="wmc-small">Optional: Pro Monat werden Brutto-Stundenlohn, Normalstunden und Überstunden in die Lohnberechnung geschrieben. Bereits vorhandene Stundenzahlen werden ersetzt, nicht addiert. Sonstige Lohnangaben bleiben erhalten. Der Stundenlohn eines abgeschlossenen Tages wird für die Tagesstatistik gespeichert. Bei unterschiedlichen Stundensätzen muss die Lohnabrechnung separat geprüft werden. Zuschläge werden nur in der Lohnberechnung berücksichtigt.</p><div class="wmc-grid"><label>Pause beim Stoppen (Minuten)<input type="number" id="wmClockPause" min="0" max="1440" step="1" value="30"></label><label>Notiz<input id="wmClockNote" placeholder="z. B. Frühschicht"></label></div><div class="wmc-toolbar"><button type="button" id="wmClockStart">Start</button><button type="button" id="wmClockStop" class="secondary">Stopp</button><button type="button" id="wmClockPauseButton" class="secondary">Ⅱ Pause</button><button type="button" id="wmClockAdd" class="secondary">Zeit nachtragen</button><button type="button" id="wmClockCancel" class="secondary">Laufende Zeit verwerfen</button></div><p id="wmClockStatus" class="wmc-status" aria-live="polite"></p><h3>Täglich zu leistende Arbeitszeit</h3><div class="wmc-grid"><label>Stunden<input type="number" id="wmClockTargetH" min="0" max="24" value="7"></label><label>Minuten<input type="number" id="wmClockTargetM" min="0" max="59" value="30"></label></div><div class="wmc-toolbar"><button id="wmClockSaveTarget" type="button">Tages-Soll speichern</button></div><p class="wmc-small">Beispiel: 7:30 Uhr = 7,50 Industriestunden; 30 Minuten Überstunden = 0,50 Industriestunden. Der Monats-Saldo berücksichtigt auch Minusstunden.</p><label>Monat auswählen<input type="month" id="wmClockMonth" value="${today().slice(0,7)}"></label><div id="wmClockMonthSummary"></div><h3>Tagesstatistik – Stunden und Brutto</h3><div id="wmClockDayStats"></div><h3>Gestempelte Zeiten</h3><div id="wmClockEntries"></div><details><summary>Gelöschte Stempelzeiten</summary><div id="wmClockDeleted"></div></details>`;
  const anchor=$('wm19TimeCard');if(anchor)anchor.insertAdjacentElement('afterend',panel);else shift.appendChild(panel);bind();refresh();
  let ref=state;if(typeof window.renderAll==='function'){const previous=window.renderAll;window.renderAll=function(...args){const changed=state!==ref;const result=previous.apply(this,args);if(changed)ref=state;setTimeout(refresh,0);return result}}
  window.WMClockPayrollTotals=payrollMonthTotals;
- const updateTitle=$('wmplusQuickUpdateCheck')?.closest('#wmplusQuickUpdateBar')?.querySelector('strong');if(updateTitle)updateTitle.textContent='App-Updates · WorksManager 2.0.0';
- document.addEventListener('wm-payroll-rate-updated',()=>{if(isOpen())refresh();});
+ const updateTitle=$('wmplusQuickUpdateCheck')?.closest('#wmplusQuickUpdateBar')?.querySelector('strong');if(updateTitle)updateTitle.textContent='App-Updates · WorksManager 2.0.1';
+ document.addEventListener('wm-payroll-rate-updated',()=>{netFactorMemo.key=null;if(isOpen())refresh();});
+ document.addEventListener('wm-netto-updated',()=>{netFactorMemo.key=null;if(isOpen())live();});
  window.addEventListener('pageshow',()=>setTimeout(refresh,150));setInterval(live,1000);console.info('WorksManager Stempeluhr 2.0.0 geladen');
 }
-if(typeof module!=='undefined'&&module.exports)module.exports={compute,hhm,industrial,daySummary,parseISOTime,wageStats,payrollMonthTotals,syncMonthToPayroll,profileRate,store,saveWageSettings,repairMissingWageRates};
+if(typeof module!=='undefined'&&module.exports)module.exports={compute,hhm,industrial,daySummary,parseISOTime,wageStats,payrollMonthTotals,syncMonthToPayroll,profileRate,store,saveWageSettings,repairMissingWageRates,liveEstimatedNet,netFromWageParts};
 else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();
 })();

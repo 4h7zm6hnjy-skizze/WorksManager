@@ -1,9 +1,9 @@
-/* WorksManager 2.0.0 – integrierte Qualitäts-/Abrechnungszentrale.
+/* WorksManager 2.0.1 – integrierte Qualitäts-/Abrechnungszentrale.
    Keine privaten Profildaten im Quellcode; Ergänzungen in verschlüsseltem state.wmQuality.
    Lohnvorschau ist nicht die amtliche KUG-Leistungstabelle oder ein Lohnsteuer-PAP.
 */
 (()=>{'use strict';
-const VERSION='2.0.0',BUILD=2026101401;
+const VERSION='2.0.1',BUILD=2026101402;
 const $=id=>document.getElementById(id);
 const num=x=>{const n=Number(String(x??0).replace(',','.'));return Number.isFinite(n)?n:0};
 const round=x=>Math.round((x+Number.EPSILON)*100)/100;
