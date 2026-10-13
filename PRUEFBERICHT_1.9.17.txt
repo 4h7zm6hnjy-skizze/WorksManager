@@ -1,0 +1,20 @@
+WORKSMANAGER 1.9.17 – TESTBERICHT
+=================================
+Basis: auf GitHub bestätigter Stand 1.9.16; app.js 1.8.4 nicht verändert. Änderungen hauptsächlich Startseitenkalender und Ausweis der Kurzarbeit in der bestehenden Lohnberechnung. GitHub-Schreibzugriff nicht verfügbar; ZIP ist noch nicht hochgeladen.
+Browser Chromium, 390×844 px, simulierte verschlüsselte App-State-Objekte; alle Tests ohne JavaScript-Fehler.
+
+Tests:
+- Kurzarbeit als einzelner Tag mit 100 % Ausfall: 37 Wochenstunden / 5 Werktage = 7,4 Stunden; bei 14,90 €/Std. 110,26 € Bruttoausfall.
+- Ganze Woche Mo-Fr: 37 Stunden Ausfall und 551,30 € Bruttoausfall, KUG-Satz 67 % mit Kind.
+- Einen von fünf Tagen nachträglich auf 50 % Ausfall setzen: 33,3 Stunden im Monat / 496,17 € bei 14,90 €/Std.
+- Aktuellen Stundensatz auf 16 €/Std. umstellen, ohne Kalenderdaten zu überschreiben: 33,3h × 16 € = 532,80 € neue Live-Vorschau.
+- Pauschalierte Nettoentgeltdifferenz von 200 € ergibt bei 67 % tatsächlich 134 € KUG; 67 % auf den Bruttoausfall wird gerade NICHT angewandt.
+- Ohne Kind 60 % wählbar, 50 % Kurzarbeit auf ganzer Woche: 18,5 Stunden / 296 € Bruttoausfall bei 16 €/Std.
+- Schichtzeit Früh 05:45 bis 13:45 mit 30 Minuten Pause ergibt korrekt 7,5 Stunden (individuell änderbar).
+- Bereits gespeicherte AU bleibt im Kalender sichtbar.
+- Kompatibilitätsprüfungen von Version 1.9.15/1.9.16: Krankheit, ganzer/halber Urlaub, Reha/Übergangsgeld, AU-Originalbelege, Nachtschicht und Kurzarbeit ohne doppelte Bezahlung bestanden.
+- Tages-Soll neuer Urlaub-/Krankheitseinträge bleibt beim bisherigen Profilwert (z. B. 7:30). Die neue 37/5-Aufteilung greift nur bei neuen Kurzarbeitsbuchungen ohne Schichtplan.
+- Arbeitstage pro Woche sind einstellbar; Beispiel 37/4 = 9:15 Stunden je neuem Kurzarbeitstag ohne Schichtplan.
+- Kalender auf 390 px ohne horizontales Überlaufen; keine JavaScript-Laufzeitfehler.
+
+Einschränkung: Tabelle 2026 der Bundesagentur für Arbeit ist NICHT vollständig offline eingebaut. Deshalb wird ein KUG-Betrag in Euro nur bei hinterlegtem pauschaliertem Soll-/Ist-Netto oder tatsächlichem KUG-Bewilligungsbetrag berechnet. Angabe des Bruttoausfalls ist korrekt bei den erfassten Stunden, aber keine Netto-/KUG-Auszahlung. Bei tatsächlicher Kurzarbeit zusätzlich individuelle rechtliche Voraussetzungen prüfen. iPhone/Safari und echte Nutzerdaten wurden nicht getestet.

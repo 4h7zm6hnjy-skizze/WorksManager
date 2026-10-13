@@ -1,0 +1,14 @@
+WORKSMANAGER UPDATE 1.9.17 – INSTALLATION
+===========================================
+1. Vor dem Update IM WORKSMANAGER ein verschlüsseltes Backup anfertigen und außerhalb der App aufbewahren.
+2. Die ZIP-Datei ENTpacken. Die Dateien aus dem Paket (ohne INSTALLATION/PRUEFBERICHT) in das HAUPTVERZEICHNIS des GitHub-Repositories 4h7zm6hnjy-skizze/WorksManager hochladen; vorhandene Dateien ersetzen und Commit bestätigen. Die ZIP-Datei selbst nicht einfach ins Repository hochladen.
+3. Auf die GitHub-Pages-Veröffentlichung warten. Auf dem iPhone WorksManager vollständig schließen, neu öffnen, Update suchen. NICHT den lokalen App-Speicher löschen.
+4. Startseite: Schichtkalender öffnen, Datum antippen. Über „Kurzarbeit · 1 Tag“ oder „Kurzarbeit · ganze Woche“ den Buchungsmodus wählen. Bei Wochenbuchung sind Mo-Fr aktiviert; Arbeitstage frei wählen.
+5. Arbeitsausfall in % der geplanten Tages-/Wochenstunden eingeben. „Mit Kind“ (67 %) ist vorbelegt, „Ohne Kind“ (60 %) wählbar; Prozentsatz und Arbeitszeiten sind änderbar. „Eintrag speichern“ tippen. Geplante Fehlstunden zählen NICHT als tatsächlich geleistete Arbeitsstunden.
+6. Tages-Soll ohne ausgewählte Schicht = vertragliche Wochenstunden / Arbeitstage pro Woche (standardmäßig 5; z. B. 37/5=7h24). Wer bereits eine Schicht von/bis eingestellt hat, erhält die Stunden aus dieser Schicht abzüglich der gewählten Pause. Bestehende Kalender-/Stempel-Einträge behalten ihre ursprünglichen Zeiten.
+7. Der Bruttoausfall wird laufend aus dem AKTUELL gespeicherten Stundenlohn ermittelt. Stundenlohn/Wochenstunden unter Abrechnung > Lohnberechnung ändern, dann Monat speichern. Private Datei „WorksManager_Lohnprofil_2026-09_PRIVAT.json“ aus einem früheren Update kann unter „Abrechnungsdaten privat übernehmen“ verwendet werden, falls die Grunddaten auf deinem Gerät noch nicht vorliegen. PRIVATDATEI NIEMALS AUF GITHUB HOCHLADEN.
+8. In Abrechnung > Kurzarbeit muss für eine korrekte Euro-Auszahlung pauschaliertes Soll- und Ist-Netto aus offizieller BA-Tabelle 2026 oder der tatsächliche bewilligte KUG-Betrag eingegeben werden. KUG = grundsätzlich 67 % mit berücksichtigungsfähigem Kind, 60 % ohne, der pauschalierten NETTO-Entgeltdifferenz; NICHT 67% des Bruttolohnausfalls.
+WICHTIG: Keine amtliche Lohnabrechnung. Netto-/Steuer-/Sozialversicherungsregeln, Ausfallstunden, Leistungsberechtigung, Feiertage und Arbeitsvertrag bleiben individuell zu prüfen. Browser-Tests sind kein Praxistest auf iPhone/Safari.
+
+Quelle KUG: https://www.arbeitsagentur.de/arbeitslos-arbeit-finden/arbeitslosengeld/finanzielle-hilfen/kurzarbeitergeld-arbeitnehmer
+Tabelle 2026: https://www.arbeitsagentur.de/api/download/datei/tabelle-zur-berechnung-des-kurzarbeitergeldes_ba055418.pdf

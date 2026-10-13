@@ -1,10 +1,10 @@
-/* WorksManager 1.9.16 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
+/* WorksManager 1.9.17 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
  * KEINE Lohnabrechnungssoftware für amtliche Abrechnung. Lohnsteuer nur Näherung,
  * Ersatzleistungen nur Orientierung; alle kritischen Werte manuell überschreibbar.
  */
 (() => {
  'use strict';
- const VERSION='1.9.16',BUILD=2026101330;
+ const VERSION='1.9.17',BUILD=2026101331;
  const $=id=>document.getElementById(id);
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const round=x=>Math.round((Number(x)+Number.EPSILON)*100)/100;
@@ -106,6 +106,7 @@
     input('shortRateWithoutChild','KUG ohne Kind – Prozentsatz (%)','m','number','0.1')+
     input('shortRateWithChild','KUG mit Kind – Prozentsatz (%)','m','number','0.1')+
     `<div class="wide" id="wmpayKugRateInfo" role="status"></div>`+
+    `<div class="wide wmpay-note" id="wmpayKugCalendarInfo" role="status"></div>`+
     `<p class="wide wmpay-note" id="wmpayCalendarKugInfo" aria-live="polite"></p>`+
     input('shortRateOverride','KUG-Ersatzquote (%) – alternativ manuell','m','text')+
     input('shortPaymentOverride','Tatsächlich bewilligtes Kurzarbeitergeld (€) – alternativ manuell','m','text')+
@@ -390,6 +391,17 @@
   results=calc(draftP,draftM);
   const r=results;
   const kugInfo=$('wmpayKugRateInfo');if(kugInfo){const withChild=draftM.shortWithChild===true||draftM.shortWithChild==='true';const defaultRate=withChild?n(draftM.shortRateWithChild,67):n(draftM.shortRateWithoutChild,60);const used=draftM.shortRateOverride!==''?n(draftM.shortRateOverride):defaultRate;kugInfo.textContent='Gewählter Leistungssatz: '+used.toLocaleString('de-DE')+' % ('+(withChild?'mit Kind':'ohne Kind')+'). Bei manuell eingetragener Ersatzquote hat diese Vorrang.';}
+  const kugCalendarInfo=$('wmpayKugCalendarInfo');
+  if(kugCalendarInfo){
+   const plan=window.WMCalendar?.monthKug?.(curMonth,undefined,false);
+   if(plan?.days){
+    const hrs=(plan.shortMinutes/60).toLocaleString('de-DE',{maximumFractionDigits:2});
+    const rate=plan.currentHourlyRate;
+    const quote=plan.conflict?'abweichende Kind-/Leistungssätze im Kalender':(plan.rate+' % '+(plan.withChild?'mit Kind':'ohne Kind'));
+    const loss=plan.shortGrossLoss===null?'Stundenlohn noch nicht gespeichert':euro(plan.shortGrossLoss)+' Brutto-Verdienstausfall (nur Grundlohn)';
+    kugCalendarInfo.textContent=`Kalender Kurzarbeit: ${plan.days} Tag(e), ${hrs} Ausfallstunden × aktueller Stundenlohn ${rate>0?euro(rate):'nicht hinterlegt'} = ${loss}. Gewählter KUG-Satz: ${quote}. Für das Kurzarbeitergeld in Euro werden die pauschalierten Soll- und Ist-Nettoentgelte oder der bewilligte KUG-Betrag benötigt. Ausfallstunden werden nicht als geleistete Arbeitsstunden hinzugefügt.`;
+   }else kugCalendarInfo.textContent='Keine Kurzarbeitstage aus dem Kalender in diesem Monat.';
+  }
   const absInfo=$('wmpayCalendarAbsenceInfo');if(absInfo){
    const vH=Math.max(0,n(draftM.vacationHours),n(draftM.calendarVacationHours)),calSickAndReha=Math.max(0,n(draftM.calendarPaidSickHours))+Math.max(0,n(draftM.calendarRehaPaidHours)),sH=Math.max(0,n(draftM.paidSickHours),calSickAndReha);
    absInfo.textContent=`Kalender: Urlaub ${n(draftM.calendarVacationDays)} ganze + ${n(draftM.calendarHalfDays)} halbe Tage (${n(draftM.calendarVacationHours).toLocaleString('de-DE')} Std.), Krankheit mit Lohnfortzahlung ${n(draftM.calendarSickPaidDays)} Tage (${n(draftM.calendarPaidSickHours).toLocaleString('de-DE')} Std.), Krankengeld-Fälle ${n(draftM.calendarSickBenefitDays)} · Reha mit Entgeltfortzahlung ${n(draftM.calendarRehaPaidDays)} Tage (${n(draftM.calendarRehaPaidHours).toLocaleString('de-DE')} Std.) · Reha mit Übergangsgeld ${n(draftM.calendarRehaBenefitDays)} Tage (separat, kein Arbeitgeberlohn). Berechnet: Urlaub ${vH.toLocaleString('de-DE')} Std., Krankheit und Reha mit Entgeltfortzahlung zusammen ${sH.toLocaleString('de-DE')} Std. (Kalenderwerte addiert; nicht zusätzlich zu manueller Krankheitszeit).`;
@@ -417,7 +429,7 @@
   // Calendar-origin fields may have changed while this payroll form was open.
   // Always keep the latest encrypted calendar-derived totals when saving manual inputs.
   const recent=state.wmPayroll?.months?.[month];
-  if(recent&&window.WMCalendar){for(const k of ['calendarVacationHours','calendarPaidSickHours','calendarVacationDays','calendarHalfDays','calendarSickPaidDays','calendarSickBenefitDays','calendarRehaPaidHours','calendarRehaPaidDays','calendarRehaBenefitDays','calendarTimeCollisions','wmCalendarAbsence','wmCalendarAbsenceUpdatedAt'])if(Object.prototype.hasOwnProperty.call(recent,k))newM[k]=recent[k];}
+  if(recent&&window.WMCalendar){for(const k of ['calendarVacationHours','calendarPaidSickHours','calendarVacationDays','calendarHalfDays','calendarSickPaidDays','calendarSickBenefitDays','calendarRehaPaidHours','calendarRehaPaidDays','calendarRehaBenefitDays','calendarTimeCollisions','wmCalendarAbsence','wmCalendarAbsenceUpdatedAt','shortCalendarDays','shortCalendarLostHours','shortCalendarGrossLoss','shortCalendarHourlyRate','shortCalendarWeeklyHours','wmCalendarKug','wmCalendarUpdatedAt'])if(Object.prototype.hasOwnProperty.call(recent,k))newM[k]=recent[k];}
   if((state.wm20?.autoPayroll||state.wm195?.rates?.autoPremiums)&&window.WM195?.prepareSavedPayroll){window.WM195.prepareSavedPayroll(month,newM,newP);}else if(state.wm20?.autoPayroll){throw Error('Sichere automatische Lohnsynchronisierung nicht geladen. Bitte App neu starten.');}
   for(const key of [...pkeys.map(k=>[newP,k]),...mkeys.map(k=>[newM,k])]){const [obj,k]=key;const v=obj[k];if(typeof PROFILE[k]==='number'||typeof MONTH[k]==='number'){if(!Number.isFinite(n(v)))throw Error('Ungültiger Wert: '+k);}}
   for(const it of newM.items){if(!it.id)it.id=ID();if(['reimbursement','deduction'].includes(it.kind)&&n(it.amount)<0)throw Error('Betrag darf nicht negativ sein.');}

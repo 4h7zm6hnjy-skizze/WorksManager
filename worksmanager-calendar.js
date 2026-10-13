@@ -1,4 +1,4 @@
-/* WorksManager 1.9.16 – Privater Schicht-/Kurzarbeitskalender.
+/* WorksManager 1.9.17 – Privater Schicht-/Kurzarbeitskalender.
  * Manuelle Einträge liegen verschlüsselt in state.wmCalendar; gespeicherte AUs werden direkt aus state.aus angezeigt.
  * Keine Personen-/Gehaltsdaten im öffentlich bereitgestellten Quellcode.
  */
@@ -95,6 +95,28 @@ function db(){if(!state.wmCalendar||typeof state.wmCalendar!=='object'||Array.is
 function days(){return db().days;}
 function targetMinutes(){const n=Number(state.wm20?.targetMinutes);return Number.isFinite(n)&&n>0&&n<=1440?n:DAYTARGET;}
 function payMonth(month){return state.wmPayroll?.months?.[month]||{};}
+function workdaysPerWeek(){const v=Number(state.wmCalendar?.workdaysPerWeek);return Number.isInteger(v)&&v>=1&&v<=7?v:5;}
+function weeklyHours(){const n=Number(state.wmPayroll?.profile?.weeklyHours);return Number.isFinite(n)&&n>0&&n<=168?n:37;}
+// Always read CURRENT saved payroll/clock rate. Never fix a user's actual hourly wage in public JS.
+function currentRate(){
+ const p=state.wmPayroll?.profile||{};
+ if(p.salaryMode==='fixed'){
+  const month=Number(p.monthlySalary),week=weeklyHours();
+  return Number.isFinite(month)&&month>0&&week>0?R(month*12/(week*52)):0;
+ }
+ const pay=Number(String(p.hourlyRate??'').replace(',','.'));
+ if(Number.isFinite(pay)&&pay>0)return R(pay);
+ const clock=Number(state.wm20?.hourlyGrossRate);
+ return Number.isFinite(clock)&&clock>0?R(clock):0;
+}
+function defaultDailyMinutes(){return Math.round(weeklyHours()*60/workdaysPerWeek());}
+const EUR=n=>Number(n).toLocaleString('de-DE',{style:'currency',currency:'EUR'});
+function kugPreview(row,dates,rate=currentRate()){
+ const planned=dates.reduce((v)=>v+planMinutes(row),0);
+ const lost=planned*Number(row.shortLoss)/100;
+ return {plannedMinutes:R(planned),lostMinutes:R(lost),workedMinutes:R(planned-lost),rate,shortGrossLoss:R(lost/60*rate),regularGross:R((planned-lost)/60*rate)};
+}
+
 function daysInMonth(month,values=days()){return Object.entries(values).filter(([k])=>k.startsWith(month)).sort(([a],[b])=>a.localeCompare(b));}
 function monthKug(month,values=days(),strict=true){
  const chosen=daysInMonth(month,values).filter(([,x])=>x.shortEnabled&&Number(x.shortLoss)>0);
@@ -105,7 +127,11 @@ function monthKug(month,values=days(),strict=true){
  if(strict&&conflictingRate)throw Error('Im selben Monat sind unterschiedliche KUG-Prozentsätze gespeichert. Bitte vereinheitlichen.');
  const inconsistent=conflictingChild||conflictingRate;
  const child=chosen.length&&!inconsistent?!!chosen[0][1].withChild:null;
- return {days:chosen.length,shortMinutes:R(chosen.reduce((n,[,x])=>n+planMinutes(x)*Number(x.shortLoss)/100,0)),withChild:child,rate:chosen.length&&!inconsistent?Number(chosen[0][1].kugRate):null,...(inconsistent?{conflict:true}:{})};
+ const rate=currentRate();
+ const shortMinutes=R(chosen.reduce((n,[,x])=>n+planMinutes(x)*Number(x.shortLoss)/100,0));
+ return {days:chosen.length,shortMinutes,shortGrossLoss:rate>0?R(shortMinutes/60*rate):null,
+  currentHourlyRate:rate, weeklyHours:weeklyHours(),
+  withChild:child,rate:chosen.length&&!inconsistent?Number(chosen[0][1].kugRate):null,...(inconsistent?{conflict:true}:{})};
 }
 function syncPayroll(month){
  const info=monthKug(month,days(),false),leave=monthAbsence(month),pay=state.wmPayroll??{},months=pay.months??{},old=months[month]||{};
@@ -118,7 +144,9 @@ function syncPayroll(month){
  }else if(info.days){
   if(old.shortEnabled&&!old.wmCalendarKug){if(!confirm(`Im Lohnmonat ${month} wurde bereits Kurzarbeit manuell erfasst. Kalenderdaten für KUG-Satz und Tage übernehmen? Vorhandene Nettoangaben bleiben erhalten.`))throw Error('Vorhandene Kurzarbeitseinstellungen wurden nicht verändert.');}
   const update={...old,month,shortEnabled:true,shortWithChild:info.withChild,shortCalendarDays:info.days,
-   shortCalendarLostHours:R(info.shortMinutes/60),wmCalendarKug:true,wmCalendarUpdatedAt:new Date().toISOString()};
+   shortCalendarLostHours:R(info.shortMinutes/60),shortCalendarGrossLoss:info.shortGrossLoss,
+   shortCalendarHourlyRate:info.currentHourlyRate,shortCalendarWeeklyHours:info.weeklyHours,
+   wmCalendarKug:true,wmCalendarUpdatedAt:new Date().toISOString()};
   // Keep manually entered replacement quote if previously set. Otherwise apply the calendar's editable 60/67% rate.
   if(update.shortRateOverride===''||update.shortRateOverride==null){
    if(info.withChild)update.shortRateWithChild=info.rate;
@@ -127,7 +155,7 @@ function syncPayroll(month){
   months[month]=update;
  }else if(old.wmCalendarKug){
   // Only clear Kurzarbeit that originally came from this calendar.
-  months[month]={...old,shortEnabled:false,shortCalendarDays:0,shortCalendarLostHours:0,wmCalendarKug:false,wmCalendarUpdatedAt:new Date().toISOString()};
+  months[month]={...old,shortEnabled:false,shortCalendarDays:0,shortCalendarLostHours:0,shortCalendarGrossLoss:null,shortCalendarHourlyRate:0,wmCalendarKug:false,wmCalendarUpdatedAt:new Date().toISOString()};
  }else{
   // Existing manually entered Kurzarbeit must survive a vacation/sickness update.
   months[month]={...old};
@@ -234,6 +262,19 @@ function reflectQuickSelection(){
 function toggleForm(){const mode=$('wmCalScope')?.value;const range=$('wmCalToBox'),weekdays=$('wmCalWeekdays'),kug=$('wmCalKugFields');if(range)range.hidden=mode!=='range';if(weekdays)weekdays.hidden=mode==='one';if(kug)kug.hidden=!$('wmCalKug').checked;
  $('wmCalFromLabel').textContent=mode==='week'?'Eine Woche auswählen (Datum innerhalb der Woche)':mode==='range'?'Zeitraum von':'Datum';
  reflectQuickSelection();
+ updateKugPreview();
+}
+function updateKugPreview(){
+ const target=$('wmCalKugPreview'),rateEl=$('wmCalCurrentRate');if(!target)return;
+ const rate=currentRate(),hours=weeklyHours(),day=defaultDailyMinutes();
+ if(rateEl){const mode=state.wmPayroll?.profile?.salaryMode==='fixed'?' (aus Festgehalt berechnet)':'';
+  rateEl.textContent=`Aktueller Stundenwert: ${rate>0?EUR(rate):'nicht hinterlegt'}${mode} · Wochenstunden: ${hours.toLocaleString('de-DE')} · ${workdaysPerWeek()} Arbeitstage/Woche · ohne Schicht ${Math.floor(day/60)}:${String(day%60).padStart(2,'0')} Std./Tag.`;}
+ if(!$('wmCalKug').checked){target.textContent='Kurzarbeit aktivieren, um die Vorschau für einen Tag oder eine ganze Woche zu sehen.';return;}
+ try{
+  const dates=scopeDates(),row=values(),v=kugPreview(row,dates,rate);
+  const display=x=>(x/60).toLocaleString('de-DE',{maximumFractionDigits:2,minimumFractionDigits:2});
+  target.textContent=`${dates.length} Tag(e): ${display(v.plannedMinutes)} Sollstunden, ${display(v.lostMinutes)} Ausfallstunden, ${display(v.workedMinutes)} verbleibende Arbeitsstunden. ${rate>0?`Brutto-Verdienstausfall ${EUR(v.shortGrossLoss)} bei aktuellem Stundenlohn ${EUR(rate)}.`:'Bitte unter Abrechnung den Brutto-Stundenlohn hinterlegen.'} ${row.kugRate.toLocaleString('de-DE')} % gelten für den pauschalierten NETTO-Verlust, nicht den Bruttoausfall. Für den KUG-Eurobetrag werden pauschalierte Soll-/Ist-Nettoentgelte oder ein bewilligter Betrag benötigt.`;
+ }catch(e){target.textContent='Vorschau: '+e.message;}
 }
 function render(){if(!open()||!$('wmCalGrid'))return;const month=viewMonth,y=Number(month.slice(0,4)),m=Number(month.slice(5,7));$('wmCalMonth').textContent=new Date(y,m-1,1).toLocaleDateString('de-DE',{month:'long',year:'numeric'});
  let html='';const first=new Date(y,m-1,1),offset=(first.getDay()+6)%7,num=new Date(y,m,0).getDate();for(const w of ['Mo','Di','Mi','Do','Fr','Sa','So'])html+=`<span class="wmcal-weeklabel">${w}</span>`;for(let i=0;i<offset;i++)html+='<span></span>';
@@ -260,7 +301,7 @@ auInfo(selected);
  const hasNet=p.shortNetSoll!==''&&p.shortNetSoll!=null&&p.shortNetIst!==''&&p.shortNetIst!=null;
  const reported=hasNet&&k.days&&!k.conflict?R(Math.max(0,Number(p.shortNetSoll)-Number(p.shortNetIst))*Number(p.shortRateOverride!==''&&p.shortRateOverride!=null?p.shortRateOverride:k.rate)/100):null;
  const absentInfo=`Urlaub ${a.vacationDays} ganze / ${a.halfDays} halbe Tage (${R(a.vacationMinutes/60).toLocaleString('de-DE')} Std.) · Krank mit Entgeltfortzahlung ${a.sickPaidDays} Tage (${R(a.sickPaidMinutes/60).toLocaleString('de-DE')} Std.) · Krankengeld-Fälle ${a.sickBenefitDays} · Reha mit Entgeltfortzahlung ${a.rehaPaidDays} Tage (${R(a.rehaPaidMinutes/60).toLocaleString('de-DE')} Std.) · Reha mit Übergangsgeld ${a.rehaBenefitDays} Tage (nicht im Arbeitgeberbrutto).`;
- $('wmCalSummary').textContent=`Gespeicherte AU: ${savedAU.days.size} Kalendertage (${savedAU.cases} Krankschreibung(en) mit Überschneidung in diesem Monat) – automatisch aus „Krankheit & AU“ angezeigt, ohne automatische Annahme zur Lohnfortzahlung. · Früh ${counts.early} · Spät ${counts.late} · Nacht ${counts.night} · ${absentInfo} Kurzarbeit ${k.days} Tag(e) (${R(k.shortMinutes/60).toLocaleString('de-DE')} geplante Ausfallstunden). ${a.collisions?`Achtung: An ${a.collisions} Abwesenheitstag(en) existieren Stempelzeiten; nur die verbleibende Sollzeit wird für Lohnfortzahlung angesetzt. `:''}${k.days?`KUG-Satz ${rates}. ${k.conflict?'Urlaub und Krankheit können dennoch gespeichert werden; KUG-Abrechnung bleibt unverändert.':reported===null?'Für einen Eurobetrag bitte in Abrechnung das pauschalierte Soll- und Ist-Netto eintragen.':`KUG-Vorschau ${reported.toLocaleString('de-DE',{style:'currency',currency:'EUR'})} nach hinterlegtem Netto.`}`:''}`;
+ $('wmCalSummary').textContent=`Gespeicherte AU: ${savedAU.days.size} Kalendertage (${savedAU.cases} Krankschreibung(en) mit Überschneidung in diesem Monat) – automatisch aus „Krankheit & AU“ angezeigt, ohne automatische Annahme zur Lohnfortzahlung. · Früh ${counts.early} · Spät ${counts.late} · Nacht ${counts.night} · ${absentInfo} Kurzarbeit ${k.days} Tag(e) (${R(k.shortMinutes/60).toLocaleString('de-DE')} geplante Ausfallstunden${k.shortGrossLoss!==null?`, ${EUR(k.shortGrossLoss)} Bruttoausfall bei aktuell ${EUR(k.currentHourlyRate)}/Std.`:''}). ${a.collisions?`Achtung: An ${a.collisions} Abwesenheitstag(en) existieren Stempelzeiten; nur die verbleibende Sollzeit wird für Lohnfortzahlung angesetzt. `:''}${k.days?`KUG-Satz ${rates}. ${k.conflict?'Urlaub und Krankheit können dennoch gespeichert werden; KUG-Abrechnung bleibt unverändert.':reported===null?'Für einen Eurobetrag bitte in Abrechnung das pauschalierte Soll- und Ist-Netto eintragen.':`KUG-Vorschau ${reported.toLocaleString('de-DE',{style:'currency',currency:'EUR'})} nach hinterlegtem Netto.`}`:''}`;
 }
 function navMonths(dir){const d=new Date(Number(viewMonth.slice(0,4)),Number(viewMonth.slice(5,7))-1+dir,1);viewMonth=mm(d);if(!selected.startsWith(viewMonth))selected=`${viewMonth}-01`;render();}
 function mount(){if($('wmCalRoot'))return;const dash=$('dashboard');if(!dash||!$('app'))return;
@@ -268,6 +309,7 @@ function mount(){if($('wmCalRoot'))return;const dash=$('dashboard');if(!dash||!$
 .wmcal{background:#fff;color:#14324a;border:1px solid #d9e3ec;border-radius:16px;margin:16px 0;padding:16px;box-shadow:0 3px 15px #0000000a}.wmcal *{box-sizing:border-box}.wmcal-head{display:flex;justify-content:space-between;align-items:center;gap:9px;flex-wrap:wrap}.wmcal-head h3{margin:0;font-size:20px}.wmcal-monthnav{display:flex;align-items:center;gap:8px}.wmcal-monthnav button{min-width:34px}.wmcal button.wmcal-control{border:1px solid #b7ccdb;background:white;border-radius:9px;min-height:38px;padding:6px 11px;color:#15384b;font-weight:800}.wmcal-monthnav strong{min-width:128px;text-align:center;text-transform:capitalize}.wmcal-legend{display:flex;gap:13px;flex-wrap:wrap;margin:12px 0;font-size:12px}.wmcal-mark{width:12px;height:12px;display:inline-block;border-radius:4px;margin-right:4px;vertical-align:middle}.wmcal-mark.early{background:#bceccf}.wmcal-mark.late{background:#bfdafa}.wmcal-mark.night{background:#ffeba2}.wmcal-mark.kug{background:#fff;border:2px solid #b56c21}.wmcal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;margin:10px 0}.wmcal-weeklabel{text-align:center;font-size:12px;font-weight:800;color:#60748a;padding:5px 0}.wmcal-day{background:#f2f6f9;border:1px solid #dfe6ee;border-radius:9px;min-height:66px;padding:5px 3px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:2px;color:#18334a;cursor:pointer;overflow:hidden;font-size:11px}.wmcal-day strong{font-size:15px}.wmcal-day.wmcal-early{background:#cbf2d9;border-color:#86c79f}.wmcal-day.wmcal-late{background:#cde2ff;border-color:#92b9ec}.wmcal-day.wmcal-night{background:#fff0b9;border-color:#ead17b}.wmcal-day.selected{outline:3px solid #174d64;outline-offset:-2px}.wmcal-day.today strong{text-decoration:underline}.wmcal-shift{font-weight:850}.wmcal-kug{font-weight:800;font-size:10px;color:#8b3e06}.wmcal-note{font-size:9px;white-space:nowrap;color:#4d6071}.wmcal-summary{font-size:12px;color:#31536a;line-height:1.6;margin:10px 0 5px}.wmcal details{border-top:1px solid #e0e8ee;margin-top:14px}.wmcal details summary{cursor:pointer;font-weight:800;padding:14px 0}.wmcal-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.wmcal-form label{font-weight:700;font-size:13px;display:flex;flex-direction:column;gap:5px}.wmcal-form input,.wmcal-form select,.wmcal-form textarea{width:100%;padding:10px;font:16px system-ui;background:#fff;color:#163649;border:1px solid #becbd6;border-radius:8px;min-width:0}.wmcal-form .full{grid-column:1/-1}.wmcal-form label.wmcal-check{display:flex;flex-direction:row;align-items:center;gap:8px}.wmcal-form input[type=checkbox]{width:19px;height:19px;flex:0 0 19px}.wmcal-weekdays{display:flex;flex-wrap:wrap;gap:10px;padding:6px 0}.wmcal-weekdays label{display:flex;align-items:center;flex-direction:row}.wmcal-weekdays input{width:19px;height:19px}.wmcal-actions{display:flex;flex-wrap:wrap;gap:9px;grid-column:1/-1}.wmcal-actions button{padding:12px 16px;border:0;border-radius:9px;background:#087d79;color:white;font-weight:800;min-height:46px}.wmcal-actions button.danger{background:#fff4f4;border:1px solid #be7b7b;color:#9a2634}.wmcal-help{font-size:12px;color:#546f84;line-height:1.6;margin:7px 0}.wmcal-message{font-size:13px;min-height:16px;font-weight:750}.wmcal-form [hidden]{display:none!important}@media(max-width:470px){.wmcal{padding:11px}.wmcal-grid{gap:3px}.wmcal-day{min-height:61px;font-size:10px;padding:4px 1px}.wmcal-day strong{font-size:13px}.wmcal-kug{font-size:9px}.wmcal-note{font-size:8px}.wmcal-form{grid-template-columns:1fr}.wmcal-form .full{grid-column:1}.wmcal-monthnav strong{min-width:110px}}
 
 
+ .wmcal-kug-preview{font-size:13px;line-height:1.55;color:#664008;background:#fff2dc;border:1px solid #e6b779;padding:12px;border-radius:9px;font-weight:700}
 .wmcal-day.wmcal-auSaved{background:#ffe4e6;border-color:#d85d6b;color:#76212c}
 .wmcal-day.wmcal-has-au:not(.wmcal-auSaved){border:2px solid #d44959}
 .wmcal-au-badge{font-weight:850;font-size:10px;color:#8f1326;background:#ffd0d5;border:1px solid #db7680;border-radius:5px;padding:2px 4px;max-width:100%}
@@ -288,9 +330,10 @@ function mount(){if($('wmCalRoot'))return;const dash=$('dashboard');if(!dash||!$
 <div id="wmCalWeekdays" class="full" hidden><strong style="font-size:13px">Wochentage auswählen</strong><div class="wmcal-weekdays">${['Mo','Di','Mi','Do','Fr','Sa','So'].map((name,i)=>`<label><input type="checkbox" value="${i}" ${i<5?'checked':''}>${name}</label>`).join('')}</div></div>
 <label>Schicht<select id="wmCalShift"><option value="">Keine Schicht / nur Notiz</option><option value="early">Frühschicht · grün</option><option value="late">Spätschicht · blau</option><option value="night">Nachtschicht · gelb</option></select></label>
 <label>Geplante Arbeitszeit von<input id="wmCalBegin" type="time"></label><label>Bis (bei Nachtschicht am Folgetag)<input id="wmCalEnd" type="time"></label><label>Unbezahlte Pause (Minuten)<input id="wmCalPause" type="number" min="0" max="1439" step="1" value="30"></label><label>Tagessoll (Minuten, falls keine Uhrzeit)<input id="wmCalTarget" type="number" min="1" max="1440" step="1"></label><label class="full">Abwesenheit<select id="wmCalAbsence"><option value="">Keine Abwesenheit</option><option value="vacationFull">Urlaub · ganzer Tag (lila)</option><option value="vacationHalf">Urlaub · halber Tag (helllila)</option><option value="sickPaid">Krank · Entgeltfortzahlung (rot)</option><option value="sickBenefit">Krank · nach Ende der Entgeltfortzahlung / Krankengeld (rosa)</option><option value="rehaPaid">Reha · mit Entgeltfortzahlung des Arbeitgebers (türkis)</option><option value="rehaBenefit">Reha · Übergangsgeld / keine Entgeltfortzahlung (hellblau)</option></select></label><label class="full">Notiz<textarea id="wmCalNote" rows="2" maxlength="400" placeholder="z. B. Schichtwechsel, Arzttermin"></textarea></label>
-<label class="full wmcal-check"><input id="wmCalKug" type="checkbox">Kurzarbeit an diesem Tag berücksichtigen</label>
-<div class="full wmcal-form" id="wmCalKugFields" hidden><label>Arbeitsausfall (% der Sollzeit)<input id="wmCalLoss" type="number" min="1" max="100" step="1" value="100"></label><label>KUG-Leistungssatz<select id="wmCalChild"><option value="yes">Mit Kind (67 %)</option><option value="no">Ohne Kind (60 %)</option></select></label><label>Leistungssatz (%) · änderbar<input id="wmCalKugRate" type="number" min="0" max="100" step="0.1" value="67"></label>
-<p class="wmcal-help full">Für die Kurzarbeitsstunden gilt die geplante Arbeitsdauer (Beginn bis Ende minus Pause). 100 % Arbeitsausfall = an diesem Tag keine Arbeitsleistung. 50 % = die Hälfte der geplanten Arbeitszeit fällt aus. Für die Euro-Berechnung benötigt die Lohnabrechnung das pauschalierte Soll- und Ist-Netto (oder den tatsächlichen KUG-Bescheid). Ausfallstunden sind Planung, keine automatisch erfassten Arbeitsstunden.</p></div>
+<div class="wmcal-quick full" style="border-color:#e7af71;background:#fff4e9"><strong>Kurzarbeit schnell eintragen</strong><div class="wmcal-actions"><button type="button" id="wmCalKugDay" class="wmcal-control">Kurzarbeit · 1 Tag</button><button type="button" id="wmCalKugWeek" class="wmcal-control">Kurzarbeit · ganze Woche</button></div><p>Für einzelne Tage oder eine ganze Woche (Mo–Fr vorausgewählt). Zeiten, Prozentsatz und Kinderstatus sind unten frei änderbar.</p></div>
+<label class="full wmcal-check"><input id="wmCalKug" type="checkbox">Kurzarbeit für gewählte Tage aktivieren</label>
+<div class="full wmcal-form" id="wmCalKugFields" hidden><div class="full wmcal-quick"><strong>Berechnungsgrundlage (jederzeit änderbar)</strong><div id="wmCalCurrentRate" class="wmcal-help"></div><label>Arbeitstage pro Woche (für Tagessoll ohne eingetragene Schicht)<input id="wmCalWorkdays" type="number" min="1" max="7" step="1" value="5"></label><button type="button" class="wmcal-control" id="wmCalEditPay">Stundenlohn / Wochenstunden in Abrechnung ändern →</button><p>Immer der aktuell gespeicherte Stundenlohn aus der Lohnberechnung; frühere Stempelungen werden nicht überschrieben. Für neue Tage ohne Schichtzeit gilt: Wochenstunden ÷ Arbeitstage. Das Tagessoll lässt sich weiterhin separat ändern.</p></div><label>Arbeitsausfall (% der Sollzeit)<input id="wmCalLoss" type="number" min="1" max="100" step="1" value="100"></label><label>KUG-Leistungssatz<select id="wmCalChild"><option value="yes">Mit Kind (67 %)</option><option value="no">Ohne Kind (60 %)</option></select></label><label>Leistungssatz (%) · änderbar<input id="wmCalKugRate" type="number" min="0" max="100" step="0.1" value="67"></label>
+<div id="wmCalKugPreview" class="wmcal-kug-preview full" role="status" aria-live="polite"></div><p class="wmcal-help full">Für die Kurzarbeitsstunden gilt die geplante Arbeitsdauer (Beginn bis Ende minus Pause). 100 % Arbeitsausfall = an diesem Tag keine Arbeitsleistung. 50 % = die Hälfte der geplanten Arbeitszeit fällt aus. Für die Euro-Berechnung benötigt die Lohnabrechnung das pauschalierte Soll- und Ist-Netto (oder den tatsächlichen KUG-Bescheid). Ausfallstunden sind Planung, keine automatisch erfassten Arbeitsstunden.</p></div>
 <div class="wmcal-actions"><button id="wmCalSave" type="button">Eintrag speichern</button><button id="wmCalDelete" type="button" class="danger">Ausgewählte Tage löschen</button></div><div class="wmcal-message full" id="wmCalMessage" role="status" aria-live="polite"></div></div></details><p class="wmcal-help">Tippe auf ein Datum, um es zu bearbeiten. Farben und Kürzel sind direkt unter dem Kalender erklärt. Beginn, Ende und Pause ergeben die geplanten Stunden, auch bei Nachtschichten über Mitternacht. Schichtplanung erzeugt keine Stempelung. Urlaub (ganz/halb), Krankheit und Reha mit Entgeltfortzahlung fließen als bezahlte Fehlzeiten in die Lohnberechnung ein; bereits gestempelte Zeit wird beim selben Tag gegengerechnet. Krankengeld sowie Reha mit Übergangsgeld werden nicht als Arbeitgeberbrutto berechnet: Die tatsächliche Leistung ist separat anhand des Bescheids zu erfassen. Den Reha-Status (Entgeltfortzahlung oder Übergangsgeld) bitte anhand Arbeitgeber/Leistungsträger wählen. Manuelle und automatisch berechnete Abwesenheitsstunden werden je Art nicht addiert, sondern der höhere Wert wird verwendet.</p>`;
  const anchor=$('wmClockHome')||dash.querySelector('.dashboard-hero');if(anchor)anchor.insertAdjacentElement('afterend',section);else dash.insertAdjacentElement('afterbegin',section);
  $('wmCalGrid').addEventListener('click',e=>{const el=e.target.closest('[data-cal-date]');if(!el)return;setFormDate(el.dataset.calDate);$('wmCalEditor').open=true;
@@ -299,7 +342,20 @@ function mount(){if($('wmCalRoot'))return;const dash=$('dashboard');if(!dash||!$
  $('wmCalPrev').onclick=()=>navMonths(-1);$('wmCalNext').onclick=()=>navMonths(1);
  $('wmCalAuJump').onchange=()=>{const value=$('wmCalAuJump').value;if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(value))return;viewMonth=value;selected=value+'-01';setFormDate(selected);};
  $('wmCalOpenAUs').onclick=()=>{if(typeof go==='function')go('sickness');};
- $('wmCalScope').onchange=toggleForm;$('wmCalKug').onchange=toggleForm;
+ $('wmCalScope').onchange=toggleForm;
+ function setNewKugTarget(){if(!days()[selected]&&!$('wmCalShift').value&&!$('wmCalBegin').value&&!$('wmCalEnd').value)$('wmCalTarget').value=defaultDailyMinutes();}
+ $('wmCalKug').onchange=()=>{if($('wmCalKug').checked)setNewKugTarget();toggleForm();};
+ $('wmCalKugDay').onclick=()=>{$('wmCalScope').value='one';$('wmCalKug').checked=true;$('wmCalAbsence').value='';setNewKugTarget();toggleForm();};
+ $('wmCalKugWeek').onclick=()=>{$('wmCalScope').value='week';$('wmCalKug').checked=true;$('wmCalAbsence').value='';setNewKugTarget();toggleForm();};
+ const wk=$('wmCalWorkdays');wk.value=String(workdaysPerWeek());
+ wk.onchange=async()=>{const n=Number(wk.value);if(!Number.isInteger(n)||n<1||n>7){showMessage('Arbeitstage pro Woche bitte zwischen 1 und 7 angeben.',true);wk.value=workdaysPerWeek();return;}
+  const previous=state.wmCalendar===undefined?undefined:cp(state.wmCalendar);
+  try{db().workdaysPerWeek=n;await save('Arbeitstage pro Woche gespeichert');if(!$('wmCalShift').value&&!$('wmCalBegin').value&&!$('wmCalEnd').value)$('wmCalTarget').value=defaultDailyMinutes();updateKugPreview();}
+  catch(e){if(previous===undefined)delete state.wmCalendar;else state.wmCalendar=previous;showMessage('Arbeitstage konnten nicht gespeichert werden: '+e.message,true);}
+ };
+ $('wmCalEditPay').onclick=()=>{if(typeof go==='function')go('payroll');const el=$('wmpayRoot');el?.scrollIntoView({block:'start',behavior:'smooth'});};
+ for(const name of ['wmCalLoss','wmCalKugRate','wmCalPause','wmCalTarget','wmCalBegin','wmCalEnd','wmCalFrom','wmCalTo'])$(name).addEventListener('input',updateKugPreview);
+ document.querySelectorAll('#wmCalWeekdays input').forEach(el=>el.addEventListener('change',updateKugPreview));
  $('wmCalFrom').addEventListener('change',reflectQuickSelection);
  $('wmCalEditor').addEventListener('click',e=>{const button=e.target.closest('button[data-cal-absence]');if(!button)return;
   $('wmCalAbsence').value=button.dataset.calAbsence;
@@ -307,15 +363,15 @@ function mount(){if($('wmCalRoot'))return;const dash=$('dashboard');if(!dash||!$
   toggleForm();
   $('wmCalSave').scrollIntoView({block:'nearest',behavior:'smooth'});
  });
- $('wmCalShift').onchange=()=>{const pair=SHIFT_TIMES[$('wmCalShift').value];if(pair){$('wmCalBegin').value=pair[0];$('wmCalEnd').value=pair[1];}else{$('wmCalBegin').value='';$('wmCalEnd').value='';}reflectQuickSelection();};
+ $('wmCalShift').onchange=()=>{const pair=SHIFT_TIMES[$('wmCalShift').value];if(pair){$('wmCalBegin').value=pair[0];$('wmCalEnd').value=pair[1];}else{$('wmCalBegin').value='';$('wmCalEnd').value='';}reflectQuickSelection();updateKugPreview();};
  $('wmCalAbsence').onchange=()=>{if($('wmCalAbsence').value){$('wmCalKug').checked=false;toggleForm();}};
  $('wmCalKug').addEventListener('change',()=>{if($('wmCalKug').checked)$('wmCalAbsence').value='';toggleForm();});
- $('wmCalChild').onchange=()=>{$('wmCalKugRate').value=$('wmCalChild').value==='yes'?'67':'60';};
+ $('wmCalChild').onchange=()=>{$('wmCalKugRate').value=$('wmCalChild').value==='yes'?'67':'60';updateKugPreview();};
  $('wmCalSave').onclick=()=>modify('save').catch(e=>showMessage('Fehler: '+e.message,true));
  $('wmCalDelete').onclick=()=>modify('delete').catch(e=>showMessage('Fehler: '+e.message,true));
  setFormDate(selected);
 }
-function init(){window.WMCalendar={refreshAbsenceForMonths,monthAbsence};if(typeof save!=='function'||typeof state==='undefined')return;mount();currentState=state;lastAuFingerprint=auFingerprint();
+function init(){window.WMCalendar={refreshAbsenceForMonths,monthAbsence,monthKug,currentRate};if(typeof save!=='function'||typeof state==='undefined')return;mount();currentState=state;lastAuFingerprint=auFingerprint();
  if(typeof window.renderAll==='function'){const prev=window.renderAll;window.renderAll=function(...a){const r=prev.apply(this,a);const nextFingerprint=auFingerprint();if(state!==currentState||nextFingerprint!==lastAuFingerprint){currentState=state;lastAuFingerprint=nextFingerprint;setTimeout(()=>{if(open()){try{render();}catch(e){console.error('WorksManager Kalender:',e);}}},0);}return r;};}
  document.addEventListener('wm-clock-payroll-synced',ev=>{const month=ev.detail?.month;
   if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month||'')||!state.wmCalendar?.days)return;
@@ -327,8 +383,8 @@ function init(){window.WMCalendar={refreshAbsenceForMonths,monthAbsence};if(type
   }catch(e){if(previous===undefined)delete state.wmPayroll;else state.wmPayroll=previous;
    console.error('WorksManager Kalender-Lohnabgleich:',e);showMessage('Abwesenheitsabgleich: '+e.message,true);}});
  });
- window.addEventListener('pageshow',()=>{if(open())render();});console.info('WorksManager Schichtkalender 1.9.16 geladen');
+ document.addEventListener('wm-payroll-rate-updated',()=>{if(open()){render();updateKugPreview();document.dispatchEvent(new CustomEvent('wm-calendar-payroll-updated',{detail:{months:[viewMonth]}}));}});window.addEventListener('pageshow',()=>{if(open()){render();updateKugPreview();}});console.info('WorksManager Schichtkalender 1.9.17 geladen');
 }
-if(typeof module!=='undefined'&&module.exports)module.exports={monthKug,monthAbsence,planMinutes,dateSelection,addDays,validDate,auRecords,auIndex,auMonths,auFingerprint};
+if(typeof module!=='undefined'&&module.exports)module.exports={monthKug,monthAbsence,planMinutes,dateSelection,addDays,validDate,auRecords,auIndex,auMonths,auFingerprint,currentRate,weeklyHours,defaultDailyMinutes,kugPreview};
 else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();

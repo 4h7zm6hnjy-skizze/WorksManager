@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.16",
-  "build": 2026101330,
+  "version": "1.9.17",
+  "build": 2026101331,
   "released": "2026-10-13",
   "coreCompatibility": "1.8.4",
-  "notes": "Alle bereits gespeicherten Krankschreibungen (state.aus) direkt und ohne Duplizierung im Startseitenkalender anzeigen, einschließlich AU über Monats-/Jahresgrenzen, AU-Monatsauswahl, Tagesdetails und Verlinkung auf Originalbelege. Änderungen und Löschungen nach jeder Speicherung aktualisieren die Anzeige. Keine automatische Lohnfortzahlung ohne gewählte Abrechnungsart; bestehende Lohn-/Stempel-/Kalenderdaten bleiben erhalten."
+  "notes": "Kalender: Kurzarbeit einzeln oder für Wochen Mo-Fr (Wochentage frei wählbar), mit Stunden-/Brutto-Verdienstausfall auf Basis des stets aktuellen, lokal gespeicherten Stundenlohns und der bearbeitbaren Wochenarbeitszeit. Kinderstatus 67/60%, Prozentsatz änderbar; offizielles Kurzarbeitergeld in EUR nur mit pauschaliertem Soll/Ist-Netto oder bewilligtem Betrag. Separate Monats-Synchronisation ohne Verdoppelung der Arbeitsstunden. Frühere Urlaubs-, AU- und Reha-Funktionen bleiben erhalten."
 }
