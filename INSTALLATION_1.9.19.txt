@@ -1,0 +1,22 @@
+WorksManager 1.9.19 – neue Struktur und Kurzarbeit 1–5 Tage
+
+Vor dem Update:
+1. In der aktuellen App ein VOLLSTÄNDIGES VERSCHLÜSSELTES BACKUP erstellen.
+2. Backup-Datei außerhalb des Browsers sichern und Passwort griffbereit halten.
+
+GitHub-Installation:
+1. Diese ZIP-Datei lokal entpacken.
+2. Alle 13 App-Dateien aus der ZIP in die Wurzel deines GitHub-Repositories WorksManager hochladen.
+3. Gleichnamige Dateien ersetzen, insbesondere index.html, sw.js, worksmanager-calendar.js und worksmanager-release.json.
+4. Neue Datei worksmanager-organize.js unbedingt mit hochladen.
+5. Commit bestätigen und die gehostete App nach der Veröffentlichung neu öffnen.
+6. Version 1.9.19 kontrollieren, bei veralteter Anzeige Browser/App komplett schließen und erneut öffnen. Falls nötig Cache-Aktualisierung in der App prüfen.
+
+Wichtig:
+- app.js, styles.css und die übrigen unveränderten Stammdateien bleiben auf GitHub bestehen – NICHT löschen.
+- Die App-Daten liegen im verschlüsselten lokalen Gerätespeicher, nicht in diesem ZIP.
+- Es wurden keine privaten Lohnprofile mit in die ZIP gepackt.
+- Kurzarbeit: Kalender öffnen, Eintrag erweitern, 1–5 Tage auswählen, Mo–Fr einzeln anpassen, Ausfallprozentsatz prüfen, erst dann Eintrag speichern.
+- Ein Arbeitstag verwendet das Datum, das du im Kalender ausgewählt hast. Für 2–5 Tage gilt die Woche des Datums.
+- Abwesenheiten und vorhandene Arbeits-/Lohneinträge werden durch die optische Umordnung nicht migriert oder gelöscht.
+- Eine amtlich exakte KUG-Auszahlung ohne offizielle Leistungstabellen/Nettoangaben ist weiterhin NICHT automatisiert.

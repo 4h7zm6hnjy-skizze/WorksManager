@@ -1,0 +1,27 @@
+WorksManager 1.9.19 – Testbericht
+
+Basis: auf GitHub bestätigte WorksManager 1.9.18.
+
+Änderungen:
+- Zentrale Startseite: Stempeluhr + Arbeitskalender nach oben; Prüfungen, Vertrag, Kennzahlen und weitere Bereiche in getrennten aufklappbaren Abschnitten.
+- Mehr-Menü nach Arbeitszeit & Planung, Fehlzeiten & Familie, Lohn & Dokumente, Profil & Sicherheit gegliedert.
+- Rückweg zur Übersicht auf allen Unterseiten; Kurzlinks zu Uhr, Kalender, Kurzarbeit und Qualitätsprüfung.
+- Die bereits bestehenden Modul-Buttons werden verschoben, nicht als inaktive Kopien neu angelegt. Die core Datenstruktur bleibt erhalten.
+- Kurzarbeit: 1, 2, 3, 4, 5 Tage in einer Woche, Wochentage Mo–Fr individuell an-/abwählbar.
+- 1-Tag-Schnellwahl bleibt zum tatsächlich gewählten Datum kompatibel.
+- Stundenlohn wird weiter zur Berechnungszeit aus den aktuellen Lohneinstellungen gelesen.
+- Auswählen ist NICHT Speichern: erst „Eintrag speichern“ mutiert verschlüsselte Kalenderdaten.
+
+Automatisiert geprüft:
+- Chromium mit 390px iPhone-ähnlichem und 760px Tablet-Bildschirm: alle Hauptmodule vorhanden; Menükategorien; zurück zur Übersicht; keine horizontalen Überläufe oder JavaScript-Seitenfehler.
+- Kurzarbeit 1–5 Tage; Montag/Mittwoch/Freitag ohne andere Wochentage; volle Ausfalltage: 3x7,4h=22,2h; bei 14,90€/h 330,78€ Bruttoausfall.
+- Einzelner Donnerstag; vor Speichern keine Datenspeicherung.
+- Regressionsprüfung altes Kurzarbeit-1-Tag/5-Tage-Verhalten, 37h/Woche, 14,90€/h; Änderung auf 16€/h ohne Neuspeicherung; 67% aus bereitgestellter Nettoentgeltdifferenz, nicht aus Brutto.
+- Regressionen: gespeichert AU (auch Überlappungen/Monatsgrenzen), Urlaub, Krankengeld, Reha mit/ohne Entgeltfortzahlung, Kollisionsschutz und ältere widersprüchliche KUG-Angaben.
+- Node JS-Syntax für alle enthaltenen Skripte, Version und Offline-Asset-Mapping in Service Worker geprüft.
+
+Grenzen:
+- Es erfolgte kein Zugriff auf verschlüsselte reale iPhone-Profildaten, kein echtes iPhone-WebKit und kein End-to-End-Browserlauf mit dem remote gehosteten GitHub-Pages-Build.
+- Der App-Kern (app.js v1.8.4 und styles.css) wurde unverändert belassen und ist nicht in der ZIP; die simulierten DOM-Tests decken nicht alle Kern-Interaktionen ab.
+- Eine 100%ige Fehlerfreiheit wird nicht behauptet.
+- KUG-Netto bleibt Schätzung, sofern amtliche Netto-Leistungstabellenwerte/echte Auszahlung nicht hinterlegt sind.

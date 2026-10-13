@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.18",
-  "build": 2026101332,
+  "version": "1.9.19",
+  "build": 2026101333,
   "released": "2026-10-13",
   "coreCompatibility": "1.8.4",
-  "notes": "Gesamtupdate: Tagesabgleich aus Kalender, AU, Stempeluhr und Lohn; KUG-Bruttoverlust und ausdrücklich unverbindliche Netto-Näherung mit Link zur amtlichen 2026er KUG-Tabelle; automatische 3-Schicht-Wochenrotation mit Vorlagenuhrzeiten und Schutz bestehender Tage; Abrechnungs-Istvergleich, Frühwarnungen, verschlüsselter Backup-Export/-Integritätstest, Versionsprüfung, Tages-CSV, zentraler Kalender. Keine automatische amtliche KUG-Tabelle/PAP im Offlinepaket; amtlicher KUG-EUR-Wert weiter mit Tabellenwert oder Bescheid."
+  "notes": "Struktur-Update: Startseite in Stempeluhr, Kalender, Qualitätsprüfung und weitere Themen gegliedert; aufgeräumte Schnellnavigation und nach Arbeitszeit/Fehlzeiten/Unterlagen/Einstellungen sortiertes Menü; Rückweg auf allen Unterseiten. Kurzarbeit 1–5 Wochentage, einzeln per Mo–Fr kombinierbar, ohne vorhandene Kalenderdaten oder gespeicherte Löhne beim Auswählen zu ändern. KUG weiterhin Netto-Näherung, keine amtliche Leistungstabelle."
 }
