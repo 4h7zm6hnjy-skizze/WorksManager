@@ -1,0 +1,14 @@
+WORKSMANAGER 1.9.16 – ANLEITUNG
+=================================
+Vor dem Update im WorksManager ein verschlüsseltes Backup erstellen und sicher verwahren.
+1. Die ZIP-Datei auf dem Computer entpacken. NICHT nur die ZIP selbst hochladen.
+2. Im GitHub-Repository 4h7zm6hnjy-skizze/WorksManager die enthaltenen App-Dateien (ohne Anleitungs-/Prüfdateien) in das HAUPTVERZEICHNIS hochladen und die vorhandenen Dateien ersetzen. Commit bestätigen.
+3. Auf die Veröffentlichung über GitHub Pages warten. WorksManager auf dem iPhone neu öffnen, Updates suchen und installieren, ggf. App vollständig schließen und erneut öffnen. NICHT den App-Speicher oder Cache mitsamt Nutzerdaten ohne Backup löschen.
+4. Auf der Startseite im Kalender einen Monat mit gespeicherter Krankschreibung öffnen. Alternativ oben über „Gespeicherte Krankschreibungen“ direkt einen AU-Monat auswählen.
+5. Jeder belegte Tag erscheint mit einem roten „AU“-Hinweis – auch an Wochenenden und über Monatsgrenzen. Ein Tag mit mehreren Bescheinigungen wird nicht doppelt gezählt. Die Übersicht zeigt die Anzahl AU-Kalendertage im aktuellen Monat.
+6. Tag antippen: Zeitraum der Bescheinigung(en) erscheint. Über „Krankschreibungen öffnen“ Originalbelege im Modul „Krankheit & AU“ ansehen. Neue AUs und gelöschte Original-AUs werden nach dem Speichern im Kalender aktualisiert.
+7. Für die Lohnberechnung gegebenenfalls „Krank · Entgeltfortzahlung“ oder „Krank · Krankengeld“ im Kalendereditor auswählen und SPEICHERN. Die AU allein entscheidet nicht über die Lohnart. Bei mehrtägigen Abschnitten können über „Zeitraum mit Wochentagen“ mehrere Tage mit einer gewählten Lohnart erfasst werden. Bereits gespeicherte Kalender- und Abrechnungsdaten bleiben erhalten.
+
+DATENSCHUTZ: Der Quellcode enthält keine AU-Fotos, Krankheitsdiagnosen, Nutzernamen oder gespeicherten AU-Zeitspannen. Alle personenbezogenen Daten verbleiben lokal in der vorhandenen verschlüsselten WorksManager-Datenbank.
+WICHTIG: Nur gespeicherte AU-Datensätze mit eindeutig auswertbarem Von-/Bis-Datum lassen sich korrekt im Kalender zuordnen. Andere Daten werden nicht geraten. Die AU-Anzeige erstellt keine neuen Stempelungen und keine automatischen Krankengeld-/Arbeitgeberlohn-Zahlungen.
+Keine Änderung am Kern app.js oder styles.css nötig. Bestand und verschlüsselte Nutzerdaten nicht ersetzen.

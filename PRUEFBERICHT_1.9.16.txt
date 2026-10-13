@@ -1,0 +1,18 @@
+PRÜFBERICHT – WORKSMANAGER 1.9.16
+==================================
+Ausgangsbasis: auf GitHub verifizierte Version 1.9.15, Kernversion app.js 1.8.4 unverändert. Browser Chromium 390x844px; Node.js-Syntaxprüfungen. Kein Safari-/iPhone-Praxistest, kein Zugriff auf echte verschlüsselte Nutzerdaten.
+
+Erfolgreiche Prüfungen:
+- Gespeicherte AU-Zeiträume als Kalenderhinweise einschließlich Anfangs-/Enddatum und über Monatswechsel hinweg.
+- Überschneidende AUs: rotes AU-Kennzeichen mit Anzahl Originalbescheinigungen, eindeutige Tageszählung.
+- Monatssprung zu allen Monaten mit AU, auch über Jahre; Februar-Schalttag.
+- Klick auf AU-Tag: Original-Zeiträume sichtbar; Link zum Modul Krankheit & AU.
+- Neues AU-Dokument nach Core-Speicherung erscheint nach renderAll ohne Neuladen.
+- Gelöschtes AU-Dokument verschwindet nach renderAll aus der Anzeige, noch vorhandene AUs bleiben sichtbar.
+- Bestehende manuell erfasste Krank-/Urlaubs-/Reha-Zeiten bleiben erhalten; AU-Hinweis wird ergänzend angezeigt.
+- AU allein ändert keine Lohnberechnung; erst explizit gebuchtes Entgeltfortzahlung oder Krankengeld wirkt wie zuvor. Geprüft: 7,5 Stunden Entgeltfortzahlung / 111,75 € bei 14,90 €/Std. genau einmal.
+- Bestehende Browserregressionen für Reha, Urlaub, Krankheit, Stempelzeit-Überschneidungen und bezahlte Fehlzeiten bestehen weiter.
+- Viewport 390px ohne horizontales Scrollen, Browser ohne JavaScript-Laufzeitfehler.
+- Versionskonsistenz: HTML, JS, Cache, Manifest und Release-Metadaten 1.9.16.
+
+Grenzen: Die tatsächliche iPhone-/Safari-Laufzeit ist nicht getestet. Alte AU-Einträge ohne gültige Datumswerte können nicht automatisch im Kalender platziert werden. Lohnfortzahlung/Krankengeld wird nicht aus dem AU-Foto oder Zeitraum abgeleitet und muss im Kalender gewählt werden. Dies ist keine verbindliche Lohnabrechnung.
