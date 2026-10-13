@@ -1,0 +1,16 @@
+WorksManager 1.9.20 – Prüfbericht
+
+Basis: ZIP 1.9.19, Dateien übernommen ohne Kernmodifikation von app.js/styles.css.
+Neue Datei worksmanager-netto.js, Lohnmodul und Versionsreferenzen aktualisiert.
+Private Importdatei bewusst außerhalb des öffentlichen GitHub-ZIP.
+Geprüft: manuelle Steuerklasse unabhängig von Familienstand; Kinderzahl getrennt von Kinder-unter-25 und Kinderfreibetrag; Berechnung mit aktuellen Vertragsstunden; Nachladen nach Entsperren; Bearbeitung/Speicherung über bestehende verschlüsselte Lohndaten; Service Worker und Manifest.
+Einschränkung: kein verbindliches Netto, Einkommensteuer nach bestehendem vereinfachten Tarif statt amtlichem vollständigem BMF-PAP. Keine automatische KUG-Euro-Berechnung aus Stundenausfall; bereits gespeicherte Monatswerte werden als eigener Ist-Stand gezeigt.
+Browser-Prüfungen erfolgreich:
+- 390- und 800-Pixel-Breite: Familienangaben, Nettoanzeige, Bearbeiten/Speichern, privater JSON-Import.
+- Wechsel des aktuellen Stundenlohns wird sofort in der Netto-Prognose sichtbar.
+- Steuerklasse V ohne manuell gepflegte Lohnsteuer gibt bewusst keine irreführende Nettozahl aus.
+- Vorversion-Tests für 1–5 Kurzarbeitstage, dynamischen Bruttoausfall, 67-%-KUG-Netto-Differenz, AUs, Krankheit, Urlaub, Reha und Monatswechsel erneut erfolgreich.
+- Node.js-Syntaxkontrolle für sämtliche mitgelieferten JavaScript-Dateien erfolgreich.
+- ZIP auf Dateiintegrität und vollständige Offline-Referenzen geprüft.
+
+Nicht geprüft: echte Abrechnung anhand vollständigem BMF-PAP 2026, realer iPhone-Safari-Speicher/Offline-Betrieb, tatsächliche ELStAM und Kirchensteuerpflicht.

@@ -1,0 +1,10 @@
+WorksManager 1.9.20 – Netto-Prognose und Familienangaben
+
+1. In der bestehenden App vor Installation ein verschlüsseltes Backup erstellen und prüfen.
+2. Alle App-Dateien aus diesem ZIP in das GitHub-Repository WorksManager hochladen, gleichnamige Dateien ersetzen, neue Datei worksmanager-netto.js ebenfalls hochladen. Original app.js und styles.css bleiben unverändert.
+3. Nach Veröffentlichung die App vollständig neu öffnen, entsperren und die Anzeige Geschätztes Monatsnetto prüfen.
+4. Für deine persönlichen Angaben die SEPARAT gelieferte Datei WorksManager_Lohnprofil_Familie_2_Kinder_PRIVAT.json unter Lohn & Abrechnung -> private Lohnprofil-Datei auswählen. Vorschau prüfen, Grunddaten übernehmen und Monat speichern. Die PRIVATE Datei niemals nach GitHub hochladen.
+5. Familienstand, Kinderzahl, Kinder unter 25, Steuerklasse, Freibetrag und Versicherung jederzeit unter Abrechnung -> Lohnberechnung -> Grunddaten ändern.
+6. Normaler Vertragsmonat = 37 Stunden * 52/12 (Stundenlohn stets aktuell). Sonderzahlungen/Schichtzuschläge/KUG fehlen in dieser Prognose. Gespeicherte Monatsabrechnung wird separat gezeigt.
+7. Lohnsteuer ist nur eine Näherung, kein amtlicher PAP-Rechner. Bei Steuerklasse V/VI/manuellen Steuern keine irreführende Standardnetto-Zahl. Kinderfreibetrag und Ehe legen Steuerklasse nicht automatisch fest.
+8. Vorhandene verschlüsselte Profile und Arbeitszeit-/AU-/Urlaubs-/Reha-Daten bleiben unangetastet.

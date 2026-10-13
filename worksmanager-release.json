@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.19",
-  "build": 2026101333,
+  "version": "1.9.20",
+  "build": 2026101334,
   "released": "2026-10-13",
   "coreCompatibility": "1.8.4",
-  "notes": "Struktur-Update: Startseite in Stempeluhr, Kalender, Qualitätsprüfung und weitere Themen gegliedert; aufgeräumte Schnellnavigation und nach Arbeitszeit/Fehlzeiten/Unterlagen/Einstellungen sortiertes Menü; Rückweg auf allen Unterseiten. Kurzarbeit 1–5 Wochentage, einzeln per Mo–Fr kombinierbar, ohne vorhandene Kalenderdaten oder gespeicherte Löhne beim Auswählen zu ändern. KUG weiterhin Netto-Näherung, keine amtliche Leistungstabelle."
+  "notes": "Netto-Prognose auf der Startseite auf Basis der aktuellen Lohnprofil-Daten mit Verheiratet Ja/Nein, Kinderzahl und gesonderter Pflegeversicherungs-Kinderzahl; alle Angaben lokal und jederzeit änderbar. Bestehende Steuerklasse wird nicht automatisch überschrieben. Netto für reguläre Monatsstunden und gespeicherten Lohnmonat getrennt. Sicherer optionaler privater Import."
 }

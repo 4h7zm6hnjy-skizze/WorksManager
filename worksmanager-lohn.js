@@ -1,10 +1,10 @@
-/* WorksManager 1.9.19 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
+/* WorksManager 1.9.20 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
  * KEINE Lohnabrechnungssoftware für amtliche Abrechnung. Lohnsteuer nur Näherung,
  * Ersatzleistungen nur Orientierung; alle kritischen Werte manuell überschreibbar.
  */
 (() => {
  'use strict';
- const VERSION='1.9.19',BUILD=2026101333;
+ const VERSION='1.9.20',BUILD=2026101334;
  const $=id=>document.getElementById(id);
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const round=x=>Math.round((Number(x)+Number.EPSILON)*100)/100;
@@ -13,7 +13,7 @@
  const clone=x=>JSON.parse(JSON.stringify(x));
  const nowMonth=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`};
  const ID=()=>crypto.randomUUID?.()||String(Date.now())+Math.random().toString(36).slice(2);
- const PROFILE={hourlyRate:0,monthlySalary:0,salaryMode:'hourly',weeklyHours:37,insuranceName:'',insuranceRateDate:'',insuranceType:'public',taxClass:'1',childAllowance:0,childrenUnder25:0,hasChildren:true,careSaxony:false,careChildlessExtra:false,churchTaxPct:0,monthlyTaxMode:'estimate',taxFactor:1,
+ const PROFILE={hourlyRate:0,monthlySalary:0,salaryMode:'hourly',weeklyHours:37,maritalStatus:'unknown',childrenCount:0,insuranceName:'',insuranceRateDate:'',insuranceType:'public',taxClass:'1',childAllowance:0,childrenUnder25:0,hasChildren:true,careSaxony:false,careChildlessExtra:false,churchTaxPct:0,monthlyTaxMode:'estimate',taxFactor:1,
   healthRate:14.6,additionalHealthRate:2.9,healthEmployeeRate:'',pensionEmployeeRate:9.3,unemploymentEmployeeRate:1.3,careEmployeeRate:'',careBase:1.8,careChildless:0.6,careChildReduction:0.25,
   healthCap:5812.50,pensionCap:8450,annualWorkAllowance:1230,annualSpecialAllowance:36,monthlyTaxAllowance:0,
   monthlyDeductionFixed:0,notes:''};
@@ -63,6 +63,7 @@
   </section>
   <section class="wmpay-mode-picker"><h3>1. Wie wirst du bezahlt?</h3><p>Wähle zuerst die Lohnart. Danach erscheinen die passenden Eingabefelder und weiteren Einstellungen.</p><label class="wmpay-field" for="wmpayModeSelect">Lohnart<select id="wmpayModeSelect"><option value="" ${!modeChosen?'selected':''}>Bitte auswählen</option><option value="hourly" ${modeChosen&&draftP.salaryMode==='hourly'?'selected':''}>Stundenlohn</option><option value="fixed" ${modeChosen&&draftP.salaryMode==='fixed'?'selected':''}>Festgehalt / Monatsgehalt</option></select></label><p id="wmpayModeHelp" class="wmpay-note"></p></section>
   <div id="wmpayModeDetails" ${modeChosen?'':'hidden'}>
+  <div class="wmpay-forecast wide" id="wmpayForecast" role="status" aria-live="polite"></div>
   <div id="wmpayClockSync" class="wmpay-warning"></div><p id="wmpayCalendarAbsenceInfo" class="wmpay-note" role="status"></p><div class="wmpay-actions"><button id="wmpayCalc">Berechnen</button><button id="wmpaySave">Monat speichern</button><button id="wmpayLoad" class="secondary">Monat laden</button><button id="wmpayImportTime" class="secondary">Arbeitsstunden übernehmen</button></div>
   <p class="wmpay-warning">Hinweis: Keine verbindliche Entgeltabrechnung. Lohnsteuer I–IV wird näherungsweise anhand des Einkommensteuertarifs modelliert, nicht nach dem vollständigen BMF-Programmablaufplan. Für Steuerklasse V/VI oder Faktorverfahren die tatsächlichen Steuerabzüge eintragen. Bei Lohnersatzleistungen die Werte deiner Krankenkasse/Arbeitsagentur eintragen.</p>
   ${fig('1 · Grunddaten, Krankenkasse und Steuern',
@@ -71,6 +72,9 @@
     input('weeklyHours','Vertragliche Wochenstunden','p','number','0.1')+
     `<label class="wmpay-field">Krankenkasse (GKV, 2026)<input list="wmpayInsurerList" data-wmpay="p:insuranceName" value="${esc(draftP.insuranceName||'')}" placeholder="Krankenkasse auswählen oder eingeben"><datalist id="wmpayInsurerList">${(window.WMInsurers?.list||[]).map(row=>`<option value="${esc(row[0])}"></option>`).join('')}</datalist></label><div class="wide"><button type="button" class="secondary" id="wmpayInsuranceFill">Beitragssatz dieser Krankenkasse übernehmen</button><p id="wmpayInsuranceStatus" class="wmpay-note" aria-live="polite"></p><p class="wmpay-note">Offline-Daten: <a href="https://www.gkv-spitzenverband.de/service/krankenkassenliste/krankenkassen.jsp" target="_blank" rel="noopener noreferrer">GKV-Spitzenverband</a>, Stand 13.10.2026. Kein Live-Abruf. Bei Beitragssatzänderungen manuell anpassen; für vergangene Monate den damals gültigen Satz prüfen.</p></div>`+
     select('insuranceType','Versicherung','p',[['public','Gesetzlich'],['private','Privat (AN-Beitrag separat)'],['other','Anders / beitragsfrei']])+
+    select('maritalStatus','Verheiratet?','p',[['unknown','Bitte auswählen'],['yes','Ja'],['no','Nein']])+
+    input('childrenCount','Kinder insgesamt','p','number','1')+
+    `<p class="wide wmpay-note">Familienstand und Kinderzahl dienen der Übersicht. <strong>Die Steuerklasse wird dadurch nicht automatisch geändert.</strong> Für die Pflegeversicherung zählen nur berücksichtigungsfähige Kinder unter 25; den Wert unten bitte getrennt prüfen. Kindergeld ist kein Bestandteil des Arbeitgebernettos.</p>`+
     select('taxClass','Steuerklasse','p',[['1','I'],['2','II'],['3','III'],['4','IV'],['5','V'],['6','VI']])+
     input('childAllowance','Kinderfreibeträge (ELStAM, z. B. 1,0)','p','number','0.5')+
     input('childrenUnder25','Berücksichtigungsfähige Kinder unter 25 (PV)','p','number','1')+
@@ -192,6 +196,11 @@
    insuranceType:'public',churchTaxPct:presetNumber(x.churchTaxPct,0,10,'Kirchensteuer')
   };
   if(!['1','2','3','4','5','6'].includes(profile.taxClass)||!profile.insuranceName)throw Error('Steuerklasse oder Krankenkasse in der Importdatei fehlt.');
+  if(x.maritalStatus!==undefined){if(!['unknown','yes','no'].includes(x.maritalStatus))throw Error('Familienstand im Import ungültig.');profile.maritalStatus=x.maritalStatus;}
+  if(x.childrenCount!==undefined){const count=presetNumber(x.childrenCount,0,20,'Anzahl Kinder');if(!Number.isInteger(count))throw Error('Kinderzahl muss ganzzahlig sein.');profile.childrenCount=count;}
+  if(x.childrenUnder25!==undefined){const count=presetNumber(x.childrenUnder25,0,20,'Kinder unter 25');if(!Number.isInteger(count))throw Error('Zahl Kinder unter 25 muss ganzzahlig sein.');profile.childrenUnder25=count;}
+  if(x.hasChildren!==undefined){if(typeof x.hasChildren!=='boolean')throw Error('Elterneigenschaft im Import ungültig.');profile.hasChildren=x.hasChildren;}
+  if(profile.childrenUnder25!==undefined&&profile.childrenCount!==undefined&&profile.childrenUnder25>profile.childrenCount)throw Error('Mehr Kinder unter 25 als Kinder insgesamt angegeben.');
   const ref=v.reference||{};
   const gross=ref.gross===undefined?null:presetNumber(ref.gross,0,1000000,'Brutto Referenzmonat');
   const net=ref.net===undefined?null:presetNumber(ref.net,0,1000000,'Netto Referenzmonat');
@@ -218,10 +227,10 @@
   preview.innerHTML=`<div class="wmpay-reference-preview"><h4>Vorschau – nur für dieses Gerät</h4>
    <div>Abrechnungsmonat: <strong>${esc(checked.referenceMonth)}</strong></div>
    <div>Stundenlohn: <strong>${euro(p.hourlyRate)}</strong>, Wochenstunden: <strong>${esc(p.weeklyHours)}</strong></div>
-   <div>Steuerklasse: <strong>${esc(p.taxClass)}</strong>, Kinderfreibetrag: <strong>${esc(p.childAllowance)}</strong></div>
+   <div>Steuerklasse: <strong>${esc(p.taxClass)}</strong>, Kinderfreibetrag: <strong>${esc(p.childAllowance)}</strong>${p.maritalStatus!==undefined?`, verheiratet: <strong>${p.maritalStatus==='yes'?'Ja':p.maritalStatus==='no'?'Nein':'unbekannt'}</strong>`:''}${p.childrenCount!==undefined?`, Kinder: <strong>${p.childrenCount}</strong>`:''}</div>
    <div>Krankenkasse: <strong>${esc(p.insuranceName)}</strong>, Kirchensteuer NRW: <strong>${esc(p.churchTaxPct)} %</strong></div>
    ${r.gross!==null&&r.net!==null?`<div>Referenz-Brutto: <strong>${euro(r.gross)}</strong>, Referenz-Netto: <strong>${euro(r.net)}</strong></div>`:''}
-   <p class="wmpay-note">Die Angabe „PV-Kind“ aus einer Abrechnung belegt nicht das Alter der Kinder. Die Zahl berücksichtigungsfähiger Kinder unter 25 Jahren wird nicht automatisch geändert. Verschiedene Nachtzuschläge oder Urlaubsgeld werden mangels Zeit- und Vertragsregeln ebenfalls nicht automatisch angesetzt.</p>
+   <p class="wmpay-note">Die Zahl der Kinder unter 25 wird nur übernommen, wenn sie in der privaten Importdatei ausdrücklich angegeben ist. Ohne diese Angabe bleiben die bisherigen Pflegeversicherungswerte unverändert. Verschiedene Nachtzuschläge oder Urlaubsgeld werden mangels Zeit- und Vertragsregeln ebenfalls nicht automatisch angesetzt.</p>
    ${r.notes.length?`<p class="wmpay-note">Hinweise aus dem Dokument: ${r.notes.map(esc).join(' · ')}</p>`:''}
    <div class="wmpay-actions"><button type="button" id="wmpayTakePreset">Grunddaten in bearbeitbare Felder übernehmen</button>
    ${r.gross!==null&&r.net!==null?'<button type="button" class="secondary" id="wmpayTakeReference">Referenz-Brutto/Netto separat speichern</button>':''}</div>
@@ -234,7 +243,8 @@
   if(dirty&&!confirm('Nicht gespeicherte Änderungen an Stundenlohn, Wochenstunden, Steuerklasse, Freibetrag, Kasse und Kirchensteuer durch Importwerte ersetzen? Andere Monatsdaten bleiben erhalten.'))return;
   const imported=localPreset.profile;
   for(const key of ['salaryMode','hourlyRate','weeklyHours','taxClass','childAllowance','insuranceName','insuranceType','churchTaxPct'])draftP[key]=imported[key];
-  draftP.hasChildren=true;
+  for(const key of ['maritalStatus','childrenCount','childrenUnder25','hasChildren'])if(Object.prototype.hasOwnProperty.call(imported,key))draftP[key]=imported[key];
+  if(!Object.prototype.hasOwnProperty.call(imported,'hasChildren'))draftP.hasChildren=true;
   draftP.careChildlessExtra=false;
   draftP.careSaxony=false; // NRW was explicit in the provided document.
   draftP.healthEmployeeRate=''; // Return to automatic statutory insurance calculation.
@@ -250,7 +260,7 @@
    draftP.insuranceRateDate='';
    rateInfo=' Für diesen Monat den damals gültigen Zusatzbeitrag der Krankenkasse bitte selbst prüfen.';
   }
-  // Do not replace work times, past payroll months or child-under-25 assumptions.
+  // Do not replace work times or past payroll months; apply children-under-25 only when explicit in private file.
   modeChosen=true;dirty=true;draw();
   const first=$('wmpayModeDetails')?.querySelector('details.wmpay-group');if(first)first.open=true;
   const msg='Grunddaten in die Eingabefelder übertragen. Prüfen, bei Bedarf ändern und „Monat speichern“ wählen.'+rateInfo;
@@ -277,7 +287,7 @@
    const first=$('wmpayModeDetails')?.querySelector('details.wmpay-group');if(first)first.open=true;
    refresh();
   });
-  $('wmpayRoot').querySelectorAll('[data-wmpay]').forEach(el=>{const [sec,key]=el.dataset.wmpay.split(':');el.addEventListener(el.type==='checkbox'?'change':'input',()=>{const dest=sec==='p'?draftP:draftM;dest[key]=key==='shortWithChild'?(el.value==='true'):(el.type==='checkbox'?el.checked:el.value);if(['insuranceName','additionalHealthRate','healthRate','healthEmployeeRate'].includes(key))draftP.insuranceRateDate='';dirty=true;refresh();});});
+  $('wmpayRoot').querySelectorAll('[data-wmpay]').forEach(el=>{const [sec,key]=el.dataset.wmpay.split(':');el.addEventListener(el.type==='checkbox'?'change':'input',()=>{const dest=sec==='p'?draftP:draftM;dest[key]=key==='shortWithChild'?(el.value==='true'):(el.type==='checkbox'?el.checked:el.value);if(['insuranceName','additionalHealthRate','healthRate','healthEmployeeRate'].includes(key))draftP.insuranceRateDate='';if(key==='childrenCount'&&n(dest.childrenCount)>0){draftP.hasChildren=true;const parent=$('wmpayRoot').querySelector('[data-wmpay="p:hasChildren"]');if(parent)parent.checked=true;}dirty=true;refresh();});});
    const insName=$('wmpayRoot').querySelector('[data-wmpay="p:insuranceName"]');
    if(insName)insName.addEventListener('change',()=>applyInsuranceRate(false));
    $('wmpayInsuranceFill')?.addEventListener('click',()=>applyInsuranceRate(true));
@@ -355,6 +365,8 @@
   let lst=manualTax?money(n(m.incomeTaxManual)):(p.monthlyTaxMode==='estimate'&&!tax.manualNeeded?tax.value:0);
   if(!manualTax&&(tax.manualNeeded||p.monthlyTaxMode==='manual'))warnings.push('Lohnsteuer nicht ermittelt: bitte den tatsächlichen Lohnsteuerbetrag eintragen. Das Ergebnis wäre sonst zu hoch.');
   if(!manualTax&&!tax.manualNeeded&&p.monthlyTaxMode==='estimate')warnings.push('Lohnsteuer lediglich grob geschätzt – kein BMF-PAP, Kinderfreibetrags- oder sonstiges ELStAM-Verfahren.');
+  if(p.maritalStatus==='yes'&&['1','2'].includes(String(p.taxClass)))warnings.push('Verheiratet, aber Steuerklasse I/II eingetragen: Bitte ELStAM laut Lohnabrechnung kontrollieren. Die Steuerklasse wird nicht automatisch verändert.');
+  if(n(p.childrenCount)>0&&n(p.childrenUnder25)===0)warnings.push('Kinderzahl hinterlegt, aber keine für PV berücksichtigungsfähigen Kinder unter 25 ausgewählt. Bitte falls zutreffend getrennt eintragen.');
   const soli=m.soliManual!==''?money(m.soliManual):0;
   const church=m.churchManual!==''?money(m.churchManual):round(lst*n(p.churchTaxPct)/100);
   if(m.soliManual===''&&lst>0)warnings.push('Solidaritätszuschlag standardmäßig 0 €: bei Bedarf manuellen Wert einsetzen.');
@@ -387,9 +399,20 @@
   const benefits=round(kug+sickPaid+childPaid+rehaTransitionPaid),combined=round(netEmployer+benefits);
   return {lines,basic,gross,taxBase,svBase,sv,lst,soli,church,extraNet,fixedDeduction,privateKV,netEmployer,kug,sickGross,sickPaid,childGross,childPaid,rehaTransitionPaid,benefits,combined,warnings,tax};
  }
+ function estimateNormalMonth(raw){
+  const p={...PROFILE,...raw},weekly=n(p.weeklyHours),rate=effectiveHourlyRate(p);
+  if(p.monthlyTaxMode==='manual'||['5','6'].includes(String(p.taxClass)))return {available:false,message:'Für diese Steuer-/Berechnungsart müssen die tatsächlichen Lohnsteuerabzüge eingetragen werden. Keine Nettozahl ohne Steuerabzug ausgeben.'};
+  if(p.salaryMode==='fixed'?n(p.monthlySalary)<=0:rate<=0||weekly<=0)return {available:false,message:'Bitte Stundenlohn und Wochenstunden bzw. Festgehalt unter Grunddaten erfassen und speichern.'};
+  const hours=weekly*52/12,month={...MONTH,hours};
+  const r=calc(p,month);
+  if(!Number.isFinite(r.netEmployer)||r.netEmployer<0)return {available:false,message:'Berechnungswerte prüfen.'};
+  return {available:true,net:r.netEmployer,gross:r.gross,hours,results:r};
+ }
  function refresh(){if(!$('wmpayResult')||!draftP||!draftM)return;
   results=calc(draftP,draftM);
   const r=results;
+  const normal=estimateNormalMonth(draftP);
+  const forecastEl=$('wmpayForecast');if(forecastEl){forecastEl.innerHTML=normal.available?`<strong>Geschätztes Netto bei normalem Vertragsmonat: ${euro(normal.net)}</strong><span>Brutto ${euro(normal.gross)} · ${round(normal.hours).toLocaleString('de-DE')} Vertragsstunden · Steuerklasse ${esc(draftP.taxClass)} · ${draftP.maritalStatus==='yes'?'verheiratet':draftP.maritalStatus==='no'?'nicht verheiratet':'Familienstand offen'} · ${Math.max(0,Math.floor(n(draftP.childrenCount)))} Kinder. Ohne Zuschläge, KUG oder Sonderzahlungen. Unverbindliche Modellrechnung.</span>`:`<strong>Netto-Prognose noch nicht vollständig</strong><span>${esc(normal.message)}</span>`;}
   const kugInfo=$('wmpayKugRateInfo');if(kugInfo){const withChild=draftM.shortWithChild===true||draftM.shortWithChild==='true';const defaultRate=withChild?n(draftM.shortRateWithChild,67):n(draftM.shortRateWithoutChild,60);const used=draftM.shortRateOverride!==''?n(draftM.shortRateOverride):defaultRate;kugInfo.textContent='Gewählter Leistungssatz: '+used.toLocaleString('de-DE')+' % ('+(withChild?'mit Kind':'ohne Kind')+'). Bei manuell eingetragener Ersatzquote hat diese Vorrang.';}
   const kugCalendarInfo=$('wmpayKugCalendarInfo');
   if(kugCalendarInfo){
@@ -448,6 +471,7 @@
    dbstore.months[month]=newM;
    await save('Lohnmonat und Einstellungen gespeichert');dirty=false;draftP={...PROFILE,...clone(newP)};draftM=mergedMonth(month);draw();
    notify('Lohnmonat '+month+' verschlüsselt gespeichert. '+(updateCurrentProfile?'Brutto-Stundenwert mit Stempeluhr abgeglichen.':'Älterer Monat gespeichert; aktueller Stundenlohn unverändert.'));
+   document.dispatchEvent(new CustomEvent('wm-netto-updated',{detail:{month}}));
    if(updateCurrentProfile)document.dispatchEvent(new CustomEvent('wm-payroll-rate-updated',{detail:{rate:effectiveHourlyRate(newP)}}));
   }catch(e){state.wmPayroll=before;if(previousClock===undefined)delete state.wm20;else state.wm20=previousClock;throw e;}
  }
@@ -475,6 +499,7 @@
  function mount(){if($('wmpayRoot'))return;const payroll=$('payroll');if(!payroll)return;
   const style=document.createElement('style');style.id='wmpayStyle';style.textContent=`
   .wmpay{margin:18px 0 20px;padding:16px;border:1px solid var(--line,#dfe7ef);background:var(--card,#fff);border-radius:17px;color:var(--ink,#082f4c);box-shadow:0 3px 14px #00000009}
+  .wmpay-forecast{display:grid;gap:5px;background:#ebf9f3;border:1px solid #a9d8c1;border-radius:12px;padding:13px;margin:10px 0 14px;color:#164a3b}.wmpay-forecast strong{font-size:17px}.wmpay-forecast span{font-size:12px;line-height:1.5}
   .wmpay-mode-picker{padding:15px;background:#eef5fc;border:1px solid #c7d8e9;border-radius:12px;margin:14px 0}.wmpay-mode-picker h3{font-size:17px}.wmpay-mode-picker .wmpay-field{max-width:470px}.wmpay-mode-picker select{font-weight:750}.wmpay-mode-picker p{font-size:13px;color:#536c82}.wmpay [hidden]{display:none!important}
   .wmpay h3{margin:0 0 8px}.wmpay p{line-height:1.5}.wmpay-head{display:flex;gap:10px;align-items:start;justify-content:space-between;flex-wrap:wrap}.wmpay-head>.wmpay-field{min-width:150px}
   .wmpay-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:14px 0}.wmpay-field{display:flex;flex-direction:column;font-size:12px;font-weight:650;gap:5px;min-width:0}
@@ -521,8 +546,18 @@
   window.addEventListener('pageshow',()=>{if(!$('wmpayRoot')&&$('payroll'))mount();});
   console.info('WorksManager Lohnmodul '+VERSION+' geladen');
  }
+ window.WMNettoEstimator=(month)=>{
+  if(typeof state==='undefined'||!state.wmPayroll?.profile)return {available:false,message:'Bitte zuerst die privaten Lohndaten in der Lohnberechnung speichern.'};
+  const p={...PROFILE,...state.wmPayroll.profile};
+  const normal=estimateNormalMonth(p);
+  const key=/^\d{4}-(0[1-9]|1[0-2])$/.test(String(month||''))?month:nowMonth();
+  const saved=state.wmPayroll?.months?.[key];
+  let current=null;
+  if(saved){const snap={...p,...(saved.profileSnapshot||{})},r=calc(snap,{...MONTH,...saved});current={net:r.netEmployer,gross:r.gross,hours:n(saved.hours),warnings:r.warnings};}
+  return {...normal,current,month:key,taxClass:p.taxClass,maritalStatus:p.maritalStatus,childrenCount:n(p.childrenCount),childrenUnder25:n(p.childrenUnder25),insurance:p.insuranceName};
+ };
  window.WM195PayrollCalc=month=>{const rec=state.wmPayroll?.months?.[month];if(!rec)return null;const profile={...PROFILE,...state.wmPayroll?.profile,...(rec.profileSnapshot||{})};const m={...MONTH,...rec};return calc(profile,m);};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
  // Nur für automatisierte Regressionstests, keine UI-Funktion.
- if(typeof module!=='undefined'&&module.exports)module.exports={calc,taxTariff2026,social,getCarePercent,PROFILE,MONTH,effectiveHourlyRate,saveMonth,__testDraft:(p,m,month)=>{draftP=p;draftM=m;curMonth=month;}};
+ if(typeof module!=='undefined'&&module.exports)module.exports={calc,taxTariff2026,social,getCarePercent,PROFILE,MONTH,effectiveHourlyRate,estimateNormalMonth,validatePrivatePreset,saveMonth,__testDraft:(p,m,month)=>{draftP=p;draftM=m;curMonth=month;}};
 })();
