@@ -1,10 +1,10 @@
-/* WorksManager 1.9.12 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
+/* WorksManager 1.9.13 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
  * KEINE Lohnabrechnungssoftware für amtliche Abrechnung. Lohnsteuer nur Näherung,
  * Ersatzleistungen nur Orientierung; alle kritischen Werte manuell überschreibbar.
  */
 (() => {
  'use strict';
- const VERSION='1.9.12',BUILD=2026101326;
+ const VERSION='1.9.13',BUILD=2026101327;
  const $=id=>document.getElementById(id);
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const round=x=>Math.round((Number(x)+Number.EPSILON)*100)/100;
@@ -18,7 +18,7 @@
   healthCap:5812.50,pensionCap:8450,annualWorkAllowance:1230,annualSpecialAllowance:36,monthlyTaxAllowance:0,
   monthlyDeductionFixed:0,notes:''};
  const MONTH={month:nowMonth(),hours:0,paidSickHours:0,vacationHours:0,holidayHours:0,overtimeHours:0,overtimePct:25,oneOffGross:0,oneOffTaxable:true,oneOffSV:true,
-  shortEnabled:false,shortSollGross:0,shortIstGross:'',shortNetSoll:'',shortNetIst:'',shortWithChild:true,shortRateWithoutChild:60,shortRateWithChild:67,shortRateOverride:'',shortPaymentOverride:'',
+  shortEnabled:false,shortSollGross:0,shortIstGross:'',shortNetSoll:'',shortNetIst:'',shortWithChild:true,shortRateWithoutChild:60,shortRateWithChild:67,shortRateOverride:'',shortPaymentOverride:'',shortCalendarDays:0,shortCalendarLostHours:0,
   sickDays:0,sickGrossDaily:0,sickNetDaily:0,sickPercentGross:70,sickMaxNetPercent:90,sickMaxDaily:135.63,sickActualPaid:'',sickBenefitDeductions:12.4,
   childSickDays:0,childSickNetDaily:0,childSickOneOff:false,childSickMaxDaily:135.63,childSickActualPaid:'',childSickDeductions:12.4,
   incomeTaxManual:'',soliManual:'',churchManual:'',actualPayslipNet:'',taxFreeReimbursement:0,advancePaid:0,otherNetDeduction:0,privateKVEmployee:0,
@@ -106,6 +106,7 @@
     input('shortRateWithoutChild','KUG ohne Kind – Prozentsatz (%)','m','number','0.1')+
     input('shortRateWithChild','KUG mit Kind – Prozentsatz (%)','m','number','0.1')+
     `<div class="wide" id="wmpayKugRateInfo" role="status"></div>`+
+    `<p class="wide wmpay-note" id="wmpayCalendarKugInfo" aria-live="polite"></p>`+
     input('shortRateOverride','KUG-Ersatzquote (%) – alternativ manuell','m','text')+
     input('shortPaymentOverride','Tatsächlich bewilligtes Kurzarbeitergeld (€) – alternativ manuell','m','text')+
     `<p class="wide">Kurzarbeitergeld = grundsätzlich 60 % ohne Kind bzw. 67 % mit berücksichtigungsfähigem Kind der Differenz der <strong>pauschalierten</strong> Soll-/Ist-Nettoentgelte, nicht einfach der Bruttodifferenz. Ohne diese oder den KUG-Betrag wird kein KUG angenommen. Sozialbeiträge für Ausfallstunden werden nicht als Arbeitnehmerabzug berücksichtigt.</p>`)}
@@ -376,6 +377,7 @@
   results=calc(draftP,draftM);
   const r=results;
   const kugInfo=$('wmpayKugRateInfo');if(kugInfo){const withChild=draftM.shortWithChild===true||draftM.shortWithChild==='true';const defaultRate=withChild?n(draftM.shortRateWithChild,67):n(draftM.shortRateWithoutChild,60);const used=draftM.shortRateOverride!==''?n(draftM.shortRateOverride):defaultRate;kugInfo.textContent='Gewählter Leistungssatz: '+used.toLocaleString('de-DE')+' % ('+(withChild?'mit Kind':'ohne Kind')+'). Bei manuell eingetragener Ersatzquote hat diese Vorrang.';}
+  const calInfo=$('wmpayCalendarKugInfo');if(calInfo){const count=n(draftM.shortCalendarDays),hrs=n(draftM.shortCalendarLostHours);calInfo.textContent=count?`Startseitenkalender: ${count} Kurzarbeitstag(e), rund ${hrs.toLocaleString('de-DE')} geplante Ausfallstunden. ${draftM.shortNetSoll===''||draftM.shortNetIst===''?'Für den KUG-Eurobetrag pauschaliertes Soll- und Ist-Netto aus der offiziellen Tabelle eintragen.':'Der KUG-Betrag wird aus der Nettoentgeltdifferenz und dem gewählten Satz berechnet.'} Die Ausfallstunden werden NICHT als Arbeitsstunden oder zusätzlicher Grundlohn gebucht.`:'Keine Kurzarbeitsplanung aus dem Startseitenkalender für diesen Monat übernommen.';}
   const rows=r.lines.map(l=>row(l.label+(l.payoutDeduct?' (netto)':l.reimbursement?' (Erstattung)':` ${l.taxable?'· LSt':''}${l.sv?' · SV':''}`),l.amount)).join('');
   $('wmpayResult').innerHTML=`<div class="wmpay-breakdown">${rows}</div><hr>${row('Gesamtbrutto',r.gross,'major')}${row('Lohnsteuerpflichtiger Bezug',r.taxBase)}${row('SV-pflichtiger Bezug',r.svBase)}<hr>
   ${row(`Krankenversicherung AN (${round(r.sv.kvPct)} %)`, -r.sv.kv)}${row(`Pflegeversicherung AN (${round(r.sv.carePct)} %)`, -r.sv.care)}${row('Rentenversicherung AN',-r.sv.rv)}${row('Arbeitslosenversicherung AN',-r.sv.av)}
@@ -471,6 +473,7 @@
   mount();
    document.addEventListener('wm-clock-rate-changed',()=>{if(!$('wmpayRoot'))return;if(dirty){notify('Stundenlohn wurde in der Stempeluhr geändert. Bitte deine offenen Lohn-Eingaben prüfen und erst danach speichern.');return;}load(curMonth);});
    document.addEventListener('wm-clock-payroll-synced',ev=>{if(ev.detail?.month!==curMonth||!$('wmpayRoot'))return;if(dirty){notify('Stempeluhr wurde synchronisiert. Ungespeicherte Lohnänderungen erst speichern oder Monat erneut laden.');return;}load(curMonth);});
+   document.addEventListener('wm-calendar-payroll-updated',ev=>{if(!ev.detail?.months?.includes(curMonth)||!$('wmpayRoot'))return;if(dirty){notify('Kurzarbeit im Kalender geändert. Bitte offene Lohn-Eingaben zuerst speichern oder den Monat neu laden.');return;}load(curMonth);});
   // Beim Entsperren ersetzt WorksManager den globalen State durch den entschlüsselten Inhalt.
   // Ohne Reload würden alte/leere Entwürfe beim ersten Speichern vorhandene Monatsdaten überschreiben.
   let stateRef=state;

@@ -1,0 +1,15 @@
+INSTALLATION WorksManager 1.9.13 – Schicht- und Kurzarbeitskalender
+
+1. Vorher ein verschlüsseltes Backup in WorksManager exportieren und separat aufbewahren.
+2. Alle Dateien dieser ZIP (nicht die ZIP selbst) direkt in das Stammverzeichnis des GitHub-Repositories 4h7zm6hnjy-skizze/WorksManager hochladen; vorhandene Dateien ersetzen. Nicht in einem Unterordner ablegen.
+3. Commit changes ausführen und warten, bis GitHub Pages die neue Version veröffentlicht.
+4. WorksManager neu öffnen, bei Bedarf die Webseite neu laden. Die Versionsanzeige sollte 1.9.13 zeigen.
+5. Auf der STARTSEITE den Schicht- und Kurzarbeitskalender öffnen. Tag antippen oder das Formular aufklappen. „Einzelnen Tag“, „Ganze Woche“ oder „Zeitraum mit Wochentagen“ wählen; Früh/Spät/Nacht, Notiz und optional Kurzarbeit auswählen, speichern.
+6. Für Kurzarbeit Arbeitsausfall in %, Leistungssatz mit/ohne Kind und ggf. Soll-Minuten angeben. Die Lohnberechnung unter Abrechnung aufrufen. Für einen KUG-Eurobetrag die pauschalierten Soll-/Ist-Nettoentgelte aus den offiziellen Tabellen eintragen oder den bewilligten KUG-Betrag erfassen.
+
+Farben: Früh=grün, Spät=blau, Nacht=gelb; Kurzarbeit wird zusätzlich markiert. Wochenende in Wochenbuchungen über die Wochentag-Auswahl aktivierbar.
+
+WICHTIG: Nur geplante Ausfallstunden und KUG-Satz werden automatisch in den Lohnmonat übernommen. Ein KUG-Eurobetrag ohne pauschalierte Netto-Differenz wird NICHT erfunden. Kalender-Schichten sind KEINE Stempelungen und lösen ohne tatsächliche Arbeitszeiten keinen Grundlohn aus. Bei Übernahme bestehender manueller KUG-Daten fragt die App um Bestätigung.
+
+Enthaltene Dateien sind Ergänzungen zur vorhandenen WorksManager-Basis 1.8.4. app.js, styles.css, worksmanager-19.js und Bilddateien aus dem bestehenden Repository bleiben erhalten. Das interne Profilmodul bleibt inhaltlich auf seinem unabhängigen Versionsstand 1.9.2, sein Cache-Verweis wurde aktualisiert.
+Das Update wurde noch nicht auf GitHub veröffentlicht. Browserprüfung auf echtem iPhone steht noch aus.

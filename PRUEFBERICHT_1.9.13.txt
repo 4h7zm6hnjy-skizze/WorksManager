@@ -1,0 +1,19 @@
+PRÜFBERICHT WorksManager 1.9.13
+
+Dateistand: index.html, manifest.json, sw.js und alle geänderten Hauptmodule konsistent 1.9.13 / Build 2026101327. Unverändertes Profilmodul behält seinen eigenständigen internen Versionswert 1.9.2.
+JavaScript-Syntaxprüfung: ausgelieferte JS-Dateien mit node --check erfolgreich.
+Automatisierte Tests:
+- Schichtkalender lädt in simulierter mobiler Browseransicht (390 px Breite).
+- 14-Tage-Zeitraum Mo–Fr: genau zehn gespeicherte Frühschichten; keine ungewollten Änderungen an Lohnmonat.
+- Einzel-Kurzarbeitstag mit 50 % und 450 Minuten Soll: 3,75 geplante Ausfallstunden, mit Kind 67 % in den Lohnmonat übertragen.
+- Widersprüchliche Kinder-/Quote-Angaben im selben Monat werden abgewiesen; bisherige Werte bleiben erhalten.
+- Volle Arbeitswoche Mo–Fr als Nachtschicht ohne Überschreiben der anderen Woche.
+- Löschen eines KUG-Eintrags schaltet kalenderverwaltete Kurzarbeit bei fehlenden anderen KUG-Tagen ab.
+- Kurzarbeit über Monatsgrenzen monatsgetrennt erfasst; manuelle Netto-Basis und weitere Lohnfelder bleiben erhalten.
+- Bei fehlgeschlagenem Speichern werden Kalender und Lohnmonat zurückgesetzt.
+- KUG aus 1.000 € pauschalierter Nettodifferenz: 600 € ohne Kind und 670 € mit Kind, 0 € und Hinweis bei fehlenden Nettoangaben.
+- Regulärer Stundenlohn unverändert: 37,5 × 14,90 € = 558,75 €.
+- Kalenderansicht ohne horizontales Überlaufen bei 390 px Breite.
+- Browser-Test meldete keine JavaScript-Laufzeitfehler.
+
+NICHT getestet: reale iPhone/Safari-Installation, GitHub Pages Deployment, echte verschlüsselte Nutzer-Datenbank, amtlicher KUG-Bescheid, vertragliche Regelungen. Die App ist keine verbindliche Entgeltabrechnung.
