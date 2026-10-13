@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.20",
-  "build": 2026101334,
-  "released": "2026-10-13",
+  "version": "2.0.0",
+  "build": 2026101401,
+  "released": "2026-10-14",
   "coreCompatibility": "1.8.4",
-  "notes": "Netto-Prognose auf der Startseite auf Basis der aktuellen Lohnprofil-Daten mit Verheiratet Ja/Nein, Kinderzahl und gesonderter Pflegeversicherungs-Kinderzahl; alle Angaben lokal und jederzeit änderbar. Bestehende Steuerklasse wird nicht automatisch überschrieben. Netto für reguläre Monatsstunden und gespeicherten Lohnmonat getrennt. Sicherer optionaler privater Import."
+  "notes": "Gesamt-Qualitätsupdate: auffälliger Update-Suchen-Bereich am Ende der Startseite; Monatszentrale mit Warnungen und Fristen, zentrale Tages-/Zeitübersicht, exportierbarer Monatsabgleich, Integritätsmanifest und atomare Offline-Installation. Vorhandene Profile unverändert. Netto und KUG ohne vollständigen amtlichen BMF-PAP/BA-Leistungstabelle weiterhin gekennzeichnete Schätzungen."
 }

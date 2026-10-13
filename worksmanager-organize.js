@@ -1,4 +1,4 @@
-/* WorksManager 1.9.20 – Präsentation und Navigation. Keine Datenmigration.
+/* WorksManager 2.0.0 – Präsentation und Navigation. Keine Datenmigration.
  * Die bestehenden Module und deren Event-Handler werden nur umsortiert.
  * Vertrauliche Daten verbleiben im bestehenden verschlüsselten Profil.
  */
@@ -38,6 +38,11 @@ function style(){if($('wmoStyle'))return;const st=document.createElement('style'
 .wmo-daypicks button[aria-pressed=true],.wmo-kug-count button[aria-pressed=true]{border-color:#168176!important;background:#d0f2e8!important;color:#0d594e!important;box-shadow:inset 0 0 0 1px #2c9e91}
 .wmo-tip,.wmo-kug-selected{font-size:12px!important;line-height:1.5;color:#47647a}
 .wmo-kug-selected{margin:7px 0 0;font-weight:750!important}
+.wmcal-au-toolbar{display:flex;flex-wrap:wrap;min-width:0;max-width:100%}.wmcal-au-toolbar label{min-width:0!important;max-width:100%!important;flex:1 1 170px!important;overflow-wrap:break-word}.wmcal-au-toolbar select{min-width:0!important;width:100%!important;max-width:100%!important}.wmcal-au-toolbar button{min-width:0!important;max-width:100%!important;white-space:normal}.wmo-update-footer{margin:24px 0 35px;padding:17px;border:2px solid #147a89;border-radius:16px;background:linear-gradient(145deg,#e9fbfc,#f6fcff);color:#13384b;box-shadow:0 4px 16px #123e5212}
+.wmo-update-footer>h3{margin:0 0 4px;font-size:20px;color:#0f4a59}.wmo-update-footer>p{font-size:13px;line-height:1.5;margin:5px 0 12px;color:#31566c}
+.wmo-update-footer .wmplus-update-bar{margin:0;display:flex!important;flex-wrap:wrap;gap:14px;justify-content:space-between;align-items:center;border:0;background:transparent;box-shadow:none;padding:7px 0}
+.wmo-update-footer #wmplusQuickUpdateCheck{width:100%;min-height:55px;background:#0a7182!important;color:white!important;border:2px solid #045766!important;border-radius:11px;font-size:17px!important;font-weight:850;letter-spacing:.1px;box-shadow:0 3px 9px #074b6338}
+.wmo-update-footer #wmplusQuickUpdateCheck:focus-visible{outline:4px solid #ffa520;outline-offset:3px}
 @media(max-width:390px){.wmo-shortcuts{gap:5px}.wmo-shortcuts button{font-size:11px;padding:7px 1px}.wmo-area-group .module-grid{grid-template-columns:1fr}}
 @media(min-width:680px){.wmo-shortcuts{max-width:700px}.wmo-shortcuts button{font-size:14px}}
 `;document.head.appendChild(st);}
@@ -76,6 +81,7 @@ function arrange(){const dash=$('dashboard');if(!dash||$('wmoLayout')||!$('wmCal
  <details id="wmoQuality" class="wmo-detail"><summary>✓ Arbeitszeit- und Lohnprüfung</summary><div class="wmo-detail-content"></div></details>
  <details id="wmoNumbers" class="wmo-detail"><summary>▤ Vertrag und Kennzahlen</summary><div class="wmo-detail-content"></div></details>
  <details id="wmoMore" class="wmo-detail"><summary>☰ Alle weiteren Bereiche</summary><div class="wmo-detail-content" id="wmoModules"></div></details>
+ <section id="wmoUpdateFooter" class="wmo-update-footer" aria-labelledby="wmoUpdateHeading"><h3 id="wmoUpdateHeading">App-Version & Updates</h3><p>Prüfe hier neue Versionen von WorksManager. Der Update-Knopf befindet sich bewusst ganz unten auf der Startseite.</p><div id="wmoUpdateSlot"></div></section>
  `;
  hero.insertAdjacentElement('afterend',layout);
  $('wmoToday').append($('wmClockHome'));
@@ -83,7 +89,11 @@ function arrange(){const dash=$('dashboard');if(!dash||$('wmoLayout')||!$('wmCal
  $('wmoCalendar').append($('wmCalRoot'));
  if($('wmqRoot'))$('wmoQuality').querySelector('.wmo-detail-content').append($('wmqRoot'));
  const numbers=$('wmoNumbers').querySelector('.wmo-detail-content');
- for(const selector of ['#employmentCounter','.dashboard-stats','#wmplusUpdateBar','#wmplusUpdateBanner','#wmplusStatus','.privacy-card']){const el=dash.querySelector(selector);if(el)numbers.append(el);}
+ for(const selector of ['#employmentCounter','.dashboard-stats','#wmplusStatus','.privacy-card']){const el=dash.querySelector(selector);if(el)numbers.append(el);}
+ const updateSlot=$('wmoUpdateSlot');if(updateSlot){
+  for(const id of ['wmplusUpdateBar','wmplusUpdateBanner']){const el=$(id);if(el)updateSlot.append(el);}
+  const oldButton=$('wmplusCheckUpdate');if(oldButton){oldButton.setAttribute('tabindex','-1');oldButton.hidden=true;oldButton.style.display='none';}
+ }
  const areas=$('wmoModules');if($('wmplusSearch'))areas.append($('wmplusSearch'));const title=dash.querySelector('.dashboard-section-head');if(title)title.remove();
  const grid=dash.querySelector('.module-grid');if(grid)moveNamedButtons(grid,areas);
  layout.querySelectorAll('[data-wmo-jump]').forEach(btn=>btn.addEventListener('click',()=>{
@@ -92,6 +102,6 @@ function arrange(){const dash=$('dashboard');if(!dash||$('wmoLayout')||!$('wmCal
  }));
  // Calendar and quality panels are still mounted; their DOM nodes/handlers were moved, not cloned.
 }
-function init(){style();reorderMenu();pageBacks();arrange();if(!$('wmoLayout'))console.warn('WorksManager 1.9.20: Kalender/Stempeluhr werden erst nach dem Laden geordnet.');}
+function init(){style();reorderMenu();pageBacks();arrange();if(!$('wmoLayout'))console.warn('WorksManager 2.0.0: Kalender/Stempeluhr werden erst nach dem Laden geordnet.');}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();

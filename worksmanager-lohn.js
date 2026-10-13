@@ -1,10 +1,10 @@
-/* WorksManager 1.9.20 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
+/* WorksManager 2.0.0 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
  * KEINE Lohnabrechnungssoftware für amtliche Abrechnung. Lohnsteuer nur Näherung,
  * Ersatzleistungen nur Orientierung; alle kritischen Werte manuell überschreibbar.
  */
 (() => {
  'use strict';
- const VERSION='1.9.20',BUILD=2026101334;
+ const VERSION='2.0.0',BUILD=2026101401;
  const $=id=>document.getElementById(id);
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const round=x=>Math.round((Number(x)+Number.EPSILON)*100)/100;
@@ -409,7 +409,7 @@
   return {available:true,net:r.netEmployer,gross:r.gross,hours,results:r};
  }
  function refresh(){if(!$('wmpayResult')||!draftP||!draftM)return;
-  results=calc(draftP,draftM);
+  results=calc(draftP,draftM); if(curMonth&&!String(curMonth).startsWith('2026-'))results.warnings.push('Achtung: Die hinterlegten deutschen Steuer- und Beitragssätze beziehen sich auf 2026. Für '+String(curMonth)+' sind die Werte zu prüfen.');
   const r=results;
   const normal=estimateNormalMonth(draftP);
   const forecastEl=$('wmpayForecast');if(forecastEl){forecastEl.innerHTML=normal.available?`<strong>Geschätztes Netto bei normalem Vertragsmonat: ${euro(normal.net)}</strong><span>Brutto ${euro(normal.gross)} · ${round(normal.hours).toLocaleString('de-DE')} Vertragsstunden · Steuerklasse ${esc(draftP.taxClass)} · ${draftP.maritalStatus==='yes'?'verheiratet':draftP.maritalStatus==='no'?'nicht verheiratet':'Familienstand offen'} · ${Math.max(0,Math.floor(n(draftP.childrenCount)))} Kinder. Ohne Zuschläge, KUG oder Sonderzahlungen. Unverbindliche Modellrechnung.</span>`:`<strong>Netto-Prognose noch nicht vollständig</strong><span>${esc(normal.message)}</span>`;}

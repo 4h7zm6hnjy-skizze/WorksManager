@@ -1,0 +1,32 @@
+WorksManager 2.0.0 – professionelles Gesamtupdate, sichtbare Updatesuche am Ende der Startseite
+
+VORHER UNBEDINGT:
+1. WorksManager öffnen und vollständiges verschlüsseltes Backup erstellen.
+2. Backup außerhalb des Browsers sichern und auf einer getrennten Kopie lokal prüfen.
+3. Aktuelle Version 1.9.20 kontrollieren; keine Dateien im Repository löschen.
+
+GITHUB UPLOAD:
+1. ZIP entpacken. Die enthaltenen 16 Dateien in das Stammverzeichnis von 4h7zm6hnjy-skizze/WorksManager hochladen.
+2. ALLE geänderten Dateien ersetzen, einschließlich sw.js, index.html und worksmanager-release.json.
+3. Die NEUEN Dateien worksmanager-pro.js und worksmanager-integrity.json sind zwingend erforderlich!
+4. GitHub-Commit bestätigen. Die Veröffentlichung abwarten. Danach Web-App online öffnen und erneut starten.
+5. Unter der Startseite ganz unten den großen Knopf „Updates suchen“ verwenden. Nach dem Update die Netto- und Lohnwerte überprüfen.
+
+UMFANG:
+- Bestehende Stempeluhr, Kalender, AU, Urlaub, Reha, Kurzarbeit, Familien- und Lohneinstellungen bleiben erhalten.
+- Großes Update-Suchen-Feld ganz unten auf der Startseite; ursprünglicher Funktionsknopf wird verschoben, nicht funktionslos kopiert.
+- Neue Monatszentrale: Soll-/Ist-Abgleich, Kurzarbeit, Fehlzeiten, AU-Prüfhilfe, private CSV-Berichte.
+- In-App-Hinweise: AU-Ende, Backup älter als 30 Tage, fehlende Lohnangaben, ungeklärte KUG-Berechnung, Kalenderkonflikte.
+- Dateien-Check gegen ein SHA-256-Integritätsmanifest. Neuer Offline-Dienst aktiviert unvollständige / veränderte Paketdateien nicht.
+- Neues Versionsmanifest und angepasste Cache-Version; alte lokale Datenbank wird nicht verändert.
+
+WICHTIGE GRENZEN:
+- Kein vollständiger amtlicher 2026-BMF-Programmablaufplan (PAP) und keine vollständig eingebettete BA-KUG-Leistungstabelle. Netto/KUG werden weiterhin als Schätzung gekennzeichnet, wenn offizielle Soll-/Ist-Nettoangaben fehlen.
+- Kein automatischer Web-Push, kein cloudbasierter Mehrgeräte-Sync (würde Infrastruktur und Benutzerzustimmung erfordern). Erinnerungen erscheinen nur in der geöffneten App.
+- Private CSV-Monatsberichte enthalten persönliche Daten, NICHT in öffentliche Repositories hochladen.
+- Keine Änderung an app.js 1.8.4 oder styles.css; unveränderte Grunddateien bleiben im Repository.
+- Live-iPhone-Test und echte Datenmigration mit realen verschlüsselten Profilen stehen aus.
+
+Quellen zur manuellen Prüfung der Berechnungen:
+https://www.arbeitsagentur.de/kurzarbeitergeld
+https://www.bundesfinanzministerium.de/Content/DE/Downloads/Steuern/Steuerarten/Lohnsteuer/Programmablaufplan/2025-11-12-PAP-2026-bmf-schreiben.pdf

@@ -1,19 +1,36 @@
 'use strict';
-/* WorksManager 1.9.20: cache-first offline shell; encryptierte lokale DB wird nicht angefasst. */
+/* WorksManager 2.0.0: cache-first offline shell; encryptierte lokale DB wird nicht angefasst. */
 const CACHE_PREFIX='worksmanager-v';
-const CACHE_NAME='worksmanager-v1.9.20-v1-20261013-c';
-const REQUIRED=['./index.html','./worksmanager-profiles.js?v=1.9.20','./styles.css?v=1.8.4','./app.js?v=1.8.4',
-                './worksmanager-plus.js?v=1.9.20','./worksmanager-19.js?v=1.9.1','./worksmanager-insurance.js?v=1.9.20','./worksmanager-lohn.js?v=1.9.20','./worksmanager-uhr.js?v=1.9.20',
-                './worksmanager-195.js?v=1.9.20','./worksmanager-calendar.js?v=1.9.20','./worksmanager-quality.js?v=1.9.20','./worksmanager-organize.js?v=1.9.20','./worksmanager-netto.js?v=1.9.20','./manifest.json?v=1.9.20','./worksmanager-release.json'];
+const CACHE_NAME='worksmanager-v2.0.0-v1-20261014-a';
+const REQUIRED=['./index.html','./worksmanager-profiles.js?v=2.0.0','./styles.css?v=1.8.4','./app.js?v=1.8.4',
+                './worksmanager-plus.js?v=2.0.0','./worksmanager-19.js?v=1.9.1','./worksmanager-insurance.js?v=2.0.0','./worksmanager-lohn.js?v=2.0.0','./worksmanager-uhr.js?v=2.0.0',
+                './worksmanager-195.js?v=2.0.0','./worksmanager-calendar.js?v=2.0.0','./worksmanager-quality.js?v=2.0.0','./worksmanager-organize.js?v=2.0.0','./worksmanager-pro.js?v=2.0.0','./worksmanager-netto.js?v=2.0.0','./worksmanager-integrity.json','./manifest.json?v=2.0.0','./worksmanager-release.json'];
 const OPTIONAL=['./','./worksmanager-logo.png','./favicon.png','./apple-touch-icon.png',
                 './icon-192.png','./icon-512.png','./icon-1024.png'];
-self.addEventListener('install', event=>{
-  event.waitUntil((async()=>{
-    const cache=await caches.open(CACHE_NAME);
-    await cache.addAll(REQUIRED); // Aktivierung erst nach vollständiger Speicherung.
-    await Promise.allSettled(OPTIONAL.map(asset=>cache.add(asset)));
-    await self.skipWaiting();
-  })());
+// Installing an incomplete release must not activate it. Verify every shipped application file.
+async function verifyReleaseCache(cache){
+  const manifest=await cache.match('./worksmanager-integrity.json');
+  if(!manifest)throw Error('Integritätsmanifest fehlt');
+  const info=await manifest.json();
+  if(info.version!=='2.0.0'||!info.files||typeof crypto?.subtle?.digest!=='function')throw Error('Integritätsprüfung nicht verfügbar');
+  for(const [path,expected] of Object.entries(info.files)){
+    const response=await cache.match('./'+path);
+    if(!response||!response.ok)throw Error('Datei fehlt: '+path);
+    const data=await response.arrayBuffer();
+    const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',data)),v=>v.toString(16).padStart(2,'0')).join('');
+    if(hash!==expected)throw Error('Datei verändert oder unvollständig: '+path);
+  }
+}
+self.addEventListener('install',event=>{
+ event.waitUntil((async()=>{
+   const cache=await caches.open(CACHE_NAME);
+   try{
+     await cache.addAll(REQUIRED);
+     await verifyReleaseCache(cache);
+     await Promise.allSettled(OPTIONAL.map(asset=>cache.add(asset)));
+     await self.skipWaiting();
+   }catch(error){await caches.delete(CACHE_NAME);throw error;}
+ })());
 });
 self.addEventListener('activate', event=>{
   event.waitUntil((async()=>{

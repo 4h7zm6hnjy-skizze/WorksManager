@@ -1,0 +1,8 @@
+WorksManager 2.0.0 – Prüfbericht
+
+Verpackte 16 App-Dateien; Integritätsmanifest SHA-256 zur Erkennung teilweise veralteter Uploads.
+Technisch verändert: Update-Fußbereich, Monatszentrale, Sicherheitsprüfung, Netto-Warnung für Nicht-2026-Monate, Offline-Installationsprüfung, Versionspfade.
+Datenschema bleibt kompatibel, keine private Import-JSON oder Benutzerdaten in der ZIP.
+Unterstützte Prüffälle: sichtbare Updatesuche am Ende des Dashboards, ursprünglicher Knopf bleibt unverändert funktional, Warnungen bei AU/Backup/KUG, Monatsbericht lokal exportierbar, iPhone-Breite/Tablet-Breite, KUG 1-5 Tage, AU/Urlaub/Reha, Netto/Familienfelder, rollback bei Datenbankfehlern.
+
+Praxiseinschränkungen: keine echten iPhone-WebKit/Live-GitHub-Pages-Tests, kein echter Wiederherstellungstest auf zweitem Gerät. Kein rechtsverbindlicher Lohnsteuer-/Kurzarbeitergeldrechner; amtliche Tabelle/Verfahrensstand in Lohnmodul noch nicht vollständig implementiert. Code ohne externe Datenübermittlung und ohne neue Backend-Dienste.

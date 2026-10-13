@@ -1,0 +1,23 @@
+{
+  "app": "WorksManager",
+  "version": "2.0.0",
+  "build": 2026101401,
+  "algorithm": "SHA-256",
+  "description": "Only application code, no private data",
+  "files": {
+    "index.html": "dd5f1526e6811472ab03468296e8407d054918bee0742aef83f2426a9aa82290",
+    "manifest.json?v=2.0.0": "07e63b5c10bfcf1f62f3ccdfdb094306524fd5023edad785b8bbe881ab76cb02",
+    "worksmanager-release.json": "f98637e1d2dd79027ee92c3674a3bf98c6c41ed500a601dfe59fded5dc2d8326",
+    "worksmanager-plus.js?v=2.0.0": "3c6ef0b7f934ff90ac32f231be0e01b3f5bf9ad78c6475488f075ae51b3f6007",
+    "worksmanager-insurance.js?v=2.0.0": "cb7850141698664a554d55e63e7aff5f1949b4687d09a31fa18390f7cc78263c",
+    "worksmanager-lohn.js?v=2.0.0": "55a9a783201e7295998aa2aa159a9b78c1d63f304abe380b55b52307b0ea47b8",
+    "worksmanager-uhr.js?v=2.0.0": "36703c80887400b0f2c1baa6b5217f0f0617918e77f8c57326a5be1dd1edac01",
+    "worksmanager-195.js?v=2.0.0": "9b3c48ceed4aa3c044f9d8e358aac2c07ffaed8871936984d6c2c3c9cce282db",
+    "worksmanager-calendar.js?v=2.0.0": "6bc2710226746a93e0b44cf4548c819ae88902f616671d025268129bb97858d8",
+    "worksmanager-quality.js?v=2.0.0": "ba83bff8fb9da98a5f835a7a69830ef8b9cf48b7bc660a44b4f00ef967d5e47e",
+    "worksmanager-organize.js?v=2.0.0": "3a6b225b15ed72ac4aa730c4f26cdec6c053df5141efdf05048e21a0418af72f",
+    "worksmanager-netto.js?v=2.0.0": "fe04a046ef942270a2ae5efa16a6b41a9afd170e5b152fcb6d12edd006544eff",
+    "worksmanager-pro.js?v=2.0.0": "8e76562026d99ad573e304783e87b5b9305030bb562eeaefaf7d9503436d5020",
+    "worksmanager-profiles.js?v=2.0.0": "ab7db95cf4de00c821d6f068d517b7133b72bea5ddddea6cb6dd2258688162a5"
+  }
+}

@@ -1,4 +1,4 @@
-/* WorksManager 1.9.20: offline snapshot of the GKV-Spitzenverband list (13 October 2026).
+/* WorksManager 2.0.0: offline snapshot of the GKV-Spitzenverband list (13 October 2026).
  * Official source: https://www.gkv-spitzenverband.de/service/krankenkassenliste/krankenkassen.jsp
  * A snapshot is NOT a live connection: the user must verify future changes.
  */
