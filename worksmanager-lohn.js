@@ -1,10 +1,10 @@
-/* WorksManager 1.9.7 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
+/* WorksManager 1.9.8 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
  * KEINE Lohnabrechnungssoftware für amtliche Abrechnung. Lohnsteuer nur Näherung,
  * Ersatzleistungen nur Orientierung; alle kritischen Werte manuell überschreibbar.
  */
 (() => {
  'use strict';
- const VERSION='1.9.7',BUILD=2026101321;
+ const VERSION='1.9.8',BUILD=2026101322;
  const $=id=>document.getElementById(id);
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const round=x=>Math.round((Number(x)+Number.EPSILON)*100)/100;
@@ -29,16 +29,17 @@
  function store(){if(!state.wmPayroll||typeof state.wmPayroll!=='object'||Array.isArray(state.wmPayroll))state.wmPayroll={};const x=state.wmPayroll; if(!x.profile)x.profile={};if(!x.months||typeof x.months!=='object')x.months={};return x;}
  const mergedProfile=()=>({...PROFILE,...store().profile});
  function effectiveHourlyRate(p){
-  const direct=n(p?.hourlyRate);if(direct>0)return round(direct);
   if(p?.salaryMode==='fixed'){
    const gross=n(p?.monthlySalary),weekly=n(p?.weeklyHours);
    if(gross>0&&weekly>0)return round(gross*12/(weekly*52));
+   return 0; // Ohne gültiges Festgehalt keine fiktive Stundenbasis.
   }
+  const direct=n(p?.hourlyRate);if(direct>0)return round(direct);
   return 0;
  }
 
  const mergedMonth=k=>({...MONTH,month:k, ...(store().months[k]||{}),items:clone(store().months[k]?.items||[])});
- let draftP=null,draftM=null,curMonth=nowMonth(),results=null,dirty=false;
+ let draftP=null,draftM=null,curMonth=nowMonth(),results=null,dirty=false,modeChosen=false;
  function input(k,label,sec=(Object.prototype.hasOwnProperty.call(MONTH,k)?'m':'p'),type='number',step='0.01',hint=''){
   const value=sec==='p'?(draftP?.[k]??PROFILE[k]):(draftM?.[k]??MONTH[k]);
   const typ=type==='number'?'number':type==='month'?'month':'text';
@@ -51,11 +52,14 @@
  function draw(){
   const target=$('wmpayRoot');if(!target)return;
   target.innerHTML=`<div class="wmpay-head"><div><h3>Lohnberechnung · Deutschland 2026</h3><p>Monatliche Musterrechnung. Alles manuell anpassbar; Änderungen erst mit „Monat speichern“ übernehmen.</p></div><label class="wmpay-field">Monat<input type="month" id="wmpayMonth" value="${esc(curMonth)}"></label></div>
+  <section class="wmpay-mode-picker"><h3>1. Wie wirst du bezahlt?</h3><p>Wähle zuerst die Lohnart. Danach erscheinen die passenden Eingabefelder und weiteren Einstellungen.</p><label class="wmpay-field" for="wmpayModeSelect">Lohnart<select id="wmpayModeSelect"><option value="" ${!modeChosen?'selected':''}>Bitte auswählen</option><option value="hourly" ${modeChosen&&draftP.salaryMode==='hourly'?'selected':''}>Stundenlohn</option><option value="fixed" ${modeChosen&&draftP.salaryMode==='fixed'?'selected':''}>Festgehalt / Monatsgehalt</option></select></label><p id="wmpayModeHelp" class="wmpay-note"></p></section>
+  <div id="wmpayModeDetails" ${modeChosen?'':'hidden'}>
   <div id="wmpayClockSync" class="wmpay-warning"></div><div class="wmpay-actions"><button id="wmpayCalc">Berechnen</button><button id="wmpaySave">Monat speichern</button><button id="wmpayLoad" class="secondary">Monat laden</button><button id="wmpayImportTime" class="secondary">Arbeitsstunden übernehmen</button></div>
   <p class="wmpay-warning">Hinweis: Keine verbindliche Entgeltabrechnung. Lohnsteuer I–IV wird näherungsweise anhand des Einkommensteuertarifs modelliert, nicht nach dem vollständigen BMF-Programmablaufplan. Für Steuerklasse V/VI oder Faktorverfahren die tatsächlichen Steuerabzüge eintragen. Bei Lohnersatzleistungen die Werte deiner Krankenkasse/Arbeitsagentur eintragen.</p>
   ${fig('1 · Grunddaten, Krankenkasse und Steuern',
-    input('hourlyRate','Stundenlohn (€/Std.)')+input('weeklyHours','Wochenstunden','p','number','0.1')+input('monthlySalary','Festgehalt (€)')+
-    select('salaryMode','Lohnart','p',[['hourly','Stundenlohn'],['fixed','Monatsgehalt']])+
+    `<div class="wmpay-salary-only">`+input('hourlyRate','Brutto-Stundenlohn (€/Std.)')+`</div>`+
+    `<div class="wmpay-fixed-only">`+input('monthlySalary','Monatliches Brutto-Festgehalt (€)')+`</div>`+
+    input('weeklyHours','Vertragliche Wochenstunden','p','number','0.1')+
     `<label class="wmpay-field">Krankenkasse (GKV, 2026)<input list="wmpayInsurerList" data-wmpay="p:insuranceName" value="${esc(draftP.insuranceName||'')}" placeholder="Krankenkasse auswählen oder eingeben"><datalist id="wmpayInsurerList">${(window.WMInsurers?.list||[]).map(row=>`<option value="${esc(row[0])}"></option>`).join('')}</datalist></label><div class="wide"><button type="button" class="secondary" id="wmpayInsuranceFill">Beitragssatz dieser Krankenkasse übernehmen</button><p id="wmpayInsuranceStatus" class="wmpay-note" aria-live="polite"></p><p class="wmpay-note">Offline-Daten: <a href="https://www.gkv-spitzenverband.de/service/krankenkassenliste/krankenkassen.jsp" target="_blank" rel="noopener noreferrer">GKV-Spitzenverband</a>, Stand 13.10.2026. Kein Live-Abruf. Bei Beitragssatzänderungen manuell anpassen; für vergangene Monate den damals gültigen Satz prüfen.</p></div>`+
     select('insuranceType','Versicherung','p',[['public','Gesetzlich'],['private','Privat (AN-Beitrag separat)'],['other','Anders / beitragsfrei']])+
     select('taxClass','Steuerklasse','p',[['1','I'],['2','II'],['3','III'],['4','IV'],['5','V'],['6','VI']])+
@@ -116,8 +120,8 @@
   <div class="wmpay-notebox"><label>Monatsnotizen<textarea data-wmpay="m:note" rows="3" placeholder="Abweichungen, Tarifvertrag, besondere Schichten, Zahlungseingang …">${esc(draftM.note)}</textarea></label></div>
   <div class="wmpay-summary"><h3>Berechnung und nachvollziehbare Einzelpositionen</h3><div id="wmpayResult" aria-live="polite"></div><div class="wmpay-actions"><button id="wmpayCsv" class="secondary">Monatsabrechnung als CSV</button><button id="wmpayPrint" class="secondary">Druckansicht / PDF</button></div><p id="wmpayStatus" aria-live="polite"></p></div>
   <div class="wmpay-saved"><h3>Gespeicherte Monate</h3><div id="wmpaySavedList"></div></div>
-  <p class="wmpay-note">Richtwerte beziehen sich auf Deutschland 2026. Für Tarifvereinbarungen, atypische Beschäftigungen, Einmalzahlungen, Midijobs, steuerfreie SFN-Zuschläge und Progressionsvorbehalt kann eine verbindliche Abrechnung deutlich abweichen.</p>`;
-  renderItems();bindFields();refresh();renderSaved();
+  <p class="wmpay-note">Richtwerte beziehen sich auf Deutschland 2026. Für Tarifvereinbarungen, atypische Beschäftigungen, Einmalzahlungen, Midijobs, steuerfreie SFN-Zuschläge und Progressionsvorbehalt kann eine verbindliche Abrechnung deutlich abweichen.</p></div>`;
+  renderItems();bindFields();updateModeUI();refresh();renderSaved();
  }
  function applyInsuranceRate(manual){
   const name=$('wmpayRoot')?.querySelector('[data-wmpay="p:insuranceName"]')?.value?.trim()||'';
@@ -144,7 +148,21 @@
   const manual=isManual?'Manuelle Eingabe':'Automatisch (AN-Hälfte)';
   el.textContent=(prefix?prefix+' ':'')+'KV '+draftP.healthRate+' % + Zusatzbeitrag '+draftP.additionalHealthRate+' % → Arbeitnehmeranteil '+round(pct)+' % ('+manual+'). '+(draftP.insuranceRateDate?'Quelle Stand '+draftP.insuranceRateDate+'.':'Individuellen Zusatzbeitrag prüfen.');
  }
+ function updateModeUI(){
+  const selector=$('wmpayModeSelect'),details=$('wmpayModeDetails');if(!selector||!details)return;
+  details.hidden=!modeChosen;
+  const fixed=modeChosen&&draftP.salaryMode==='fixed';
+  details.querySelectorAll('.wmpay-fixed-only').forEach(el=>el.hidden=!fixed);
+  details.querySelectorAll('.wmpay-salary-only').forEach(el=>el.hidden=fixed);
+  const help=$('wmpayModeHelp');if(help)help.textContent=!modeChosen?'Weitere Angaben werden erst nach der Auswahl eingeblendet.':fixed?'Monatsfestgehalt wird einmal pro Monat berechnet. Für die laufende Uhr gilt ein rechnerischer Stundenwert aus Gehalt und Wochenstunden.':'Bruttoverdienst wird aus bezahlten Stunden × Stundenlohn berechnet. Zuschläge kommen gesondert hinzu.';
+ }
  function bindFields(){
+  $('wmpayModeSelect').addEventListener('change',e=>{
+   if(!['hourly','fixed'].includes(e.target.value)){modeChosen=false;updateModeUI();return;}
+   draftP.salaryMode=e.target.value;modeChosen=true;dirty=true;updateModeUI();
+   const first=$('wmpayModeDetails')?.querySelector('details.wmpay-group');if(first)first.open=true;
+   refresh();
+  });
   $('wmpayRoot').querySelectorAll('[data-wmpay]').forEach(el=>{const [sec,key]=el.dataset.wmpay.split(':');el.addEventListener(el.type==='checkbox'?'change':'input',()=>{const dest=sec==='p'?draftP:draftM;dest[key]=el.type==='checkbox'?el.checked:el.value;if(['insuranceName','additionalHealthRate','healthRate','healthEmployeeRate'].includes(key))draftP.insuranceRateDate='';dirty=true;refresh();});});
    const insName=$('wmpayRoot').querySelector('[data-wmpay="p:insuranceName"]');
    if(insName)insName.addEventListener('change',()=>applyInsuranceRate(false));
@@ -265,6 +283,7 @@
  }
  async function saveMonth(){const month=curMonth,existing=store(),before=clone(existing);
   if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw Error('Ungültiger Monat.');
+  if(!modeChosen)throw Error('Bitte zuerst Stundenlohn oder Festgehalt auswählen.');
   const newP=clone(draftP),newM=clone({...draftM,month,editedAt:new Date().toISOString(),profileSnapshot:clone(draftP)});
   if((state.wm20?.autoPayroll||state.wm195?.rates?.autoPremiums)&&window.WM195?.prepareSavedPayroll){window.WM195.prepareSavedPayroll(month,newM,newP);}else if(state.wm20?.autoPayroll){throw Error('Sichere automatische Lohnsynchronisierung nicht geladen. Bitte App neu starten.');}
   for(const key of [...pkeys.map(k=>[newP,k]),...mkeys.map(k=>[newM,k])]){const [obj,k]=key;const v=obj[k];if(typeof PROFILE[k]==='number'||typeof MONTH[k]==='number'){if(!Number.isFinite(n(v)))throw Error('Ungültiger Wert: '+k);}}
@@ -295,7 +314,7 @@
   target.innerHTML=Object.entries(byYear).sort((a,b)=>b[0].localeCompare(a[0])).map(([y,s])=>`<p><strong>${esc(y)}:</strong> ${s.months} gespeicherte Monate · Brutto ${euro(s.gross)} · AG-Netto ${euro(s.net)} · KUG ${euro(s.kug)} · Krankengeld ${euro(s.sick)} · Kinderkrankengeld ${euro(s.child)}</p>`).join('')+
     keys.map(k=>`<button type="button" data-month="${esc(k)}" class="secondary">${esc(k)} · ${esc(saved[k]?.editedAt?.slice(0,10)||'gespeichert')}</button>`).join('');
  }
- function load(month){curMonth=month;const record=store().months[month];draftP=record?.profileSnapshot?{...PROFILE,...clone(record.profileSnapshot)}:mergedProfile();draftM=mergedMonth(month);dirty=false;draw();}
+ function load(month){curMonth=month;const record=store().months[month];modeChosen=!!(record?.profileSnapshot?.salaryMode||store().profile?.salaryMode||store().profile?.hourlyRate>0||store().profile?.monthlySalary>0);draftP=record?.profileSnapshot?{...PROFILE,...clone(record.profileSnapshot)}:mergedProfile();draftM=mergedMonth(month);dirty=false;draw();}
  function notify(msg){const e=$('wmpayStatus');if(e)e.textContent=msg;}
  function safe(fn){Promise.resolve().then(fn).catch(e=>{console.error('WorksManager Lohnmodul:',e);notify('Fehler: '+(e.message||e));alert('Lohnmodul: '+(e.message||e));});}
  function csvEscape(v){let x=String(v??'');return '"'+x.replace(/"/g,'""')+'"';}
@@ -311,6 +330,7 @@
  function mount(){if($('wmpayRoot'))return;const payroll=$('payroll');if(!payroll)return;
   const style=document.createElement('style');style.id='wmpayStyle';style.textContent=`
   .wmpay{margin:18px 0 20px;padding:16px;border:1px solid var(--line,#dfe7ef);background:var(--card,#fff);border-radius:17px;color:var(--ink,#082f4c);box-shadow:0 3px 14px #00000009}
+  .wmpay-mode-picker{padding:15px;background:#eef5fc;border:1px solid #c7d8e9;border-radius:12px;margin:14px 0}.wmpay-mode-picker h3{font-size:17px}.wmpay-mode-picker .wmpay-field{max-width:470px}.wmpay-mode-picker select{font-weight:750}.wmpay-mode-picker p{font-size:13px;color:#536c82}.wmpay [hidden]{display:none!important}
   .wmpay h3{margin:0 0 8px}.wmpay p{line-height:1.5}.wmpay-head{display:flex;gap:10px;align-items:start;justify-content:space-between;flex-wrap:wrap}.wmpay-head>.wmpay-field{min-width:150px}
   .wmpay-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding:14px 0}.wmpay-field{display:flex;flex-direction:column;font-size:12px;font-weight:650;gap:5px;min-width:0}
   .wmpay input,.wmpay select,.wmpay textarea{box-sizing:border-box;border:1px solid var(--line,#dfe7ef);border-radius:9px;padding:10px 9px;max-width:100%;width:100%;background:white;color:#15344a;font:inherit;font-size:16px}

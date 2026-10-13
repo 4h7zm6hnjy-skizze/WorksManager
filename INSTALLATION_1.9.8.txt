@@ -1,0 +1,18 @@
+WorksManager 1.9.8 – Live-Brutto und übersichtliche Lohnart-Auswahl
+
+INSTALLATION
+1. In WorksManager ein verschlüsseltes Backup erstellen und lokal sichern.
+2. ZIP entpacken. Die enthaltenen Dateien direkt im Hauptverzeichnis des GitHub-Repositories WorksManager ersetzen/hinzufügen (nicht die ZIP als einzelne Datei hochladen).
+3. index.html, sw.js, worksmanager-195.js, worksmanager-lohn.js, worksmanager-uhr.js, worksmanager-release.json sowie übrige enthaltene Dateien vollständig veröffentlichen.
+4. GitHub Pages öffnen und bei Bedarf die Web-App vollständig schließen und wieder starten. Auf Versionsanzeige 1.9.8 achten.
+5. Unter Abrechnung zuerst Stundenlohn ODER Festgehalt wählen, Betrag und Wochenstunden prüfen und "Monat speichern" wählen. Bei Stundenlohn außerdem unter Schicht kontrollieren, ob die Stempeluhr den Satz übernommen hat.
+6. Zur Kontrolle die Stempeluhr starten. Der Bruttobetrag erhöht sich in Echtzeit und friert bei Pause ein.
+7. Alte Stempelungen mit 0 €: unter Schicht "Alte 0-€-Stempelungen prüfen". Den historischen Satz vor einer tatsächlichen Nachberechnung bestätigen.
+
+WICHTIGE HINWEISE
+- Die Stempeluhr zeigt bei Festgehalt nur ein zeitanteiliges Brutto-Äquivalent. Der monatliche Bruttolohn bleibt unabhängig von erfassten Stunden erhalten.
+- Solange keine gültigen Lohndaten gespeichert sind, wird kein Verdienst erfunden (Anzeige "—").
+- Bei alten Zeiten mit 0-€-Satz wird in der blauen Übersicht nach Eintrag eines aktuellen Satzes vorläufig geschätzt und ausdrücklich gekennzeichnet. Die gespeicherten historischen Einträge werden dadurch nicht automatisch überschrieben.
+- Die Live-Anzeige ist vorläufig und kann unbezahlte Pausen, Zeitfensterzuschläge und Rundungen erst bei Stopp oder mit den erfassten Pausen vollständig berücksichtigen.
+- Das Update verändert nicht die verschlüsselte Datenbank und löscht keine Stempelungen.
+- Lohn-/Steuerwerte dienen der persönlichen Orientierung, nicht als amtliche Abrechnung.

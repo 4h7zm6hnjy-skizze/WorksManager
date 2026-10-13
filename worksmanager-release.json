@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.7",
-  "build": 2026101321,
+  "version": "1.9.8",
+  "build": 2026101322,
   "released": "2026-10-13",
   "coreCompatibility": "1.8.4",
-  "notes": "Spät-/Nachtschichtzuschläge mit konfigurierbaren Prozenten und Uhrzeiten. Keine Doppelzählung bei Spät/Nacht-Überlappung; Pausen anteilig. Auswahl aller gesetzlichen Krankenkassen aus der GKV-Spitzenverband-Liste Stand 13.10.2026; KV-Arbeitnehmeranteil automatisch berechnet. Offline verfügbar; kein Live-Abruf."
+  "notes": "Live-Bruttozähler sekündlich mit Cent-Genauigkeit, Monatsbrutto mit transparenter Hochrechnung alter 0-Euro-Stempelungen, getrennte Auswahl Stundenlohn/Festgehalt mit passenden Formularfeldern, historische Daten erhalten, Offline-Funktionen."
 }

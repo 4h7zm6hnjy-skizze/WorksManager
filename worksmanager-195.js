@@ -1,11 +1,11 @@
-/* WorksManager 1.9.7 – sichere Lohnsynchronisation, Zuschläge, Zeitkonto,
+/* WorksManager 1.9.8 – sichere Lohnsynchronisation, Zuschläge, Zeitkonto,
    Stempelprüfung, Kalender, Abrechnungsabgleich und Profil-Backups.
    Zusatzdaten nur in AES-GCM-verschlüsseltem state.wm195.
    Die bestehende IndexedDB und die Kern-Anwendungsdateien bleiben unverändert.
 */
 (() => {
 'use strict';
-const VERSION='1.9.7', BUILD=2026101321;
+const VERSION='1.9.8', BUILD=2026101322;
 const $=id=>document.getElementById(id);
 const E=v=>String(v??'').replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[ch]));
 const nowDate=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;};
@@ -155,7 +155,7 @@ function mount(){if($('wm195Root'))return;const dash=$('dashboard'),shift=$('shi
  const dashCard=document.createElement('section');dashCard.id='wm195Dashboard';dashCard.className='wm195';dashCard.innerHTML=`<div class="wm195-top"><div><h3>Arbeitsmonat und Brutto</h3><small class="wm195-muted">Stempeluhr · Arbeitszeitkonto · Lohnvorschau</small></div>${field('Monat','wm195HomeMonth',currentMonth(),'month')}</div><div id="wm195HomeStats" class="wm195-stats" style="margin-top:12px"></div><p id="wm195HomeHint" class="wm195-muted"></p>`;
  const clockHome=$('wmClockHome');if(clockHome)clockHome.insertAdjacentElement('afterend',dashCard);else dash.insertAdjacentElement('afterbegin',dashCard);
  const settings=db().rates;
- const clockPanel=document.createElement('section');clockPanel.id='wm195Root';clockPanel.className='wm195';clockPanel.innerHTML=`<h3>Arbeitszeit-Analyse 1.9.7</h3><div class="wm195-top">${field('Auswertungsmonat','wm195Month',currentMonth(),'month')}<span class="wm195-pill" id="wm195ClockSyncStatus"></span></div><div id="wm195Hours" style="margin-top:12px">${TXT}</div><p class="wm195-muted">Industriestunden = Minuten ÷ 60. Sollzeit und Saldo beziehen sich auf erfasste Tage, nicht auf zukünftige oder fehlende Arbeitstage.</p>
+ const clockPanel=document.createElement('section');clockPanel.id='wm195Root';clockPanel.className='wm195';clockPanel.innerHTML=`<h3>Arbeitszeit-Analyse 1.9.8</h3><div class="wm195-top">${field('Auswertungsmonat','wm195Month',currentMonth(),'month')}<span class="wm195-pill" id="wm195ClockSyncStatus"></span></div><div id="wm195Hours" style="margin-top:12px">${TXT}</div><p class="wm195-muted">Industriestunden = Minuten ÷ 60. Sollzeit und Saldo beziehen sich auf erfasste Tage, nicht auf zukünftige oder fehlende Arbeitstage.</p>
  ${section('Schichtzuschläge und Einstellungen',`<div class="wm195-grid">${field('Spätschichtzuschlag (%)','wm195Late',settings.late,'number','0.5')}${field('Spätschicht ab','wm195LateStart',settings.lateStart,'time')}${field('Spätschicht bis','wm195LateEnd',settings.lateEnd,'time')}${field('Nachtzuschlag (%)','wm195Night',settings.night,'number','0.5')}${field('Sonntagszuschlag (%)','wm195Sun',settings.sunday,'number','0.5')}${field('Feiertagszuschlag (%)','wm195Holiday',settings.holiday,'number','0.5')}${field('Überstundenzuschlag (%)','wm195Over',settings.overtime,'number','0.5')}${field('Nachtbeginn','wm195NightStart',settings.nightStart,'time')}${field('Nachtende','wm195NightEnd',settings.nightEnd,'time')}</div><div class="wm195-flex" style="margin:10px 0">${check('Spätschicht erkennen','wm195EnableLate',settings.enableLate)}${check('Nachtstunden erkennen','wm195EnableNight',settings.enableNight)}${check('Sonntag erkennen','wm195EnableSun',settings.enableSunday)}${check('NRW-Feiertage erkennen','wm195EnableHol',settings.enableHoliday)}${check('Zuschläge automatisch in die Lohnberechnung übernehmen','wm195AutoPrem',settings.autoPremiums)}</div>${btn('Einstellungen speichern','wm195SaveRates')}<p class="wm195-muted">Spät/Nacht: Beginn, Ende und Prozente sind veränderbar (Vorgaben nur Beispielwerte). Bei zeitlicher Überschneidung hat Nacht Vorrang. Ohne exakte Pausenzeiten werden Pausen anteilig verteilt. Für automatische Übernahme der Zuschläge die Checkbox aktivieren; Stunden können unabhängig davon manuell bleiben. Steuer-/SV-Pflicht wird vorsichtig voreingestellt. Ob ein Zuschlag tatsächlich steuerfrei ist, hängt vom Arbeitsvertrag und gesetzlichen Voraussetzungen ab. Pausenzeiten bleiben geschätzt.</p><div id="wm195PremiumPreview" class="wm195-muted"></div>`)}
  ${section('Überstundenkonto und Ausgleich',`<div class="wm195-grid">${field('Anfangssaldo in Minuten (+/−)','wm195Opening',db().time.openingMinutes)}${field('Datum','wm195AdjustmentDate',nowDate(),'date')}</div><div class="wm195-grid"><label class="wm195-field">Art<select id="wm195AdjustKind"><option value="payout">Überstunden ausgezahlt</option><option value="leave">Freizeitausgleich</option><option value="correction">Manuelle Korrektur (+/−)</option></select></label>${field('Minuten (+/− bei Korrektur)','wm195AdjustMinutes',60)}</div>${field('Notiz','wm195AdjustNote','','text')}${btn('Anfangssaldo speichern','wm195SaveOpening')} ${btn('Ausgleich buchen','wm195AddAdjustment')}<div id="wm195AdjustList"></div><small class="wm195-muted">Auszahlung/Freizeitausgleich verändert nur das Zeitkonto, nicht automatisch das Bruttogehalt. Auszahlungsbetrag gegebenenfalls in der Lohnabrechnung erfassen.</small>`)}
  ${section('Stempelfehler und Änderungsverlauf',`<div class="wm195-grid">${field('Pausenprüfung ab 6 Std. (Min.)','wm195Break6',settings.minimumBreak6)}${field('Pausenprüfung ab 9 Std. (Min.)','wm195Break9',settings.minimumBreak9)}${field('Lange Schicht ab (Std.)','wm195Long',settings.warningLongHours)}</div>${btn('Prüfwerte speichern','wm195SaveWarnings')}<div id="wm195Warnings"></div><h4>Letzte Korrekturen</h4><div id="wm195Audit"></div>`)}
@@ -170,7 +170,7 @@ function mount(){if($('wm195Root'))return;const dash=$('dashboard'),shift=$('shi
 }
 function uiMessage(message){const el=$('wm195Error');if(el)el.textContent=message;}
 async function commit(change,label){if(!accessible())return;const original=deep(db()),oldPay=state.wmPayroll===undefined?undefined:deep(state.wmPayroll);try{change();await save(label);refresh();}catch(e){state.wm195=original;if(oldPay===undefined)delete state.wmPayroll;else state.wmPayroll=oldPay;refresh();throw e;}}
-const guard=f=>async()=>{try{await f();}catch(e){console.error('WorksManager 1.9.7:',e);uiMessage('Fehler: '+(e.message||e));alert(e.message||String(e));}};
+const guard=f=>async()=>{try{await f();}catch(e){console.error('WorksManager 1.9.8:',e);uiMessage('Fehler: '+(e.message||e));alert(e.message||String(e));}};
 function wire(){
  for(const id of ['wm195HomeMonth','wm195Month','wm195PayMonth','wm195CalendarMonth'])$(id)?.addEventListener('change',()=>{if(id==='wm195Month')db().reportMonth=$(id).value;if(id==='wm195CalendarMonth')db().calendarMonth=$(id).value;refresh();});
  $('wm195SaveRates')?.addEventListener('click',guard(async()=>{
@@ -226,10 +226,39 @@ function updateVersionLabel(){for(const el of document.querySelectorAll('.versio
  document.title='WorksManager v'+VERSION;
  const title=$('wmplusQuickUpdateCheck')?.closest('#wmplusQuickUpdateBar')?.querySelector('strong');if(title)title.textContent='App-Updates · WorksManager '+VERSION;
 }
+function monthGrossSummary(month){
+ const finished=rows().filter(r=>recDay(r).startsWith(month)),active=state.wm20?.active;
+ const profile=state.wmPayroll?.months?.[month]?.profileSnapshot||state.wmPayroll?.profile||{};
+ const currentProfile=state.wmPayroll?.profile||{},fixed=profile.salaryMode==='fixed',monthly=Number(profile.monthlySalary)||0;
+ const globalRate=Number(state.wm20?.hourlyGrossRate)||Number(currentProfile.hourlyRate)||0;
+ let unknown=0,estimate=false;
+ let gross=finished.reduce((acc,r)=>{
+  const own=Number(r.hourlyRate)||0;if(own>0)return acc+(Number(r.minutes)||0)*own/60;
+  unknown++;if(globalRate>0){estimate=true;return acc+(Number(r.minutes)||0)*globalRate/60;}return acc;
+ },0);
+ if(active&&recDay(active).startsWith(month)){
+  const at=active.pausedAt?new Date(active.pausedAt).getTime():Date.now();
+  const ms=Math.max(0,at-new Date(active.startAt).getTime()-(Number(active.totalPausedMs)||0));
+  let aRate=Number(active.hourlyRate)||0;if(aRate<=0)aRate=globalRate;
+  if(aRate>0){gross+=ms/3600000*aRate;if(!(Number(active.hourlyRate)>0))estimate=true;}
+  else unknown++;
+ }
+ if(fixed&&monthly>0)return {value:monthly,label:'Monatliches Festgehalt',detail:'Fixes Brutto laut Lohnprofil, ohne zusätzliche Zuschläge. Uhrzeit wird separat als rechnerischer Stundenwert angezeigt.'};
+ if(unknown&&!(globalRate>0))return {value:null,label:'Stundenlohn fehlt',detail:unknown+' Stempelung(en) ohne gespeicherten Stundenlohn. In der Stempeluhr den Satz eingeben und alte Einträge nach Bestätigung korrigieren.'};
+ return {value:Math.round((gross+Number.EPSILON)*100)/100,label:estimate?'Brutto-Hochrechnung (vorläufig)':'Brutto aus Stempelzeiten',detail:estimate?unknown+' Eintrag/Einträge mit fehlendem Stundenlohn: hier vorläufig der aktuell eingetragene Satz. Die gespeicherten Zeiten bleiben unverändert.':'Berechnet aus den gespeicherten Stundenlöhnen; ohne Zuschläge.'};
+}
+function refreshHomeGross(){
+ if(!accessible())return;const box=$('wm195HomeGrossValue');if(!box)return;
+ const month=$('wm195HomeMonth')?.value||currentMonth(),r=monthGrossSummary(month);
+ box.textContent=r.value===null?'—':(r.value.toLocaleString('de-DE',{style:'currency',currency:'EUR'}));
+ const label=$('wm195HomeGrossLabel');if(label)label.textContent=r.label;
+ const details=$('wm195HomeGrossInfo');if(details)details.textContent=r.detail;
+}
 function report(){if(!accessible()||!$('wm195Root'))return;
  const home=$('wm195HomeMonth')?.value||currentMonth(),month=$('wm195Month')?.value||currentMonth(),pm=$('wm195PayMonth')?.value||currentMonth(),cMonth=$('wm195CalendarMonth')?.value||currentMonth();
- const hm=metrics(home),out=$('wm195HomeStats');if(out)out.innerHTML=[['Iststunden',HM(hm.a.is)+' Std.'],['Industriestunden',IND(hm.a.is)+' h'],['Überstunden-Saldo',HM(hm.a.diff)],['Brutto (ohne Zuschläge)',EUR(hm.s.gross)]].map(([l,v])=>`<div class="wm195-stat"><strong>${E(v)}</strong><small>${E(l)}</small></div>`).join('');
+ const hm=metrics(home),out=$('wm195HomeStats');if(out)out.innerHTML=[['Iststunden',HM(hm.a.is)+' Std.'],['Industriestunden',IND(hm.a.is)+' h'],['Überstunden-Saldo',HM(hm.a.diff)]].map(([l,v])=>`<div class="wm195-stat"><strong>${E(v)}</strong><small>${E(l)}</small></div>`).join('')+'<div class="wm195-stat"><strong id="wm195HomeGrossValue" style="font-variant-numeric:tabular-nums">—</strong><small id="wm195HomeGrossLabel">Brutto</small></div>';refreshHomeGross();
  if($('wm195HomeHint'))$('wm195HomeHint').textContent=`Erfasste Tage: ${hm.a.days} · Gesamtsaldo seit Beginn (mit Ausgleich): ${HM(entireAccount())} / ${IND(entireAccount())} Industrie-Stunden.`;
+ const h=$('wm195HomeHint');if(h&&!$('wm195HomeGrossInfo'))h.insertAdjacentHTML('afterend','<p id="wm195HomeGrossInfo" class="wm195-muted"></p>');refreshHomeGross();
  const {a,s}=metrics(month),o=$('wm195Hours');if(o){const val={is:HM(a.is)+' / '+IND(a.is)+' h',goal:HM(a.goal),diff:HM(a.diff)+' / '+IND(a.diff)+' h',spent:HM(a.paid+a.leave),net:HM(a.net)+' / '+IND(a.net)+' h',gross:EUR(s.gross)};for(const el of o.querySelectorAll('[data-wm195-val]'))el.textContent=val[el.dataset.wm195Val]||'—';}
  if($('wm195ClockSyncStatus'))$('wm195ClockSyncStatus').textContent=state.wm20?.autoPayroll?'Lohnabgleich aktiviert':'Lohnabgleich aus';
  if($('wm195Opening')&&document.activeElement!==$('wm195Opening'))$('wm195Opening').value=db().time.openingMinutes;
@@ -279,16 +308,17 @@ function resetProfileControls(){const rates=db().rates;for(const [id,key] of Obj
  if($('wm195Opening'))$('wm195Opening').value=db().time.openingMinutes;
  if($('wm195PayMonth'))delete $('wm195PayMonth').dataset.loaded;
 }
-function init(){if($('wm195Root'))return;const required=['save','renderAll','exportBackup','deriveKey','decryptPayload','unb64','referencedFileKeys','nrwHolidays'];if(!required.every(x=>typeof window[x]==='function')){console.error('WorksManager 1.9.7: Kernfunktionen fehlen',required.filter(x=>typeof window[x]!=='function'));return;}
+function init(){if($('wm195Root'))return;const required=['save','renderAll','exportBackup','deriveKey','decryptPayload','unb64','referencedFileKeys','nrwHolidays'];if(!required.every(x=>typeof window[x]==='function')){console.error('WorksManager 1.9.8: Kernfunktionen fehlen',required.filter(x=>typeof window[x]!=='function'));return;}
  mount();updateVersionLabel();let prior=window.renderAll;window.renderAll=function(...args){const changed=state!==lastState;const r=prior.apply(this,args);if(changed){lastState=state;resetProfileControls();}setTimeout(()=>{if(accessible())refresh();},60);return r;};
  window.addEventListener('pageshow',()=>setTimeout(()=>{if(accessible())refresh();},100));
  document.addEventListener('wm-clock-payroll-synced',()=>setTimeout(()=>{if(accessible())refresh();},100));
  setInterval(()=>{if(accessible())refresh();},30000);
+ setInterval(refreshHomeGross,1000);
  // Nur bei übereinstimmender Buildnummer als installierte Version übernehmen.
  fetch('./worksmanager-release.json',{cache:'no-store'}).then(r=>r.ok?r.json():null).then(x=>{if(x?.build===BUILD&&x?.version===VERSION)updateVersionLabel();}).catch(()=>{});
  console.info('WorksManager '+VERSION+' Erweiterungen geladen');
 }
-function refresh(){if(!accessible())return;try{report();}catch(e){console.error('WorksManager 1.9.7 Ansicht:',e);}}
+function refresh(){if(!accessible())return;try{report();}catch(e){console.error('WorksManager 1.9.8 Ansicht:',e);}}
 if(typeof module!=='undefined'&&module.exports)module.exports={splitPay,premiumUnits,dayGroups,account,anomalies,HM,IND,calendarDayStatus};
 else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
 })();

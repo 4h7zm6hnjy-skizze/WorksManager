@@ -1,0 +1,23 @@
+WorksManager 1.9.8 – Prüfbericht (13.10.2026)
+
+Überprüft wurde das Update ausgehend von den Dateien der auf GitHub bestätigten Version 1.9.7.
+
+Erfolgreich getestet:
+- JavaScript-Syntaxprüfung der Erweiterungsmodule mit Node.js.
+- 20 Regressionstests zu Krankenkassenwahl, Spät-/Nachtschichtzeiten, Nacht über Mitternacht, Pausen, Zuschlägen, Vermeidung doppelter Stundenzählung.
+- Chromium-Browsertest der Oberfläche: Umschalten Stundenlohn/Festgehalt; nur passende Felder sichtbar; Speicherung der Vergütungsart.
+- Aus 14,95 EUR/Std. folgt bei 8 Stunden 6 Minuten (8,1 h) 121,095 EUR, kaufmännisch auf 121,10 EUR gerundet.
+- Bei alter 0-EUR-Stempelung Kennzeichnung als historische Schätzung, keine Änderung des gespeicherten Satzes.
+- Festgehalt 3.000 EUR/Monat wird in die Lohnberechnung übernommen; rechnerischer Stundenwert bei 37,5 Wochenstunden = 18,46 EUR/Std. (Vorschau).
+- Bei Festgehalt wird bereits gespeicherter automatischer regulärer Stundenlohn nicht nochmals addiert; zusätzliche Überstunden können berechnet werden.
+- Echtzeit-Bruttoanzeige steigt mit verstrichenen Sekunden (Browser-Test); Monatsfeld aktualisiert sich; pausierte Stempelung bleibt stehen.
+- Update-Build 2026101322, Release-Datei, HTML und Service-Worker-Einträge abgestimmt.
+
+Einschränkungen:
+- Kein Praxistest mit Safari auf dem iPhone oder mit den echten verschlüsselten Benutzerdaten; daher keine Garantie für die volle App-Funktion.
+- Ein Test mit Dienstzeiten und echten Pausenzeiten ist empfehlenswert; Zuschlag-Zeitfenster aus 1.9.7 bleiben unverändert.
+- Beim Festgehalt ist das mitlaufende Brutto nur ein Stundenwert-Äquivalent, kein zusätzlich verdientes Geld.
+- Die Darstellung kann nur die gespeicherten bzw. vom Nutzer bestätigten Stundensätze berücksichtigen.
+- Regelmäßige Steuer- und Lohnabrechnung ist nicht amtlich.
+- Die ZIP wurde vorbereitet; GitHub-Schreibzugriff ist nicht zugesichert.
+- Vor dem Hochladen ein gültiges verschlüsseltes Datenbackup exportieren.
