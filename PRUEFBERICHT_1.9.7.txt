@@ -1,0 +1,35 @@
+PRÜFBERICHT – WORKSMANAGER 1.9.7
+13. Oktober 2026
+
+BASIS
+Vorhandene WorksManager-Update-Dateien v1.9.6, Kernkompatibilität app.js 1.8.4.
+
+FUNKTIONEN
+[OK] Schichtzuschläge: Spätschicht (%) + Start/Ende, Nachtschicht (%) + Start/Ende.
+[OK] Zeitfenster über Mitternacht, Minutenerkennung, Vorrang Nacht bei Überlappung.
+[OK] Pausendauer anteilig berücksichtigt; genaue Pausenlage unbekannt, deshalb Schätzung.
+[OK] Lohnvorschau, Stempeluhr-Brutto inklusive konfigurierter Zeitfenster-Zuschläge.
+[OK] Automatischer Premium-Import ohne erzwungene Übernahme von Normalstunden.
+[OK] Schon vorhandene Lohnpositionen werden nicht durch doppelte automatische Positionen ergänzt.
+[OK] Vollständige Krankenkassen-Auswahlliste mit 92 offiziellen Einträgen, 13.10.2026, ohne fingierte Beiträge für SVLFG.
+[OK] Krankenkassen-Zusatzbeitrag in die Lohnberechnung übernommen; AN-Satz als Grundbeitrag plus Zusatzbeitrag geteilt durch zwei.
+[OK] Manuell abweichende KV-Werte bleiben änderbar; Warnung für historische Lohnmonate und Sonderfälle.
+[OK] Offline-Assets/Versionsnummer/Release-Build konsistent, vollständige Paketabhängigkeiten aktualisiert.
+[OK] Bestehende app.js-Kerndatei, Datenbankmodell und Offline-Dokumentdaten nicht verändert.
+
+TESTS
+- 20 isolierte JavaScript-Regressionsfälle bestanden.
+- Syntaktische Prüfung aller enthaltenen JS-Dateien mit node --check bestanden.
+- Chromium-DOM-Smoke-Test mit simuliertem, entsperrtem Arbeitsprofil bestanden: zwei Module gerendert, Krankenkasse ausgewählt, Zusatztarif 2,69 % eingesetzt, Profil gespeichert, Schichteinstellungen auf 18 % / 30 % geändert, automatischer Premium-Import aktiviert und gespeichert. Keine JavaScript-Seitenfehler in diesem Test.
+
+EINSCHRÄNKUNGEN
+- Kein vollständiger End-to-End-Test auf iPhone Safari oder auf der echten GitHub-Pages-Seite durchgeführt.
+- Keine Zusicherung steuer-/sozialversicherungsrechtlich verbindlicher Werte; beitragsabhängige Sonderfälle und steuerfreie Zulagen sind anhand der Abrechnung zu prüfen.
+- Abzüge und Zuschläge können sich tariflich unterscheiden; die eingestellten Prozente sind keine gesetzlichen Vorgaben.
+- Offizielle Kassenwerte als Snapshot vom 13.10.2026; kein kontinuierlicher Netzabruf. Der Anwender kann Werte manuell korrigieren.
+- GitHub-Schreibzugriff zuletzt mit HTTP 403 verweigert, keine Veröffentlichung erfolgt.
+- ZIP ist ein Updatepaket und enthält die unveränderten Kern-Assets nicht. Die vorhandene Website muss bereits bestehen.
+
+QUELLEN
+https://www.gkv-spitzenverband.de/service/krankenkassenliste/krankenkassen.jsp
+https://www.bundesgesundheitsministerium.de/beitraege/seite

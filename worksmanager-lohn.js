@@ -1,10 +1,10 @@
-/* WorksManager 1.9.6 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
+/* WorksManager 1.9.7 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
  * KEINE Lohnabrechnungssoftware für amtliche Abrechnung. Lohnsteuer nur Näherung,
  * Ersatzleistungen nur Orientierung; alle kritischen Werte manuell überschreibbar.
  */
 (() => {
  'use strict';
- const VERSION='1.9.6',BUILD=2026101318;
+ const VERSION='1.9.7',BUILD=2026101321;
  const $=id=>document.getElementById(id);
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const round=x=>Math.round((Number(x)+Number.EPSILON)*100)/100;
@@ -13,7 +13,7 @@
  const clone=x=>JSON.parse(JSON.stringify(x));
  const nowMonth=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`};
  const ID=()=>crypto.randomUUID?.()||String(Date.now())+Math.random().toString(36).slice(2);
- const PROFILE={hourlyRate:0,monthlySalary:0,salaryMode:'hourly',weeklyHours:37,insuranceName:'',insuranceType:'public',taxClass:'1',childAllowance:0,childrenUnder25:0,hasChildren:true,careSaxony:false,careChildlessExtra:false,churchTaxPct:0,monthlyTaxMode:'estimate',taxFactor:1,
+ const PROFILE={hourlyRate:0,monthlySalary:0,salaryMode:'hourly',weeklyHours:37,insuranceName:'',insuranceRateDate:'',insuranceType:'public',taxClass:'1',childAllowance:0,childrenUnder25:0,hasChildren:true,careSaxony:false,careChildlessExtra:false,churchTaxPct:0,monthlyTaxMode:'estimate',taxFactor:1,
   healthRate:14.6,additionalHealthRate:2.9,healthEmployeeRate:'',pensionEmployeeRate:9.3,unemploymentEmployeeRate:1.3,careEmployeeRate:'',careBase:1.8,careChildless:0.6,careChildReduction:0.25,
   healthCap:5812.50,pensionCap:8450,annualWorkAllowance:1230,annualSpecialAllowance:36,monthlyTaxAllowance:0,
   monthlyDeductionFixed:0,notes:''};
@@ -55,7 +55,8 @@
   <p class="wmpay-warning">Hinweis: Keine verbindliche Entgeltabrechnung. Lohnsteuer I–IV wird näherungsweise anhand des Einkommensteuertarifs modelliert, nicht nach dem vollständigen BMF-Programmablaufplan. Für Steuerklasse V/VI oder Faktorverfahren die tatsächlichen Steuerabzüge eintragen. Bei Lohnersatzleistungen die Werte deiner Krankenkasse/Arbeitsagentur eintragen.</p>
   ${fig('1 · Grunddaten, Krankenkasse und Steuern',
     input('hourlyRate','Stundenlohn (€/Std.)')+input('weeklyHours','Wochenstunden','p','number','0.1')+input('monthlySalary','Festgehalt (€)')+
-    select('salaryMode','Lohnart','p',[['hourly','Stundenlohn'],['fixed','Monatsgehalt']])+input('insuranceName','Krankenkasse','p','text')+
+    select('salaryMode','Lohnart','p',[['hourly','Stundenlohn'],['fixed','Monatsgehalt']])+
+    `<label class="wmpay-field">Krankenkasse (GKV, 2026)<input list="wmpayInsurerList" data-wmpay="p:insuranceName" value="${esc(draftP.insuranceName||'')}" placeholder="Krankenkasse auswählen oder eingeben"><datalist id="wmpayInsurerList">${(window.WMInsurers?.list||[]).map(row=>`<option value="${esc(row[0])}"></option>`).join('')}</datalist></label><div class="wide"><button type="button" class="secondary" id="wmpayInsuranceFill">Beitragssatz dieser Krankenkasse übernehmen</button><p id="wmpayInsuranceStatus" class="wmpay-note" aria-live="polite"></p><p class="wmpay-note">Offline-Daten: <a href="https://www.gkv-spitzenverband.de/service/krankenkassenliste/krankenkassen.jsp" target="_blank" rel="noopener noreferrer">GKV-Spitzenverband</a>, Stand 13.10.2026. Kein Live-Abruf. Bei Beitragssatzänderungen manuell anpassen; für vergangene Monate den damals gültigen Satz prüfen.</p></div>`+
     select('insuranceType','Versicherung','p',[['public','Gesetzlich'],['private','Privat (AN-Beitrag separat)'],['other','Anders / beitragsfrei']])+
     select('taxClass','Steuerklasse','p',[['1','I'],['2','II'],['3','III'],['4','IV'],['5','V'],['6','VI']])+
     input('childAllowance','Kinderfreibeträge (ELStAM, z. B. 1,0)','p','number','0.5')+
@@ -118,8 +119,37 @@
   <p class="wmpay-note">Richtwerte beziehen sich auf Deutschland 2026. Für Tarifvereinbarungen, atypische Beschäftigungen, Einmalzahlungen, Midijobs, steuerfreie SFN-Zuschläge und Progressionsvorbehalt kann eine verbindliche Abrechnung deutlich abweichen.</p>`;
   renderItems();bindFields();refresh();renderSaved();
  }
+ function applyInsuranceRate(manual){
+  const name=$('wmpayRoot')?.querySelector('[data-wmpay="p:insuranceName"]')?.value?.trim()||'';
+  const status=$('wmpayInsuranceStatus');
+  const entry=window.WMInsurers?.find(name);
+  if(!entry){if(status)status.textContent=name?'Keine eindeutige Übereinstimmung. Zusatzbeitrag bitte anhand deiner Kasse selbst prüfen.':'Bitte Krankenkasse auswählen.';return false;}
+  if(entry.additional===null){if(status)status.textContent='Für diese besondere Kasse wird kein regulärer Zusatzbeitrag ausgewiesen. Bitte individuelle Beiträge eintragen.';return false;}
+  if(draftP.insuranceType!=='public'){
+   if(status)status.textContent='Die automatische gesetzliche KV-Berechnung gilt nur bei Auswahl „Gesetzlich“.';return false;
+  }
+  if(curMonth < '2026-10' && !confirm('Die Liste gilt ab 13.10.2026 und möglicherweise nicht für '+curMonth+'. Aktuellen Wert trotzdem für den ausgewählten Monat übernehmen?'))return false;
+  if(draftP.healthEmployeeRate!==''&&draftP.healthEmployeeRate!=null && !confirm('Ein manuell eingetragener KV-Arbeitnehmeranteil ist aktiv. Für die automatische Berechnung diesen Wert zurücksetzen?'))return false;
+  draftP.insuranceName=entry.name;draftP.healthRate=14.6;draftP.additionalHealthRate=entry.additional;draftP.healthEmployeeRate='';draftP.insuranceRateDate=entry.asOf;dirty=true;
+  const e=$('wmpayRoot').querySelector('[data-wmpay="p:insuranceName"]');if(e)e.value=entry.name;
+  for(const key of ['healthRate','additionalHealthRate','healthEmployeeRate']){
+   const el=$('wmpayRoot').querySelector('[data-wmpay="p:'+key+'"]');if(el)el.value=draftP[key];
+  }
+  refresh();insuranceStatus('Satz aus GKV-Liste übernommen.');
+  return true;
+ }
+ function insuranceStatus(prefix){
+  const el=$('wmpayInsuranceStatus');if(!el)return;
+  const isManual=draftP.healthEmployeeRate!==''&&draftP.healthEmployeeRate!=null;const pct=isManual?n(draftP.healthEmployeeRate):((n(draftP.healthRate)+n(draftP.additionalHealthRate))/2);
+  const manual=isManual?'Manuelle Eingabe':'Automatisch (AN-Hälfte)';
+  el.textContent=(prefix?prefix+' ':'')+'KV '+draftP.healthRate+' % + Zusatzbeitrag '+draftP.additionalHealthRate+' % → Arbeitnehmeranteil '+round(pct)+' % ('+manual+'). '+(draftP.insuranceRateDate?'Quelle Stand '+draftP.insuranceRateDate+'.':'Individuellen Zusatzbeitrag prüfen.');
+ }
  function bindFields(){
-  $('wmpayRoot').querySelectorAll('[data-wmpay]').forEach(el=>{const [sec,key]=el.dataset.wmpay.split(':');el.addEventListener(el.type==='checkbox'?'change':'input',()=>{const dest=sec==='p'?draftP:draftM;dest[key]=el.type==='checkbox'?el.checked:el.value;dirty=true;refresh();});});
+  $('wmpayRoot').querySelectorAll('[data-wmpay]').forEach(el=>{const [sec,key]=el.dataset.wmpay.split(':');el.addEventListener(el.type==='checkbox'?'change':'input',()=>{const dest=sec==='p'?draftP:draftM;dest[key]=el.type==='checkbox'?el.checked:el.value;if(['insuranceName','additionalHealthRate','healthRate','healthEmployeeRate'].includes(key))draftP.insuranceRateDate='';dirty=true;refresh();});});
+   const insName=$('wmpayRoot').querySelector('[data-wmpay="p:insuranceName"]');
+   if(insName)insName.addEventListener('change',()=>applyInsuranceRate(false));
+   $('wmpayInsuranceFill')?.addEventListener('click',()=>applyInsuranceRate(true));
+   insuranceStatus('');
   $('wmpayCalc').onclick=()=>refresh();
   $('wmpaySave').onclick=()=>safe(saveMonth);
   $('wmpayLoad').onclick=()=>{if(dirty&&!confirm('Ungespeicherte Eingaben verwerfen und den Monat neu laden?'))return;load(curMonth);};
@@ -230,12 +260,13 @@
   <p class="wmpay-warning">${r.warnings.length?r.warnings.map(x=>`• ${esc(x)}`).join('<br>'):'Näherung – mit tatsächlicher Abrechnung abgleichen.'}</p>`;
   const autoClock=!!state.wm20?.autoPayroll,clock=$('wmpayClockSync');if(clock){clock.textContent=autoClock?'Stempeluhr-Synchronisierung aktiv: Normale Stunden und Überstunden werden aus abgeschlossenen Stempelzeiten übernommen; bereits vorhandene Werte werden nicht addiert. Falls du abweichende Stunden manuell eintragen möchtest, deaktiviere die Automatik unter Schichtplan.':'Stempeluhr-Synchronisierung aus: Stunden können manuell aus dem Zeitkonto übernommen werden.';}
   if(clock){const rate=effectiveHourlyRate(draftP),isFixed=draftP.salaryMode==='fixed';clock.textContent+=' Brutto-Stundenwert nach Speichern: '+euro(rate)+'/Std.'+(isFixed&&n(draftP.hourlyRate)<=0?' (aus Festgehalt / durchschnittlichen Wochenstunden berechnet, nur Stundenwert-Vorschau).':'');}
-   const status=$('wmpayStatus');if(status)status.textContent=dirty?'Noch nicht gespeicherte Eingaben.':'Berechnung geladen; keine ausstehenden Änderungen.';
+   insuranceStatus('');
+  const status=$('wmpayStatus');if(status)status.textContent=dirty?'Noch nicht gespeicherte Eingaben.':'Berechnung geladen; keine ausstehenden Änderungen.';
  }
  async function saveMonth(){const month=curMonth,existing=store(),before=clone(existing);
   if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw Error('Ungültiger Monat.');
   const newP=clone(draftP),newM=clone({...draftM,month,editedAt:new Date().toISOString(),profileSnapshot:clone(draftP)});
-  if(state.wm20?.autoPayroll&&window.WM195?.prepareSavedPayroll){window.WM195.prepareSavedPayroll(month,newM,newP);}else if(state.wm20?.autoPayroll){throw Error('Sichere automatische Lohnsynchronisierung nicht geladen. Bitte App neu starten.');}
+  if((state.wm20?.autoPayroll||state.wm195?.rates?.autoPremiums)&&window.WM195?.prepareSavedPayroll){window.WM195.prepareSavedPayroll(month,newM,newP);}else if(state.wm20?.autoPayroll){throw Error('Sichere automatische Lohnsynchronisierung nicht geladen. Bitte App neu starten.');}
   for(const key of [...pkeys.map(k=>[newP,k]),...mkeys.map(k=>[newM,k])]){const [obj,k]=key;const v=obj[k];if(typeof PROFILE[k]==='number'||typeof MONTH[k]==='number'){if(!Number.isFinite(n(v)))throw Error('Ungültiger Wert: '+k);}}
   for(const it of newM.items){if(!it.id)it.id=ID();if(['reimbursement','deduction'].includes(it.kind)&&n(it.amount)<0)throw Error('Betrag darf nicht negativ sein.');}
   const previousClock=state.wm20===undefined?undefined:clone(state.wm20);

@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.6",
-  "build": 2026101318,
+  "version": "1.9.7",
+  "build": 2026101321,
   "released": "2026-10-13",
   "coreCompatibility": "1.8.4",
-  "notes": "Bruttolohn und Stempeluhr synchronisiert; Stundenwert aus Festgehalt berechenbar; laufende 0-Euro-Stempelungen korrigiert; historische 0-Euro-Einträge nur nach Bestätigung nachberechenbar. Stunden, Pausen, Profile und Daten bleiben erhalten."
+  "notes": "Spät-/Nachtschichtzuschläge mit konfigurierbaren Prozenten und Uhrzeiten. Keine Doppelzählung bei Spät/Nacht-Überlappung; Pausen anteilig. Auswahl aller gesetzlichen Krankenkassen aus der GKV-Spitzenverband-Liste Stand 13.10.2026; KV-Arbeitnehmeranteil automatisch berechnet. Offline verfügbar; kein Live-Abruf."
 }

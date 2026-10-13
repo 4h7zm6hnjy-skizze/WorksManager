@@ -1,0 +1,40 @@
+WORKSMANAGER 1.9.7 – SCHICHTZUSCHLÄGE UND KRANKENKASSEN
+Update erstellt am 13.10.2026
+
+INSTALLATION
+1. VOR dem Update in WorksManager unter „Sicherheit & Backup“ ein vollständiges, verschlüsseltes Backup erstellen und die Datei extern aufbewahren.
+2. ZIP-Datei entpacken.
+3. Alle im ZIP enthaltenen App-Dateien in das STAMMVERZEICHNIS von github.com/4h7zm6hnjy-skizze/WorksManager hochladen. Vorhandene gleichnamige Dateien ersetzen; worksmanager-insurance.js ist NEU und muss zwingend mit hochgeladen werden. ZIP NICHT als eine einzelne Datei hochladen.
+4. Die bestehenden Dateien app.js, styles.css, worksmanager-19.js, Grafiken und Benutzerdaten NICHT löschen oder überschreiben, falls sie nicht im ZIP enthalten sind. Insbesondere app.js (Kern 1.8.4) bleibt unverändert.
+5. GitHub Pages online öffnen, anschließend die App schließen und neu öffnen. Version 1.9.7 und Offline-Status kontrollieren. Falls alte Inhalte aus dem PWA-Cache erscheinen, im Browser neu laden.
+6. Erst nach Prüfung der neuen App weiterarbeiten. Die Daten liegen lokal im verschlüsselten Profil und werden nicht auf GitHub hochgeladen.
+
+SPÄTSCHICHT UND NACHTSCHICHT
+- In „Schichtplan“ → „Arbeitszeit-Analyse“ → „Schichtzuschläge und Einstellungen“.
+- Spätschicht: eigene Prozentzahl und „ab / bis“ festlegen.
+- Nachtschicht: eigene Prozentzahl und „ab / bis“ festlegen. Nachtzeiten über Mitternacht sind erlaubt.
+- „Spätschicht erkennen“ und „Nachtstunden erkennen“ einschalten.
+- „Zuschläge automatisch in die Lohnberechnung übernehmen“ aktivieren und „Einstellungen speichern“ drücken.
+- Die Berechnung nutzt die Stempelung mit tatsächlichem Beginn/Ende und den im Eintrag gespeicherten Stundenlohn. Die aktuellen Schichteinstellungen gelten für den aktuellen Monat; ältere Lohnmonate werden nicht ungefragt rückwirkend aktualisiert.
+- Hinweis: Zur Orientierung sind Spätschicht 13:45–21:45 und Nachtschicht 21:45–05:45 hinterlegt, sofern keine älteren Einstellungen vorhanden sind. Beispiel-Vorbelegung: 0% Spätschicht und 25% Nacht. Bitte VERTRAGLICHE Zeiten und Prozente selbst korrekt eintragen. Bereits gespeicherte alte Werte bleiben erhalten.
+- Überschneiden sich Spät-/Nacht-Zeitfenster, zählt für diesen Zeitraum nur Nacht (keine doppelte Spät-/Nachtzulage). Sonntag/Feiertag können gemäß Einstellungen zusätzlich erscheinen. Bitte auf tarifliche Regelungen prüfen.
+- Da Stempelungen aktuell nur die Gesamtdauer der Pause, nicht die genauen Pausenzeiten, speichern, erfolgt die Zuschlagsverteilung auf Zeitfenster anteilig und ist deshalb eine Schätzung.
+- In der Stempeluhr erscheint das geschätzte Brutto einschließlich Zeitfenster-Zuschlägen; in der Monatsstatistik werden Basisbrutto und Zuschläge getrennt gezeigt.
+
+KRANKENKASSE
+- In „Abrechnung“ → „Lohnberechnung“ → „Grunddaten, Krankenkasse und Steuern“.
+- Bei Versicherung „Gesetzlich“ wählen und Krankenkassennamen vollständig aus der Liste auswählen. Die App übernimmt den individuellen Zusatzbeitrag automatisch bei Auswahl (alternativ Schaltfläche „Beitragssatz dieser Krankenkasse übernehmen“).
+- Für gewöhnlich angestellte GKV-Versicherte gilt 2026: Grundbeitrag 14,6 % gesamt und kassenindividueller Zusatzbeitrag. Arbeitnehmerhälfte = (14,6 % + Zusatzbeitrag) / 2. Pflege-, Renten- und Arbeitslosenversicherung richten sich NICHT nach der Krankenkasse.
+- „Monat speichern“ drücken. Ein vorhandener abweichender manueller Arbeitnehmer-KV-Prozentsatz wird nur nach Bestätigung zurückgesetzt.
+- Kassen-Datenbank: 92 Einträge (einschließlich Sonderfall SVLFG ohne regulären Zusatzbeitrag), offizieller Stand 13.10.2026, Quelle: https://www.gkv-spitzenverband.de/service/krankenkassenliste/krankenkassen.jsp
+- Die Liste ist OFFLINE abrufbar, aber aktualisiert sich NICHT live. Ändert eine Kasse ihre Beiträge, den Satz in der App manuell nach aktueller offizieller Quelle korrigieren. Für historische Monate stets den im jeweiligen Monat gültigen Satz prüfen.
+
+PRÜFUNG
+- 20 automatische Modulprüfungen bestanden: Versichererdaten, Beitragsmathematik, Spät- und Nachtschichten, über Mitternacht, überlappende Zeitfenster, anteilige Pausen, Trennung Grundlohn / Zuschlag, Premium-only-Übernahme und Dopplungsschutz.
+- Simulation im Chromium-Browser auf 390px Bildschirmbreite: Auswahl der Techniker Krankenkasse, Übernahme 2,69 %, Speichern des Lohnprofils, Änderung und Speichern von Schicht-Prozenten und Uhrzeitfeldern erfolgreich.
+- JavaScript-Dateien mit node --check ohne Syntaxfehler.
+- KEIN vollständiger Ende-zu-Ende-Test auf dem echten iPhone, keine echte verschlüsselte Datenbankmigration oder GitHub-Pages-Publikation durchgeführt.
+- Steuer- und Sozialversicherungsberechnungen sind keine amtliche Lohnabrechnung. Angaben mit tatsächlicher Gehaltsabrechnung und Tarifvertrag abgleichen.
+
+GITHUB STATUS
+Die verbundene Integration verweigerte den Schreibzugriff (HTTP 403). Die ZIP ist vorbereitet, aber NICHT auf GitHub veröffentlicht.
