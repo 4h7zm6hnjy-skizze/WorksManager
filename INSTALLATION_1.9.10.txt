@@ -1,0 +1,21 @@
+WorksManager 1.9.10 – Korrektur- und Nachtragsfunktionen
+
+INSTALLATION (GitHub Pages)
+1. Vorher in WorksManager unter Sicherheit & Backup eine verschlüsselte Sicherung erstellen und deren Download prüfen.
+2. ZIP vollständig entpacken.
+3. Alle enthaltenen Dateien direkt in das HAUPTVERZEICHNIS des bisherigen GitHub-Repositories hochladen, gleichnamige Dateien ersetzen. Keine ZIP-Datei und keinen zusätzlichen Unterordner hochladen.
+4. Commit changes ausführen. Der bestehende Kern app.js (1.8.4), styles.css und persönliche lokale Daten werden NICHT ersetzt.
+5. Die veröffentlichte GitHub-Pages-Webapp online starten und vollständig neu laden, bis Version 1.9.10 angezeigt wird. Offline wird der neue Service Worker erst nach einem erfolgreichen Online-Aufruf aktiv.
+
+BEDIENUNG
+- Startseite / Stempeluhr: „Arbeitszeit nachtragen“ öffnet ein Formular mit tatsächlichem Arbeitstag, Beginn, Ende, Ende am Folgetag, unbezahlter Pause, Brutto-Stundenlohn, Tagessoll und Notiz. Es zeigt Stunden und Brutto vor dem Speichern an.
+- Bei laufender oder pausierter Stempeluhr: „Fehlerhafte Stempelung verwerfen“ löscht NUR die laufende Stempelung nach Rückfrage. Abgeschlossene Schichten bleiben erhalten.
+- Bei gestoppter Stempeluhr: „Letzte Stempelung löschen“ verschiebt den letzten abgeschlossenen Eintrag nach Rückfrage in den Papierkorb. Wiederherstellen: Schicht → Stempeluhr → Gelöschte Stempelzeiten.
+- Die Stempeluhr zeigt bei einer laufenden/pausierten Stempelung HH:MM:SS statt nur HH:MM. Der Brutto-Cent-Zähler bleibt erhalten.
+- Für ältere abgeschlossene Einträge stehen unter Schicht weiterhin „Bearbeiten“ und „Löschen“ zur Verfügung.
+- Einträge dürfen sich zeitlich nicht überschneiden, Arbeitsende darf nicht in der Zukunft liegen, Start und Ende müssen sich auf maximal 24 Stunden beziehen.
+- Bei aktiver automatischer Lohn-/Zuschlagsübernahme werden geänderte Stempelzeiten an die aktuelle Abrechnung weitergegeben. Bereits gespeicherte echte Abrechnungsunterlagen werden nicht gelöscht.
+
+HINWEISE
+- Manuell erfasste Zeiten müssen der tatsächlichen Arbeitszeit entsprechen. Die App ersetzt weder ein offizielles Zeiterfassungssystem des Arbeitgebers noch eine rechtsverbindliche Lohnabrechnung.
+- Keine automatische Löschung oder Änderung von Altdaten durch die Installation; Änderungen erfolgen nur nach Benutzeraktion.

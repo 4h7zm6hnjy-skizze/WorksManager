@@ -1,0 +1,19 @@
+WorksManager 1.9.10 – Prüfbericht vom 13.10.2026
+
+ÄNDERUNGEN
+- Direkt in Stempeluhr-Startseite erreichbare Korrekturmaßnahmen: laufende/pausierte Fehlstempelung verwerfen; letzten abgeschlossenen Eintrag reversibel löschen.
+- Direkt aus Startseite erreichbares Formular zum manuellen Nachtragen oder Korrigieren inklusive live aktualisierter Berechnung von Nettominuten (Arbeit minus Pause) und Brutto-Grundlohn.
+- Korrekturen für Nachtschicht/Folgetag, Sperre für doppelte/überlappende und zukünftige Zeiten, Abrechnungssynchronisation und Papierkorb erhalten.
+- Sekundenanzeige HH:MM:SS bei laufender und pausierter Stempeluhr behebt Widerspruch „00:00 Std., aber Centbetrag“.
+- Kern app.js, Styles, vorhandene Stempelzeiten und verschlüsselte Datenbank bleiben unverändert.
+
+AUTOMATISIERTE TESTS
+- Statische Syntaxprüfung sämtlicher aktualisierten JavaScript-Dateien mit node --check erfolgreich.
+- Vorhandene Regressionstests für Spät-/Nacht-/Überstundenzuschläge, Monatsberechnung, Krankenversicherung und Festgehalt bestanden.
+- Bestehende simulierte Chromium-UI-Tests (Lohnmodus, Live-Cent-Zähler, Pause, Überstundenvergütungsgrenze, altes Monatsbrutto) bestanden.
+- Neue Chromium-UI-Tests erfolgreich: pausierte Fehlstempelung nach Bestätigung löschen; vorherige Stempelzeiten erhalten; neuer 7:30-Stunden-Nachtrag mit 30 Minuten Pause, 14,90 €/h und aktualisierter Lohnabrechnung; Überlappung abgelehnt; Nachtschicht über Mitternacht; letzten Eintrag reversibel gelöscht; Papierkorb-Wiederherstellung; zukünftige Zeit abgelehnt. Keine unaufgefangenen JavaScript-Seitenfehler.
+- ZIP-Archiv Integrität geprüft.
+
+GRENZEN
+- Kein direkter Test auf realem iPhone, kein Einblick in die tatsächlichen lokal verschlüsselten Nutzerdaten und kein Live-Test der öffentlich publizierten GitHub-Pages-URL nach dem Upload.
+- Offline-Caching und Upload müssen nach Veröffentlichung am Gerät überprüft werden.

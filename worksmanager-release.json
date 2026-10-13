@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.9",
-  "build": 2026101323,
+  "version": "1.9.10",
+  "build": 2026101324,
   "released": "2026-10-13",
   "coreCompatibility": "1.8.4",
-  "notes": "Überstundenvergütung ab frei definierbarer geleisteter Tagesarbeitszeit (HH:MM oder Dezimalstunden), getrennt von Tages-Soll und Zeitkonto. Berechnung von Grundlohn/Zuschlag ohne doppelte Zahlung, auch bei mehreren Stempelungen/Tag, Stundenlohn und Festgehalt. Überstunden-Zuschläge in Stempeluhr-Vorschau; ältere Lohnmonate nicht automatisch umgebucht. Funktionen 1.9.8 erhalten."
+  "notes": "Direkt auf der Stempeluhr-Startseite: Fehlstempelung verwerfen oder letzte abgeschlossene Stempelung in den wiederherstellbaren Papierkorb verschieben. Vergessene Arbeitszeit mit Datum, Beginn, Ende, unbezahlter Pause, Stundenlohn, Sollzeit und Nachtschicht-Folgetag manuell nachtragen. Überlappungen und zukünftige Zeiten verhindert, sichere Lohn- und Zuschlagssynchronisierung, laufende Uhr mit Sekundenanzeige. Bestehende Daten unverändert."
 }
