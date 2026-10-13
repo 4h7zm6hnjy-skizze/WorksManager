@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.17",
-  "build": 2026101331,
+  "version": "1.9.18",
+  "build": 2026101332,
   "released": "2026-10-13",
   "coreCompatibility": "1.8.4",
-  "notes": "Kalender: Kurzarbeit einzeln oder für Wochen Mo-Fr (Wochentage frei wählbar), mit Stunden-/Brutto-Verdienstausfall auf Basis des stets aktuellen, lokal gespeicherten Stundenlohns und der bearbeitbaren Wochenarbeitszeit. Kinderstatus 67/60%, Prozentsatz änderbar; offizielles Kurzarbeitergeld in EUR nur mit pauschaliertem Soll/Ist-Netto oder bewilligtem Betrag. Separate Monats-Synchronisation ohne Verdoppelung der Arbeitsstunden. Frühere Urlaubs-, AU- und Reha-Funktionen bleiben erhalten."
+  "notes": "Gesamtupdate: Tagesabgleich aus Kalender, AU, Stempeluhr und Lohn; KUG-Bruttoverlust und ausdrücklich unverbindliche Netto-Näherung mit Link zur amtlichen 2026er KUG-Tabelle; automatische 3-Schicht-Wochenrotation mit Vorlagenuhrzeiten und Schutz bestehender Tage; Abrechnungs-Istvergleich, Frühwarnungen, verschlüsselter Backup-Export/-Integritätstest, Versionsprüfung, Tages-CSV, zentraler Kalender. Keine automatische amtliche KUG-Tabelle/PAP im Offlinepaket; amtlicher KUG-EUR-Wert weiter mit Tabellenwert oder Bescheid."
 }

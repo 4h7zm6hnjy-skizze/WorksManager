@@ -1,4 +1,4 @@
-/* WorksManager 1.9.17 – Privater Schicht-/Kurzarbeitskalender.
+/* WorksManager 1.9.18 – Privater Schicht-/Kurzarbeitskalender.
  * Manuelle Einträge liegen verschlüsselt in state.wmCalendar; gespeicherte AUs werden direkt aus state.aus angezeigt.
  * Keine Personen-/Gehaltsdaten im öffentlich bereitgestellten Quellcode.
  */
@@ -16,6 +16,7 @@ const cp=o=>JSON.parse(JSON.stringify(o));
 const shortLabels={early:'Früh',late:'Spät',night:'Nacht'};
 const absenceLabels={vacationFull:'Urlaub',vacationHalf:'½ Urlaub',sickPaid:'Krank (EFZ)',sickBenefit:'Krankengeld',rehaPaid:'Reha (EFZ)',rehaBenefit:'Reha (Übergangsgeld)'};
 const SHIFT_TIMES={early:['05:45','13:45'],late:['13:45','21:45'],night:['21:45','05:45']};
+function shiftTemplate(kind){const v=state?.wmQuality?.templates?.[kind];return Array.isArray(v)&&v.length>=2?v:SHIFT_TIMES[kind];}
 
 // AUs are mirrored from the encrypted primary source (state.aus); never duplicate
 // AU documents or create phantom payroll records in wmCalendar.days.
@@ -246,8 +247,8 @@ function setFormDate(date){if(!validDate(date))return;selected=date;viewMonth=da
  const recent=payMonth(viewMonth);const fallback=recent.shortWithChild===undefined?true:recent.shortWithChild===true||recent.shortWithChild==='true';
  $('wmCalChild').value=String(item.withChild===undefined?fallback:!!item.withChild)==='true'?'yes':'no';
  $('wmCalKugRate').value=item.kugRate??($('wmCalChild').value==='yes'?67:60);
- const shiftTimes=SHIFT_TIMES[item.shift]||['',''];
- $('wmCalBegin').value=item.begin??shiftTimes[0];$('wmCalEnd').value=item.end??shiftTimes[1];$('wmCalPause').value=item.pauseMinutes??30;
+ const shiftTimes=shiftTemplate(item.shift)||['',''];
+ $('wmCalBegin').value=item.begin??shiftTimes[0];$('wmCalEnd').value=item.end??shiftTimes[1];$('wmCalPause').value=item.pauseMinutes??(Number(shiftTimes[2])||30);
  $('wmCalTarget').value=item.targetMinutes||targetMinutes();toggleForm();render();auInfo(date);
 }
 function reflectQuickSelection(){
@@ -363,7 +364,7 @@ function mount(){if($('wmCalRoot'))return;const dash=$('dashboard');if(!dash||!$
   toggleForm();
   $('wmCalSave').scrollIntoView({block:'nearest',behavior:'smooth'});
  });
- $('wmCalShift').onchange=()=>{const pair=SHIFT_TIMES[$('wmCalShift').value];if(pair){$('wmCalBegin').value=pair[0];$('wmCalEnd').value=pair[1];}else{$('wmCalBegin').value='';$('wmCalEnd').value='';}reflectQuickSelection();updateKugPreview();};
+ $('wmCalShift').onchange=()=>{const pair=shiftTemplate($('wmCalShift').value);if(pair){$('wmCalBegin').value=pair[0];$('wmCalEnd').value=pair[1];$('wmCalPause').value=pair[2]??30;}else{$('wmCalBegin').value='';$('wmCalEnd').value='';}reflectQuickSelection();updateKugPreview();};
  $('wmCalAbsence').onchange=()=>{if($('wmCalAbsence').value){$('wmCalKug').checked=false;toggleForm();}};
  $('wmCalKug').addEventListener('change',()=>{if($('wmCalKug').checked)$('wmCalAbsence').value='';toggleForm();});
  $('wmCalChild').onchange=()=>{$('wmCalKugRate').value=$('wmCalChild').value==='yes'?'67':'60';updateKugPreview();};
@@ -371,7 +372,7 @@ function mount(){if($('wmCalRoot'))return;const dash=$('dashboard');if(!dash||!$
  $('wmCalDelete').onclick=()=>modify('delete').catch(e=>showMessage('Fehler: '+e.message,true));
  setFormDate(selected);
 }
-function init(){window.WMCalendar={refreshAbsenceForMonths,monthAbsence,monthKug,currentRate};if(typeof save!=='function'||typeof state==='undefined')return;mount();currentState=state;lastAuFingerprint=auFingerprint();
+function init(){window.WMCalendar={refreshAbsenceForMonths,monthAbsence,monthKug,currentRate,refresh:render,openDate:(day)=>{if(!validDate(day))return;setFormDate(day);const editor=$('wmCalEditor');if(editor)editor.open=true;$('wmCalRoot')?.scrollIntoView({block:'start',behavior:'smooth'});}};if(typeof save!=='function'||typeof state==='undefined')return;mount();currentState=state;lastAuFingerprint=auFingerprint();
  if(typeof window.renderAll==='function'){const prev=window.renderAll;window.renderAll=function(...a){const r=prev.apply(this,a);const nextFingerprint=auFingerprint();if(state!==currentState||nextFingerprint!==lastAuFingerprint){currentState=state;lastAuFingerprint=nextFingerprint;setTimeout(()=>{if(open()){try{render();}catch(e){console.error('WorksManager Kalender:',e);}}},0);}return r;};}
  document.addEventListener('wm-clock-payroll-synced',ev=>{const month=ev.detail?.month;
   if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month||'')||!state.wmCalendar?.days)return;
@@ -383,7 +384,7 @@ function init(){window.WMCalendar={refreshAbsenceForMonths,monthAbsence,monthKug
   }catch(e){if(previous===undefined)delete state.wmPayroll;else state.wmPayroll=previous;
    console.error('WorksManager Kalender-Lohnabgleich:',e);showMessage('Abwesenheitsabgleich: '+e.message,true);}});
  });
- document.addEventListener('wm-payroll-rate-updated',()=>{if(open()){render();updateKugPreview();document.dispatchEvent(new CustomEvent('wm-calendar-payroll-updated',{detail:{months:[viewMonth]}}));}});window.addEventListener('pageshow',()=>{if(open()){render();updateKugPreview();}});console.info('WorksManager Schichtkalender 1.9.17 geladen');
+ document.addEventListener('wm-payroll-rate-updated',()=>{if(open()){render();updateKugPreview();document.dispatchEvent(new CustomEvent('wm-calendar-payroll-updated',{detail:{months:[viewMonth]}}));}});window.addEventListener('pageshow',()=>{if(open()){render();updateKugPreview();}});console.info('WorksManager Schichtkalender 1.9.18 geladen');
 }
 if(typeof module!=='undefined'&&module.exports)module.exports={monthKug,monthAbsence,planMinutes,dateSelection,addDays,validDate,auRecords,auIndex,auMonths,auFingerprint,currentRate,weeklyHours,defaultDailyMinutes,kugPreview};
 else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();

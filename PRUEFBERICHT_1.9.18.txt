@@ -1,0 +1,32 @@
+WORKSMANAGER 1.9.18 – PRÜFBERICHT
+==================================
+BASIS: bestätigte öffentliche GitHub-Version 1.9.17 / Build 2026101331.
+NEU: gemeinsamer Tagesabgleich, Arbeitszeit-/Entgeltprüfungen, vordefinierte
+3-Wochen-Schichtrotation (Vorlagen veränderbar), AU-Warnungen, Echt-Abrechnung
+vergleich, historisierte lokale Änderungen, Verschlüsselungs-Backupprüfung,
+Version/Cache-Selbstkontrolle, CSV-Tagesauswertung, kurze Zugriffswege.
+
+BROWSER-TESTS (simulierte Chromium-Umgebung, Smartphone-Breite 375/390 px):
+* Qualitätszentrale wird sichtbar eingebunden; keine JS-Laufzeitfehler.
+* AU-Monatswarnung und nachträgliche AU-Änderung über vorhandene State-Struktur.
+* Tages-KUG: 7,4 h bei 37 h / 5 Tage; 110,26 € Bruttoausfall bei 14,90 €/h.
+* KUG-Netto-Annäherung ist explizit als nicht amtlich gekennzeichnet.
+* Monatlicher Soll-/Ist-Vergleich kann verschlüsselt gespeichert werden,
+  ohne Stempelung oder vorhandene Abrechnungspositionen zu verändern.
+* Wiederkehrende Früh-/Spät-Wochen werden korrekt geplant; vorhandene AU,
+  Urlaubs- und Kurzarbeitstage nicht überschrieben.
+* Nachträgliche Änderung einer Schichtvorlage wirkt nur auf neue Schichten.
+* Bei absichtlich scheiterndem Speichern werden Schichten vollständig zurückgerollt.
+* Hauptkalender aus Qualitätszentrale erreichbar, vorhandene Daten bleiben.
+* Versions-/Offline-Dateiverweise stimmen bei statischer Prüfung überein.
+
+RÜCKWÄRTSKOMPATIBILITÄT: 6 vorhandene Testfamilien für Versionen 1.9.15–1.9.17
+bestanden, einschließlich Urlaub/Krank/Reha/AU/Monatswechsel/KUG/Fehler-Rollback.
+
+NICHT VOLLSTÄNDIG GEPRÜFT: echte iPhone PWA/Safari, reale verschlüsselte Datenbank,
+GitHub-Pages-Cache-Aktualisierung und kompletter echter Gehaltsabrechnungsvorgang.
+
+NICHT IMPLEMENTIERT ALS AMTLICHER AUTOMATIKBETRAG:
+Komplette offline eingebettete Leistungstabelle KUG 2026 mit PAP-Steuerverfahren.
+Bestehende Felder zur Eingabe offizieller Soll-/Ist-Netto-Werte bleiben nutzbar.
+Es darf NICHT behauptet werden, KUG würde exakt automatisch berechnet.

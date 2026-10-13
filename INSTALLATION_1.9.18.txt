@@ -1,0 +1,27 @@
+WORKSMANAGER 1.9.18 – INSTALLATION
+====================================
+1. WorksManager entsperren und in der App ein verschlüsseltes Backup exportieren.
+2. Eine Kopie davon sicher außerhalb des Handys aufbewahren.
+3. ZIP entpacken. Enthaltene App-Dateien ins Hauptverzeichnis von GitHub
+   4h7zm6hnjy-skizze/WorksManager hochladen und GLEICHNAMIGE Dateien ersetzen.
+   Bitte die ZIP selbst NICHT hochladen und kein eigenes privates Lohnprofil veröffentlichen.
+4. Commit changes bestätigen; GitHub Pages Veröffentlichung abwarten.
+5. WorksManager neu öffnen. In der Qualitätszentrale unter „Updates & Änderungsprotokoll“
+   die installierte und veröffentlichte Version vergleichen.
+6. Kontrollieren, ob Stempelzeit, Kalender, Lohn und gespeicherte AUs noch vorhanden sind.
+7. Testweise eine kurze Schichtfolge planen und Abweichungswarnungen kontrollieren.
+8. Ein Backup lokal auf Integrität prüfen, indem die exportierte Datei und ihr Passwort
+   im dafür vorgesehenen Dialog ausgewählt werden.
+
+WICHTIGE EINSCHRÄNKUNGEN:
+- Keine zentrale Cloud-Datensicherung oder automatischer Restore; Backup bleibt manuell.
+- KUG-Netto-Näherung ist ausdrücklich KEIN amtlicher Auszahlungsbetrag und wird nicht
+  in die Lohnabrechnung als automatisches amtliches Kurzarbeitergeld übernommen.
+  Für den genauen Wert die BA-KUG-Tabelle 2026 oder den bewilligten Betrag verwenden.
+  Amtliche Tabelle: https://www.arbeitsagentur.de/api/download/datei/tabelle-zur-berechnung-des-kurzarbeitergeldes_ba055418.pdf
+- Die Lohnsteuerberechnung der App bleibt vereinfachend. Fehlende lohnsteuerliche Sonderfälle
+  können zu Abweichungen führen.
+- Automatische Schichtrotation überschreibt keine bestehenden Kalender- oder AU-Tage.
+- Stempelzeiten bleiben unabhängig von geplanten Schichten und werden nicht neu geschrieben.
+- Testläufe fanden in simulierten Chromium-Handyumgebungen statt. Kein echter Test auf dem iPhone.
+- App-Kern (app.js, styles.css) bleibt auf Kompatibilitätsstand 1.8.4, wird NICHT ersetzt.

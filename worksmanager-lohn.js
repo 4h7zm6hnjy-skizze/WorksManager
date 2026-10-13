@@ -1,10 +1,10 @@
-/* WorksManager 1.9.17 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
+/* WorksManager 1.9.18 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
  * KEINE Lohnabrechnungssoftware für amtliche Abrechnung. Lohnsteuer nur Näherung,
  * Ersatzleistungen nur Orientierung; alle kritischen Werte manuell überschreibbar.
  */
 (() => {
  'use strict';
- const VERSION='1.9.17',BUILD=2026101331;
+ const VERSION='1.9.18',BUILD=2026101332;
  const $=id=>document.getElementById(id);
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const round=x=>Math.round((Number(x)+Number.EPSILON)*100)/100;
