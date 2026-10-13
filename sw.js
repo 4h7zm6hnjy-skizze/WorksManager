@@ -1,10 +1,10 @@
 'use strict';
-/* WorksManager 1.9.10: cache-first offline shell; encryptierte lokale DB wird nicht angefasst. */
+/* WorksManager 1.9.11: cache-first offline shell; encryptierte lokale DB wird nicht angefasst. */
 const CACHE_PREFIX='worksmanager-v';
-const CACHE_NAME='worksmanager-v1.9.10-v1-20261013-a';
-const REQUIRED=['./index.html','./worksmanager-profiles.js?v=1.9.10','./styles.css?v=1.8.4','./app.js?v=1.8.4',
-                './worksmanager-plus.js?v=1.9.10','./worksmanager-19.js?v=1.9.1','./worksmanager-insurance.js?v=1.9.10','./worksmanager-lohn.js?v=1.9.10','./worksmanager-uhr.js?v=1.9.10',
-                './worksmanager-195.js?v=1.9.10','./manifest.json?v=1.9.10','./worksmanager-release.json'];
+const CACHE_NAME='worksmanager-v1.9.11-v1-20261013-a';
+const REQUIRED=['./index.html','./worksmanager-profiles.js?v=1.9.11','./styles.css?v=1.8.4','./app.js?v=1.8.4',
+                './worksmanager-plus.js?v=1.9.11','./worksmanager-19.js?v=1.9.1','./worksmanager-insurance.js?v=1.9.11','./worksmanager-lohn.js?v=1.9.11','./worksmanager-uhr.js?v=1.9.11',
+                './worksmanager-195.js?v=1.9.11','./manifest.json?v=1.9.11','./worksmanager-release.json'];
 const OPTIONAL=['./','./worksmanager-logo.png','./favicon.png','./apple-touch-icon.png',
                 './icon-192.png','./icon-512.png','./icon-1024.png'];
 self.addEventListener('install', event=>{

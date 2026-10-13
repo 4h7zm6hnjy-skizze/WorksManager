@@ -1,0 +1,14 @@
+WorksManager 1.9.11 – privater Abrechnungsimport
+
+1. VORHER in WorksManager eine verschlüsselte Datensicherung erstellen.
+2. Dateien dieser Update-ZIP in das GitHub-Repository in das Hauptverzeichnis hochladen (gleichnamige Dateien ersetzen). Das Archiv nicht als Archiv belassen.
+3. Nach der Veröffentlichung WorksManager neu laden und 1.9.11 prüfen.
+4. Getrennte private Datei „WorksManager_Lohnprofil_2026-09_PRIVAT.json“ auf dem privaten iPhone speichern.
+5. Im WorksManager Abrechnung → Lohnberechnung → „Abrechnungsdaten privat übernehmen“ diese private JSON-Datei auswählen.
+6. Importvorschau prüfen und auf „Grunddaten in bearbeitbare Felder übernehmen“ klicken.
+7. Bitte die Werte im Formular prüfen und „Monat speichern“ wählen. Erst dann werden die Eingaben in den verschlüsselten App-Speicher übernommen.
+8. Optional nur nach Zustimmung das Netto/Brutto von September 2026 als Ist-Abrechnung für den Vergleich verschlüsselt speichern.
+
+DATENSCHUTZ: Private JSON-Datei NICHT in GitHub hochladen und NICHT der Update-ZIP hinzufügen. Die private Datei enthält keine IBAN/Steuernummer/Personalnummer und wird vom Browser nur lokal gelesen. Die App speichert nur nach Bestätigung in der lokalen verschlüsselten Datenbank.
+
+WICHTIG: Nachtzuschläge 25 % und 35 % werden nicht ohne bekannte Uhrzeitregel automatisiert. „PV-Kind 2“ allein beweist nicht das Alter von Kindern. Der Krankenkassen-Zusatzbeitrag von 13.10.2026 ist nicht automatisch rückwirkend für September korrekt.

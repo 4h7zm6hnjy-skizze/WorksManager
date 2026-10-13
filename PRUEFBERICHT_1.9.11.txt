@@ -1,0 +1,7 @@
+WorksManager 1.9.11 – Prüfbericht
+- Änderungen am Profilimport ausschließlich in worksmanager-lohn.js, Versionen/Offline-Cache/Manifest aktualisiert.
+- Keine privaten Lohnwerte im veröffentlichten JavaScript oder in der ZIP.
+- Private Voreinstellungsdatei separat, auf dem Benutzergerät importieren und erst nach Bestätigung speichern.
+- Dateigröße, Schema, Monate und Zahlen werden validiert; nur erlaubte Felder übernommen.
+- Referenzwerte werden getrennt von Monatsberechnung gespeichert, nach separater Nachfrage.
+- Tests siehe separate Ausführungen; kein abschließender iPhone-Praxistest.
