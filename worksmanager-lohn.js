@@ -1,10 +1,10 @@
-/* WorksManager 1.9.14 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
+/* WorksManager 1.9.15 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
  * KEINE Lohnabrechnungssoftware für amtliche Abrechnung. Lohnsteuer nur Näherung,
  * Ersatzleistungen nur Orientierung; alle kritischen Werte manuell überschreibbar.
  */
 (() => {
  'use strict';
- const VERSION='1.9.14',BUILD=2026101327;
+ const VERSION='1.9.15',BUILD=2026101329;
  const $=id=>document.getElementById(id);
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const round=x=>Math.round((Number(x)+Number.EPSILON)*100)/100;
@@ -18,9 +18,9 @@
   healthCap:5812.50,pensionCap:8450,annualWorkAllowance:1230,annualSpecialAllowance:36,monthlyTaxAllowance:0,
   monthlyDeductionFixed:0,notes:''};
  const MONTH={month:nowMonth(),hours:0,paidSickHours:0,vacationHours:0,holidayHours:0,overtimeHours:0,overtimePct:25,oneOffGross:0,oneOffTaxable:true,oneOffSV:true,
-  shortEnabled:false,shortSollGross:0,shortIstGross:'',shortNetSoll:'',shortNetIst:'',shortWithChild:true,shortRateWithoutChild:60,shortRateWithChild:67,shortRateOverride:'',shortPaymentOverride:'',shortCalendarDays:0,shortCalendarLostHours:0,calendarVacationHours:0,calendarPaidSickHours:0,calendarVacationDays:0,calendarHalfDays:0,calendarSickPaidDays:0,calendarSickBenefitDays:0,calendarTimeCollisions:0,
+  shortEnabled:false,shortSollGross:0,shortIstGross:'',shortNetSoll:'',shortNetIst:'',shortWithChild:true,shortRateWithoutChild:60,shortRateWithChild:67,shortRateOverride:'',shortPaymentOverride:'',shortCalendarDays:0,shortCalendarLostHours:0,calendarVacationHours:0,calendarPaidSickHours:0,calendarVacationDays:0,calendarHalfDays:0,calendarSickPaidDays:0,calendarSickBenefitDays:0,calendarRehaPaidHours:0,calendarRehaPaidDays:0,calendarRehaBenefitDays:0,calendarTimeCollisions:0,
   sickDays:0,sickGrossDaily:0,sickNetDaily:0,sickPercentGross:70,sickMaxNetPercent:90,sickMaxDaily:135.63,sickActualPaid:'',sickBenefitDeductions:12.4,
-  childSickDays:0,childSickNetDaily:0,childSickOneOff:false,childSickMaxDaily:135.63,childSickActualPaid:'',childSickDeductions:12.4,
+  childSickDays:0,childSickNetDaily:0,childSickOneOff:false,childSickMaxDaily:135.63,childSickActualPaid:'',childSickDeductions:12.4,rehaTransitionPaid:'',
   incomeTaxManual:'',soliManual:'',churchManual:'',actualPayslipNet:'',taxFreeReimbursement:0,advancePaid:0,otherNetDeduction:0,privateKVEmployee:0,
   note:'',items:[]};
  const pkeys=Object.keys(PROFILE),mkeys=Object.keys(MONTH).filter(k=>k!=='items');
@@ -123,13 +123,16 @@
     input('childSickMaxDaily','Tageshöchstbetrag (€)')+input('childSickDeductions','Abzug RV/AV/PV zusammen (%) – schätzweise')+
     input('childSickActualPaid','Tatsächlich ausgezahltes Kinderkrankengeld (€) – alternativ','m','text')+
     `<p class="wide">Die Krankenkasse zahlt separat. Keine Doppelerfassung von Arbeitgeberlohn und Kinderkrankengeld für dieselben Ausfallstunden. Nicht gleichzeitig mit Kurzarbeitergeld für denselben Zeitraum anrechnen.</p>`)}
-  ${fig('7 · Lohnsteuer, Solidaritätszuschlag und manuelle Abzüge',
+  ${fig('7 · Reha / Übergangsgeld',
+    input('rehaTransitionPaid','Tatsächlich erhaltenes Übergangsgeld (netto €) – manuell','m','text')+
+    `<p class="wide">Reha mit Entgeltfortzahlung aus dem Kalender zählt nur zur noch nicht gestempelten bezahlten Arbeitszeit. Reha mit Übergangsgeld zählt NICHT zum Arbeitgeberbrutto. Den tatsächlich erhaltenen Auszahlungsbetrag hier anhand des Leistungsträger-Bescheids eintragen; er erscheint separat in der Vergleichssumme. Kein automatischer Anspruch oder Eurobetrag aus der Reha-Markierung abgeleitet. Steuerliche Folgen wie Progressionsvorbehalt werden nicht automatisch berechnet.</p>`)}
+  ${fig('8 · Lohnsteuer, Solidaritätszuschlag und manuelle Abzüge',
     input('incomeTaxManual','Lohnsteuer (€) – manuell (leer = Näherung)','m','text')+
     input('soliManual','Solidaritätszuschlag (€) – manuell (leer = 0)','m','text')+
     input('churchManual','Kirchensteuer (€) – manuell (leer = %-Schätzung)','m','text')+
     input('actualPayslipNet','Netto laut echter Lohnabrechnung (€) – optional','m','text')+
     `<p class="wide">Der Kinderfreibetrag beeinflusst beim laufenden Lohnsteuerabzug normalerweise Solidaritätszuschlag/Kirchensteuer, <strong>nicht</strong> die laufende Lohnsteuer. Diese Sonderberechnung wird hier nicht amtlich nachgebildet; tatsächliche Abzüge bitte eintragen.</p>`)}
-  ${fig('8 · Eigene Lohnarten und Zuschläge (beliebig viele)',`<div class="wide" id="wmpayItems"></div><div class="wide wmpay-actions"><button type="button" id="wmpayAddItem">Lohnart hinzufügen</button></div><p class="wide">Beispiele: Nachtarbeit, Sonntag, Feiertag, Sonderprämie, Fahrtkostenerstattung, Vorschuss, VWL, Sachbezug, tarifliche Zulage. Ob Zuschläge steuer-/SV-frei sind, musst du selbst je Lohnart festlegen – keine automatische rechtliche Einstufung.</p>`)}
+  ${fig('9 · Eigene Lohnarten und Zuschläge (beliebig viele)',`<div class="wide" id="wmpayItems"></div><div class="wide wmpay-actions"><button type="button" id="wmpayAddItem">Lohnart hinzufügen</button></div><p class="wide">Beispiele: Nachtarbeit, Sonntag, Feiertag, Sonderprämie, Fahrtkostenerstattung, Vorschuss, VWL, Sachbezug, tarifliche Zulage. Ob Zuschläge steuer-/SV-frei sind, musst du selbst je Lohnart festlegen – keine automatische rechtliche Einstufung.</p>`)}
   <div class="wmpay-notebox"><label>Monatsnotizen<textarea data-wmpay="m:note" rows="3" placeholder="Abweichungen, Tarifvertrag, besondere Schichten, Zahlungseingang …">${esc(draftM.note)}</textarea></label></div>
   <div class="wmpay-summary"><h3>Berechnung und nachvollziehbare Einzelpositionen</h3><div id="wmpayResult" aria-live="polite"></div><div class="wmpay-actions"><button id="wmpayCsv" class="secondary">Monatsabrechnung als CSV</button><button id="wmpayPrint" class="secondary">Druckansicht / PDF</button></div><p id="wmpayStatus" aria-live="polite"></p></div>
   <div class="wmpay-saved"><h3>Gespeicherte Monate</h3><div id="wmpaySavedList"></div></div>
@@ -320,13 +323,15 @@
   if(m==='4')annualTax*=Math.max(0,n(p.taxFactor,1));return {value:round(annualTax/12),annualTaxable,manualNeeded:false};
  }
  function calc(p,m){const warnings=[],lines=[];
-  const rate=effectiveHourlyRate(p),usedVacation=Math.max(0,n(m.vacationHours),n(m.calendarVacationHours)),usedSick=Math.max(0,n(m.paidSickHours),n(m.calendarPaidSickHours));
+  const rate=effectiveHourlyRate(p),usedVacation=Math.max(0,n(m.vacationHours),n(m.calendarVacationHours)),calendarSickAndReha=Math.max(0,n(m.calendarPaidSickHours))+Math.max(0,n(m.calendarRehaPaidHours)),usedSick=Math.max(0,n(m.paidSickHours),calendarSickAndReha);
   const paidHours=n(m.hours)+usedSick+usedVacation+n(m.holidayHours);
-  if(n(m.calendarVacationHours)>0||n(m.calendarPaidSickHours)>0){
-   if(n(m.vacationHours)>0||n(m.paidSickHours)>0)warnings.push('Kalender und manuell erfasste Urlaub-/Krankstunden werden je Kategorie nur bis zum höheren Wert berücksichtigt, nicht addiert. Bitte abgleichen, wenn sie unterschiedliche Tage betreffen.');
+  if(n(m.calendarVacationHours)>0||calendarSickAndReha>0){
+   if(n(m.vacationHours)>0||n(m.paidSickHours)>0)warnings.push('Kalender und manuelle Urlaubs-/Krankheits-/Rehastunden werden nicht addiert und nicht doppelt erfasst: Urlaub nach höherem Wert; Krankheits- und Reha-Entgeltfortzahlung aus dem Kalender werden miteinander addiert, aber nicht zusätzlich zu vorhandenen manuellen Krankheitsstunden. Bitte auf unterschiedliche Tage prüfen.');
    if(n(m.calendarTimeCollisions)>0)warnings.push('An einigen Abwesenheitstagen wurde gestempelt: Nur die restliche Sollzeit zählt als bezahlte Fehlzeit.');
   }
   if(n(m.calendarSickBenefitDays)>0)warnings.push('Kalender: '+n(m.calendarSickBenefitDays)+' Krankheitstag(e) nach Ende der Entgeltfortzahlung. Krankengeld ist nicht als Arbeitgeberbrutto enthalten; Kassenbetrag gesondert erfassen.');
+  if(n(m.calendarRehaPaidDays)>0)warnings.push('Reha: '+n(m.calendarRehaPaidDays)+' Tag(e) mit gewählter Entgeltfortzahlung; '+round(n(m.calendarRehaPaidHours))+' bezahlte Std. laut Kalender, soweit nicht schon gestempelt. Den Anspruch bitte prüfen.');
+  if(n(m.calendarRehaBenefitDays)>0)warnings.push('Reha: '+n(m.calendarRehaBenefitDays)+' Tag(e) mit Übergangsgeld / ohne Arbeitgeber-Entgeltfortzahlung. Kein Arbeitgeberbrutto angesetzt. Übergangsgeld nur nach Bescheid getrennt erfassen.');
   const basic=p.salaryMode==='fixed'?(m.shortEnabled&&m.shortIstGross!==''?money(m.shortIstGross):money(p.monthlySalary)):round(rate*paidHours);
   const overtimeBase=round(rate*Math.max(0,n(m.overtimeHours))),overtimeBonus=round(overtimeBase*Math.max(0,n(m.overtimePct))/100);
   const oneOff=money(m.oneOffGross);
@@ -376,16 +381,18 @@
   if((n(m.sickDays)>0||n(m.childSickDays)>0)&&paidHours>0)warnings.push('Doppelzählung vermeiden: bezahlte Arbeits-/Entgeltfortzahlungsstunden und Kassenleistungen müssen verschiedene Zeiträume betreffen.');
   if(m.shortEnabled&&n(m.childSickDays)>0)warnings.push('Kurzarbeitergeld und Kinderkrankengeld nicht für dieselben Stunden gleichzeitig beanspruchen.');
   if(m.items?.some(x=>(x.kind==='premium'||x.kind==='custom')&&(!x.taxable||!x.sv)))warnings.push('Steuer- oder SV-freie Zuschläge sind individuell zu prüfen (§ 3b EStG / SV-Regeln).');
-  const benefits=round(kug+sickPaid+childPaid),combined=round(netEmployer+benefits);
-  return {lines,basic,gross,taxBase,svBase,sv,lst,soli,church,extraNet,fixedDeduction,privateKV,netEmployer,kug,sickGross,sickPaid,childGross,childPaid,benefits,combined,warnings,tax};
+  const rehaTransitionPaid=money(m.rehaTransitionPaid);
+  if(rehaTransitionPaid>0&&n(m.calendarRehaPaidDays)>0)warnings.push('Reha: Bei Übergangsgeld und Entgeltfortzahlung im selben Monat muss sichergestellt sein, dass die Leistungen unterschiedliche Zeiträume betreffen.');
+  const benefits=round(kug+sickPaid+childPaid+rehaTransitionPaid),combined=round(netEmployer+benefits);
+  return {lines,basic,gross,taxBase,svBase,sv,lst,soli,church,extraNet,fixedDeduction,privateKV,netEmployer,kug,sickGross,sickPaid,childGross,childPaid,rehaTransitionPaid,benefits,combined,warnings,tax};
  }
  function refresh(){if(!$('wmpayResult')||!draftP||!draftM)return;
   results=calc(draftP,draftM);
   const r=results;
   const kugInfo=$('wmpayKugRateInfo');if(kugInfo){const withChild=draftM.shortWithChild===true||draftM.shortWithChild==='true';const defaultRate=withChild?n(draftM.shortRateWithChild,67):n(draftM.shortRateWithoutChild,60);const used=draftM.shortRateOverride!==''?n(draftM.shortRateOverride):defaultRate;kugInfo.textContent='Gewählter Leistungssatz: '+used.toLocaleString('de-DE')+' % ('+(withChild?'mit Kind':'ohne Kind')+'). Bei manuell eingetragener Ersatzquote hat diese Vorrang.';}
   const absInfo=$('wmpayCalendarAbsenceInfo');if(absInfo){
-   const vH=Math.max(0,n(draftM.vacationHours),n(draftM.calendarVacationHours)),sH=Math.max(0,n(draftM.paidSickHours),n(draftM.calendarPaidSickHours));
-   absInfo.textContent=`Kalender: Urlaub ${n(draftM.calendarVacationDays)} ganze + ${n(draftM.calendarHalfDays)} halbe Tage (${n(draftM.calendarVacationHours).toLocaleString('de-DE')} Std.), Krankheit mit Lohnfortzahlung ${n(draftM.calendarSickPaidDays)} Tage (${n(draftM.calendarPaidSickHours).toLocaleString('de-DE')} Std.), Krankengeld-Fälle ${n(draftM.calendarSickBenefitDays)}. Berechnet: Urlaub ${vH.toLocaleString('de-DE')} Std., bezahlte Krankheit ${sH.toLocaleString('de-DE')} Std. (jeweils höherer Wert aus manueller Angabe/Kalender; keine Addition).`;
+   const vH=Math.max(0,n(draftM.vacationHours),n(draftM.calendarVacationHours)),calSickAndReha=Math.max(0,n(draftM.calendarPaidSickHours))+Math.max(0,n(draftM.calendarRehaPaidHours)),sH=Math.max(0,n(draftM.paidSickHours),calSickAndReha);
+   absInfo.textContent=`Kalender: Urlaub ${n(draftM.calendarVacationDays)} ganze + ${n(draftM.calendarHalfDays)} halbe Tage (${n(draftM.calendarVacationHours).toLocaleString('de-DE')} Std.), Krankheit mit Lohnfortzahlung ${n(draftM.calendarSickPaidDays)} Tage (${n(draftM.calendarPaidSickHours).toLocaleString('de-DE')} Std.), Krankengeld-Fälle ${n(draftM.calendarSickBenefitDays)} · Reha mit Entgeltfortzahlung ${n(draftM.calendarRehaPaidDays)} Tage (${n(draftM.calendarRehaPaidHours).toLocaleString('de-DE')} Std.) · Reha mit Übergangsgeld ${n(draftM.calendarRehaBenefitDays)} Tage (separat, kein Arbeitgeberlohn). Berechnet: Urlaub ${vH.toLocaleString('de-DE')} Std., Krankheit und Reha mit Entgeltfortzahlung zusammen ${sH.toLocaleString('de-DE')} Std. (Kalenderwerte addiert; nicht zusätzlich zu manueller Krankheitszeit).`;
   }
   const calInfo=$('wmpayCalendarKugInfo');if(calInfo){const count=n(draftM.shortCalendarDays),hrs=n(draftM.shortCalendarLostHours);calInfo.textContent=count?`Startseitenkalender: ${count} Kurzarbeitstag(e), rund ${hrs.toLocaleString('de-DE')} geplante Ausfallstunden. ${draftM.shortNetSoll===''||draftM.shortNetIst===''?'Für den KUG-Eurobetrag pauschaliertes Soll- und Ist-Netto aus der offiziellen Tabelle eintragen.':'Der KUG-Betrag wird aus der Nettoentgeltdifferenz und dem gewählten Satz berechnet.'} Die Ausfallstunden werden NICHT als Arbeitsstunden oder zusätzlicher Grundlohn gebucht.`:'Keine Kurzarbeitsplanung aus dem Startseitenkalender für diesen Monat übernommen.';}
   const rows=r.lines.map(l=>row(l.label+(l.payoutDeduct?' (netto)':l.reimbursement?' (Erstattung)':` ${l.taxable?'· LSt':''}${l.sv?' · SV':''}`),l.amount)).join('');
@@ -395,7 +402,7 @@
   ${r.extraNet?row('Steuerfreie Erstattungen / Auszahlungen',r.extraNet):''}${r.fixedDeduction?row('Vorschüsse und sonstige Nettoabzüge',-r.fixedDeduction):''}${r.privateKV?row('Privat-KV/PV Eigenanteil',-r.privateKV):''}
   ${row('Nettoauszahlung Arbeitgeber (Schätzung)',r.netEmployer,'net')}
   ${draftM.actualPayslipNet!==''?row('Abweichung zur echten Nettoabrechnung (Schätzung minus Ist)',round(r.netEmployer-n(draftM.actualPayslipNet))):''}
-  <hr>${draftM.shortEnabled?row('Kurzarbeitergeld (gesonderte Leistung)',r.kug):''}${n(draftM.sickDays)>0||draftM.sickActualPaid!==''?row('Krankengeld / Krankenkasse (geschätzt)',r.sickPaid):''}${n(draftM.childSickDays)>0||draftM.childSickActualPaid!==''?row('Kinderkrankengeld / Krankenkasse (geschätzt)',r.childPaid):''}
+  <hr>${draftM.shortEnabled?row('Kurzarbeitergeld (gesonderte Leistung)',r.kug):''}${n(draftM.sickDays)>0||draftM.sickActualPaid!==''?row('Krankengeld / Krankenkasse (geschätzt)',r.sickPaid):''}${n(draftM.childSickDays)>0||draftM.childSickActualPaid!==''?row('Kinderkrankengeld / Krankenkasse (geschätzt)',r.childPaid):''}${draftM.rehaTransitionPaid!==''?row('Reha · Übergangsgeld (erhalten, separat)',r.rehaTransitionPaid):''}
   ${row('Summe Arbeitgeber + sonstige Leistungen (nur Vergleich)',r.combined,'major')}
   <p class="wmpay-warning">${r.warnings.length?r.warnings.map(x=>`• ${esc(x)}`).join('<br>'):'Näherung – mit tatsächlicher Abrechnung abgleichen.'}</p>`;
   const autoClock=!!state.wm20?.autoPayroll,clock=$('wmpayClockSync');if(clock){clock.textContent=autoClock?'Stempeluhr-Synchronisierung aktiv: Normale Stunden und Überstunden werden aus abgeschlossenen Stempelzeiten übernommen; bereits vorhandene Werte werden nicht addiert. Falls du abweichende Stunden manuell eintragen möchtest, deaktiviere die Automatik unter Schichtplan.':'Stempeluhr-Synchronisierung aus: Stunden können manuell aus dem Zeitkonto übernommen werden.';}
@@ -410,7 +417,7 @@
   // Calendar-origin fields may have changed while this payroll form was open.
   // Always keep the latest encrypted calendar-derived totals when saving manual inputs.
   const recent=state.wmPayroll?.months?.[month];
-  if(recent&&window.WMCalendar){for(const k of ['calendarVacationHours','calendarPaidSickHours','calendarVacationDays','calendarHalfDays','calendarSickPaidDays','calendarSickBenefitDays','calendarTimeCollisions','wmCalendarAbsence','wmCalendarAbsenceUpdatedAt'])if(Object.prototype.hasOwnProperty.call(recent,k))newM[k]=recent[k];}
+  if(recent&&window.WMCalendar){for(const k of ['calendarVacationHours','calendarPaidSickHours','calendarVacationDays','calendarHalfDays','calendarSickPaidDays','calendarSickBenefitDays','calendarRehaPaidHours','calendarRehaPaidDays','calendarRehaBenefitDays','calendarTimeCollisions','wmCalendarAbsence','wmCalendarAbsenceUpdatedAt'])if(Object.prototype.hasOwnProperty.call(recent,k))newM[k]=recent[k];}
   if((state.wm20?.autoPayroll||state.wm195?.rates?.autoPremiums)&&window.WM195?.prepareSavedPayroll){window.WM195.prepareSavedPayroll(month,newM,newP);}else if(state.wm20?.autoPayroll){throw Error('Sichere automatische Lohnsynchronisierung nicht geladen. Bitte App neu starten.');}
   for(const key of [...pkeys.map(k=>[newP,k]),...mkeys.map(k=>[newM,k])]){const [obj,k]=key;const v=obj[k];if(typeof PROFILE[k]==='number'||typeof MONTH[k]==='number'){if(!Number.isFinite(n(v)))throw Error('Ungültiger Wert: '+k);}}
   for(const it of newM.items){if(!it.id)it.id=ID();if(['reimbursement','deduction'].includes(it.kind)&&n(it.amount)<0)throw Error('Betrag darf nicht negativ sein.');}
@@ -436,8 +443,8 @@
   const keys=Object.keys(saved).filter(k=>/^\d{4}-\d{2}$/.test(k)).sort().reverse();
   if(!keys.length){target.innerHTML='<p>Noch keine Lohnmonate gespeichert.</p>';return;}
   const byYear={};for(const k of keys){const m={...MONTH,...saved[k]},p=saved[k].profileSnapshot?{...PROFILE,...saved[k].profileSnapshot}:mergedProfile(),r=calc(p,m);
-    const y=k.slice(0,4),s=byYear[y]??={months:0,gross:0,net:0,kug:0,sick:0,child:0};s.months++;s.gross+=r.gross;s.net+=r.netEmployer;s.kug+=r.kug;s.sick+=r.sickPaid;s.child+=r.childPaid;}
-  target.innerHTML=Object.entries(byYear).sort((a,b)=>b[0].localeCompare(a[0])).map(([y,s])=>`<p><strong>${esc(y)}:</strong> ${s.months} gespeicherte Monate · Brutto ${euro(s.gross)} · AG-Netto ${euro(s.net)} · KUG ${euro(s.kug)} · Krankengeld ${euro(s.sick)} · Kinderkrankengeld ${euro(s.child)}</p>`).join('')+
+    const y=k.slice(0,4),s=byYear[y]??={months:0,gross:0,net:0,kug:0,sick:0,child:0,reha:0};s.months++;s.gross+=r.gross;s.net+=r.netEmployer;s.kug+=r.kug;s.sick+=r.sickPaid;s.child+=r.childPaid;s.reha+=r.rehaTransitionPaid;}
+  target.innerHTML=Object.entries(byYear).sort((a,b)=>b[0].localeCompare(a[0])).map(([y,s])=>`<p><strong>${esc(y)}:</strong> ${s.months} gespeicherte Monate · Brutto ${euro(s.gross)} · AG-Netto ${euro(s.net)} · KUG ${euro(s.kug)} · Krankengeld ${euro(s.sick)} · Kinderkrankengeld ${euro(s.child)} · Übergangsgeld ${euro(s.reha)}</p>`).join('')+
     keys.map(k=>`<button type="button" data-month="${esc(k)}" class="secondary">${esc(k)} · ${esc(saved[k]?.editedAt?.slice(0,10)||'gespeichert')}</button>`).join('');
  }
  function load(month){curMonth=month;const record=store().months[month];modeChosen=!!(record?.profileSnapshot?.salaryMode||store().profile?.salaryMode||store().profile?.hourlyRate>0||store().profile?.monthlySalary>0);draftP=record?.profileSnapshot?{...PROFILE,...clone(record.profileSnapshot)}:mergedProfile();draftM=mergedMonth(month);dirty=false;draw();}
@@ -446,7 +453,7 @@
  function csvEscape(v){let x=String(v??'');return '"'+x.replace(/"/g,'""')+'"';}
  function summaryLines(){const r=results||calc(draftP,draftM);return [
   ['WorksManager',VERSION],['Monat',curMonth],['Krankenkasse',draftP.insuranceName],['Steuerklasse',draftP.taxClass],['Kinderfreibetrag',draftP.childAllowance],['Notiz',draftM.note],
-  ...r.lines.map(x=>[x.label,x.amount]),['Gesamtbrutto',r.gross],['Steuerbrutto',r.taxBase],['SV-Brutto',r.svBase],['KV Arbeitnehmer',r.sv.kv],['PV Arbeitnehmer',r.sv.care],['RV Arbeitnehmer',r.sv.rv],['AV Arbeitnehmer',r.sv.av],['Lohnsteuer',r.lst],['Soli',r.soli],['Kirchensteuer',r.church],['Netto vom Arbeitgeber',r.netEmployer],['Kurzarbeitergeld',r.kug],['Krankengeld',r.sickPaid],['Kinderkrankengeld',r.childPaid],['Summe zum Vergleich',r.combined],['Warnungen',r.warnings.join(' | ')]
+  ...r.lines.map(x=>[x.label,x.amount]),['Gesamtbrutto',r.gross],['Steuerbrutto',r.taxBase],['SV-Brutto',r.svBase],['KV Arbeitnehmer',r.sv.kv],['PV Arbeitnehmer',r.sv.care],['RV Arbeitnehmer',r.sv.rv],['AV Arbeitnehmer',r.sv.av],['Lohnsteuer',r.lst],['Soli',r.soli],['Kirchensteuer',r.church],['Netto vom Arbeitgeber',r.netEmployer],['Kurzarbeitergeld',r.kug],['Krankengeld',r.sickPaid],['Kinderkrankengeld',r.childPaid],['Reha-Übergangsgeld (tatsächlich erhalten)',r.rehaTransitionPaid],['Summe zum Vergleich',r.combined],['Warnungen',r.warnings.join(' | ')]
  ];}
  function exportCSV(){const csv='\uFEFFPosition;Wert\r\n'+summaryLines().map(([a,b])=>`${csvEscape(a)};${csvEscape(typeof b==='number'?String(b).replace('.',','):b)}`).join('\r\n');
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='WorksManager-Lohn-'+curMonth+'.csv';document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),30000);notify('CSV mit aktuellen Berechnungswerten exportiert (unverschlüsselt!).');}

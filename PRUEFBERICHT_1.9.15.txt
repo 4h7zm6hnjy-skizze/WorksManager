@@ -1,0 +1,24 @@
+PRÜFBERICHT – WORKSMANAGER 1.9.15
+=================================
+PRÜFUMGEBUNG: Simulierte Browseroberfläche Chromium (390px); Node.js-Syntax und Rechenmodul. KEIN Praxistest auf Safari/iPhone und kein Test mit echten, verschlüsselten Nutzerdaten.
+BESTAND: Von GitHub verifizierte 1.9.14 als Ausgangsbasis; Kern app.js (1.8.4) wird nicht verändert.
+
+ERFOLGREICHE AUTOMATISCHE TESTGRUPPEN:
+- Kalenderfarben einschließlich Reha und Legende; 390px Viewport ohne horizontales Überlaufen
+- Urlaub ganzer Tag ohne Schicht; Urlaub halber Tag über bestehendes Auswahlfeld
+- Krank mit Entgeltfortzahlung ohne Schicht (berechnete Sollstunden); Krankengeld ohne Arbeitgeberbrutto
+- Reha-Entgeltfortzahlung, Übergangsgeld, mehrwöchige Einträge, Änderungs- und Löschvorgänge
+- Farbiges Direktwahlfeld, Schichtzeit automatisch bei Schichtwahl, Wochen-/Zeitraumeingabe
+- Monatsbrutto: Urlaub/Krank/Reha mit Entgeltfortzahlung, Überschneidung mit Stempelzeit, Stundenlohn und Festgehalt
+- Reha-Übergangsgeld tatsächlich erhalten (manuell), Vergleichssumme und getrennte Ausweisung
+- Kein KUG-Zuschlag ohne pauschalierte Nettoentgelte und Schutz widersprüchlicher älterer KUG-Monate beim Speichern anderer Abwesenheiten
+- Bestehende Nettoangaben, Kurzarbeitssätze, Lohnarten und Arbeitszeiten erhalten; Fehler-Rollback beim Speichern
+- Bestehende Kalender-, Kurzarbeit- und Stempeluhr-Regressionstests
+- Versions- und Offline-Cache-Referenzen, alle JS-Dateien syntaktisch geprüft; ZIP-Konsistenz
+
+GRENZEN:
+* Ohne echte iPhone-Installation kann das Safari-Problem nicht abschließend bestätigt werden.
+* Nach Ende der Entgeltfortzahlung werden Krankengeld bzw. Übergangsgeld nicht automatisch fiktiv als Arbeitgeberlohn angesetzt.
+* Automatische Lohnsteuer/SV ist eine Näherung, keine verbindliche Gehaltsabrechnung.
+* Bei Tageseinträgen ohne Schichtzeit wird das einstellbare Tages-Soll verwendet.
+* Bei widersprüchlichen KUG-Sätzen im selben Monat bleiben alte Kurzarbeitswerte unverändert und müssen korrigiert werden.

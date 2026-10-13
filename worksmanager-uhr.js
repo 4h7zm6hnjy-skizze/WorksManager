@@ -1,4 +1,4 @@
-/* WorksManager 1.9.14 – Stempeluhr mit Startseitenanzeige mit verschlüsselter Speicherung im state.wm20.
+/* WorksManager 1.9.15 – Stempeluhr mit Startseitenanzeige mit verschlüsselter Speicherung im state.wm20.
    7:30 normal = 7,50 Industrie-Stunden; Überstunden nach Tages-Soll.
    Automatische Übernahme ins 1.9-Zeitkonto nur, wenn kein fremder Eintrag existiert.
 */
@@ -56,7 +56,7 @@ function payrollMonthTotals(month){
 }
 function syncMonthToPayroll(month){
  if(window.WM195?.syncPayrollMonth)return window.WM195.syncPayrollMonth(month);
- // Sicherer Fallback: ohne geladenes Modul 1.9.14 nicht automatisch alte Lohndaten ersetzen.
+ // Sicherer Fallback: ohne geladenes Modul 1.9.15 nicht automatisch alte Lohndaten ersetzen.
  return false;
  if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))return;
  const s=store();if(!s.autoPayroll)return;
@@ -279,9 +279,9 @@ function mount(){if($('wmClockRoot'))return;const shift=$('shift');if(!shift)ret
  const anchor=$('wm19TimeCard');if(anchor)anchor.insertAdjacentElement('afterend',panel);else shift.appendChild(panel);bind();refresh();
  let ref=state;if(typeof window.renderAll==='function'){const previous=window.renderAll;window.renderAll=function(...args){const changed=state!==ref;const result=previous.apply(this,args);if(changed)ref=state;setTimeout(refresh,0);return result}}
  window.WMClockPayrollTotals=payrollMonthTotals;
- const updateTitle=$('wmplusQuickUpdateCheck')?.closest('#wmplusQuickUpdateBar')?.querySelector('strong');if(updateTitle)updateTitle.textContent='App-Updates · WorksManager 1.9.14';
+ const updateTitle=$('wmplusQuickUpdateCheck')?.closest('#wmplusQuickUpdateBar')?.querySelector('strong');if(updateTitle)updateTitle.textContent='App-Updates · WorksManager 1.9.15';
  document.addEventListener('wm-payroll-rate-updated',()=>{if(isOpen())refresh();});
- window.addEventListener('pageshow',()=>setTimeout(refresh,150));setInterval(live,1000);console.info('WorksManager Stempeluhr 1.9.14 geladen');
+ window.addEventListener('pageshow',()=>setTimeout(refresh,150));setInterval(live,1000);console.info('WorksManager Stempeluhr 1.9.15 geladen');
 }
 if(typeof module!=='undefined'&&module.exports)module.exports={compute,hhm,industrial,daySummary,parseISOTime,wageStats,payrollMonthTotals,syncMonthToPayroll,profileRate,store,saveWageSettings,repairMissingWageRates};
 else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',mount,{once:true});else mount();

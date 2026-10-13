@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.14",
-  "build": 2026101328,
+  "version": "1.9.15",
+  "build": 2026101329,
   "released": "2026-10-13",
   "coreCompatibility": "1.8.4",
-  "notes": "Kalender: ganzer/halber Urlaub, krank mit Entgeltfortzahlung oder Krankengeld, geplante Schichtzeiten von/bis inklusive Pause (Nacht über Mitternacht), automatische Monats-Stunden nach Kollisionsprüfung, Kurzarbeit nach geplanten Stunden; farbige Legende unter dem Kalender. Vorausschauend, vorhandene Stempel- und Monatswerte bleiben bestehen."
+  "notes": "Startseitenkalender: Reha mit Entgeltfortzahlung oder Übergangsgeld, eigene Farben und Legende. Übergangsgeld optional als tatsächlicher separater Betrag im Lohnmonat. Fehlerbehebung für Urlaub und Krankheit: sichtbares Eingabeformular nach Datumsauswahl, farbige Direktauswahl, Eingabe ohne Schicht/Uhrzeit über Tagessoll, geschützte Synchronisierung bei widersprüchlichen alten KUG-Daten. Vorhandene Stempel-, Kalender-, Kurzarbeits- und Monatsdaten bleiben erhalten."
 }

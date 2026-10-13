@@ -1,0 +1,14 @@
+WORKSMANAGER 1.9.15 – INSTALLATION (13.10.2026)
+===============================================
+Vorher: In WorksManager eine verschlüsselte Datensicherung erstellen und getrennt aufbewahren.
+1. ZIP-Datei auf dem Computer entpacken. NICHT die ZIP selbst auf GitHub hochladen.
+2. In GitHub 4h7zm6hnjy-skizze/WorksManager alle 11 unten genannten Dateien im HAUPTVERZEICHNIS ersetzen bzw. hochladen und Commit changes ausführen.
+3. Nach GitHub-Pages-Veröffentlichung WorksManager online öffnen, Updates suchen und installieren; alternativ die Startseite neu laden. Auf iOS bei hartnäckigem alten Cache App schließen und erneut starten; NICHT ohne Backup App-Daten löschen.
+4. Version 1.9.15 in der Startseite kontrollieren.
+5. Test im Kalender: Datum antippen (Editor wird sichtbar); Lila Urlaub, Rot Krank oder Türkis Reha wählen; unten Eintrag speichern tippen. Die Schicht ist für Urlaub/Krank/Reha nicht erforderlich: ohne von/bis gilt das Tagessoll.
+6. Test in Abrechnung: Kalenderstunden für Urlaub, Krankheit mit Entgeltfortzahlung und Reha-EFZ im Monatsbericht prüfen. Reha mit Übergangsgeld erzeugt keinen Arbeitgeberlohn. Tatsächlich erhaltenes Übergangsgeld kann unter Abrechnung → 7 · Reha / Übergangsgeld gesondert als Nettoleistung eingetragen werden und wird getrennt ausgewiesen.
+
+WICHTIG: Zeit- und Entgeltangaben sind unverbindliche Rechenhilfen; tatsächliche Ansprüche sind mit Arbeitgeber, Krankenkasse oder Reha-Träger abzuklären. Beim Krankheit/Urlaub/Reha ohne eingetragene Schicht greift die hinterlegte Sollzeit, nicht eine fiktive Stempelung. Bei bereits gestempelten Stunden wird nur die verbleibende Sollzeit als Entgeltfortzahlung berücksichtigt.
+
+DATEIEN: index.html, manifest.json, sw.js, worksmanager-release.json, worksmanager-calendar.js, worksmanager-lohn.js, worksmanager-profiles.js, worksmanager-plus.js, worksmanager-insurance.js, worksmanager-uhr.js, worksmanager-195.js.
+NICHT ersetzen: app.js, styles.css, vorhandene Daten, exportierte Backups, Medienordner.
