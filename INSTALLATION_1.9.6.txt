@@ -1,0 +1,28 @@
+WORKSMANAGER 1.9.6 – BRUTTOLOHN/STEMPELUHR-KORREKTUR
+13.10.2026
+
+WICHTIG: Vor dem Update in WorksManager unter „Sicherheit & Backup“ ein Profil-Backup erstellen und sicher ablegen.
+
+INSTALLATION (GitHub Pages)
+1. ZIP-Datei auf dem Gerät entpacken.
+2. Im Repository 4h7zm6hnjy-skizze/WorksManager die enthaltenen Dateien in das Stammverzeichnis hochladen. Nicht die ZIP selbst hochladen.
+3. Bestehende Dateien mit demselben Namen ersetzen. Keine anderen Dateien oder Benutzerdaten löschen.
+4. Prüfen, dass insbesondere index.html, worksmanager-lohn.js, worksmanager-uhr.js, worksmanager-195.js, worksmanager-plus.js, sw.js und worksmanager-release.json aktualisiert sind.
+5. Die App online öffnen, die neue Version 1.9.6 prüfen und anschließend erneut starten. Bei alter Anzeige Browseransicht neu laden bzw. App neu öffnen.
+
+KORREKTUR
+- In „Lohnberechnung“ gespeicherter Stundenlohn wird bei neuen Stempelungen übernommen, auch ohne automatische Stunden-Synchronisierung.
+- Bei Festgehalt und ohne separat eingetragenen Stundenlohn wird ein Stundenwert aus Monatsbrutto und Wochenstunden errechnet. Dieser Wert ist eine Stundenwert-Vorschau, keine amtliche Lohnabrechnung.
+- Ändert man den Stundenlohn in der Stempeluhr, wird er im allgemeinen Lohnprofil gespeichert.
+- Laufende Stempelungen mit bisher fehlendem Satz (0 €) übernehmen einen neu gespeicherten positiven Satz.
+- Abgeschlossene Stempelungen behalten ihren historischen Satz. Die Schaltfläche „Alte 0-€-Stempelungen prüfen“ ermöglicht die bewusste Nachberechnung mit dem aktuellen Satz nach Bestätigung.
+- Arbeitsstunden, Überstunden, Pausen und Profilverschlüsselung werden nicht bewusst zurückgesetzt.
+
+TESTS NACH DEM UPDATE
+1. In Lohnberechnung 14,95 €/Std. eingeben und „Monat speichern“ drücken.
+2. Stempeluhr öffnen: 14,95 €/Std. sollte sichtbar sein.
+3. Teststempelung mit 60 Minuten (Pausen 0) ergibt 14,95 € brutto (ohne Zuschläge).
+4. Bei aktivierter Stunden-Synchronisierung den Lohnmonat prüfen; keine Doppelzählung.
+5. Bei bestehendem Festgehalt das Umrechnungsmodell testen; Grundlohn der Stempeluhr entspricht der anteiligen erfassten Arbeitszeit, NICHT dem ganzen Monatsgehalt.
+
+WICHTIG: Steuern und Sozialversicherung des Lohnmoduls sind teilweise Näherungsrechnungen. Tarifvertragliche Zuschläge können abweichen. Die tatsächliche Entgeltabrechnung ist maßgeblich.

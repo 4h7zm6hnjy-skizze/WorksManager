@@ -1,10 +1,10 @@
-/* WorksManager 1.9.4 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
+/* WorksManager 1.9.6 – Lohnmodul (Deutschland 2026). Ergänzung zum verschlüsselten WorksManager-State.
  * KEINE Lohnabrechnungssoftware für amtliche Abrechnung. Lohnsteuer nur Näherung,
  * Ersatzleistungen nur Orientierung; alle kritischen Werte manuell überschreibbar.
  */
 (() => {
  'use strict';
- const VERSION='1.9.5',BUILD=2026100808;
+ const VERSION='1.9.6',BUILD=2026101318;
  const $=id=>document.getElementById(id);
  const esc=x=>String(x??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
  const round=x=>Math.round((Number(x)+Number.EPSILON)*100)/100;
@@ -28,6 +28,15 @@
  const helpLinks=[['Lohnsteuer/PAP 2026','https://www.bundesfinanzministerium.de/Content/DE/Downloads/Steuern/Steuerarten/Lohnsteuer/Programmablaufplan/2025-11-12-PAP-2026.html'],['Krankengeld (BMG)','https://www.bundesgesundheitsministerium.de/krankengeld/'],['Kinderkrankengeld (BMG)','https://www.bundesgesundheitsministerium.de/themen/praevention/kindergesundheit/faq-kinderkrankengeld'],['Kurzarbeitergeld (BA)','https://www.arbeitsagentur.de/arbeitslos-arbeit-finden/arbeitslosengeld/finanzielle-hilfen/kurzarbeitergeld-arbeitnehmer']];
  function store(){if(!state.wmPayroll||typeof state.wmPayroll!=='object'||Array.isArray(state.wmPayroll))state.wmPayroll={};const x=state.wmPayroll; if(!x.profile)x.profile={};if(!x.months||typeof x.months!=='object')x.months={};return x;}
  const mergedProfile=()=>({...PROFILE,...store().profile});
+ function effectiveHourlyRate(p){
+  const direct=n(p?.hourlyRate);if(direct>0)return round(direct);
+  if(p?.salaryMode==='fixed'){
+   const gross=n(p?.monthlySalary),weekly=n(p?.weeklyHours);
+   if(gross>0&&weekly>0)return round(gross*12/(weekly*52));
+  }
+  return 0;
+ }
+
  const mergedMonth=k=>({...MONTH,month:k, ...(store().months[k]||{}),items:clone(store().months[k]?.items||[])});
  let draftP=null,draftM=null,curMonth=nowMonth(),results=null,dirty=false;
  function input(k,label,sec=(Object.prototype.hasOwnProperty.call(MONTH,k)?'m':'p'),type='number',step='0.01',hint=''){
@@ -153,7 +162,7 @@
   if(m==='4')annualTax*=Math.max(0,n(p.taxFactor,1));return {value:round(annualTax/12),annualTaxable,manualNeeded:false};
  }
  function calc(p,m){const warnings=[],lines=[];
-  const rate=Math.max(0,n(p.hourlyRate)),paidHours=n(m.hours)+n(m.paidSickHours)+n(m.vacationHours)+n(m.holidayHours);
+  const rate=effectiveHourlyRate(p),paidHours=n(m.hours)+n(m.paidSickHours)+n(m.vacationHours)+n(m.holidayHours);
   const basic=p.salaryMode==='fixed'?(m.shortEnabled&&m.shortIstGross!==''?money(m.shortIstGross):money(p.monthlySalary)):round(rate*paidHours);
   const overtimeBase=round(rate*Math.max(0,n(m.overtimeHours))),overtimeBonus=round(overtimeBase*Math.max(0,n(m.overtimePct))/100);
   const oneOff=money(m.oneOffGross);
@@ -220,7 +229,8 @@
   ${row('Summe Arbeitgeber + sonstige Leistungen (nur Vergleich)',r.combined,'major')}
   <p class="wmpay-warning">${r.warnings.length?r.warnings.map(x=>`• ${esc(x)}`).join('<br>'):'Näherung – mit tatsächlicher Abrechnung abgleichen.'}</p>`;
   const autoClock=!!state.wm20?.autoPayroll,clock=$('wmpayClockSync');if(clock){clock.textContent=autoClock?'Stempeluhr-Synchronisierung aktiv: Normale Stunden und Überstunden werden aus abgeschlossenen Stempelzeiten übernommen; bereits vorhandene Werte werden nicht addiert. Falls du abweichende Stunden manuell eintragen möchtest, deaktiviere die Automatik unter Schichtplan.':'Stempeluhr-Synchronisierung aus: Stunden können manuell aus dem Zeitkonto übernommen werden.';}
-  const status=$('wmpayStatus');if(status)status.textContent=dirty?'Noch nicht gespeicherte Eingaben.':'Berechnung geladen; keine ausstehenden Änderungen.';
+  if(clock){const rate=effectiveHourlyRate(draftP),isFixed=draftP.salaryMode==='fixed';clock.textContent+=' Brutto-Stundenwert nach Speichern: '+euro(rate)+'/Std.'+(isFixed&&n(draftP.hourlyRate)<=0?' (aus Festgehalt / durchschnittlichen Wochenstunden berechnet, nur Stundenwert-Vorschau).':'');}
+   const status=$('wmpayStatus');if(status)status.textContent=dirty?'Noch nicht gespeicherte Eingaben.':'Berechnung geladen; keine ausstehenden Änderungen.';
  }
  async function saveMonth(){const month=curMonth,existing=store(),before=clone(existing);
   if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(month))throw Error('Ungültiger Monat.');
@@ -228,8 +238,23 @@
   if(state.wm20?.autoPayroll&&window.WM195?.prepareSavedPayroll){window.WM195.prepareSavedPayroll(month,newM,newP);}else if(state.wm20?.autoPayroll){throw Error('Sichere automatische Lohnsynchronisierung nicht geladen. Bitte App neu starten.');}
   for(const key of [...pkeys.map(k=>[newP,k]),...mkeys.map(k=>[newM,k])]){const [obj,k]=key;const v=obj[k];if(typeof PROFILE[k]==='number'||typeof MONTH[k]==='number'){if(!Number.isFinite(n(v)))throw Error('Ungültiger Wert: '+k);}}
   for(const it of newM.items){if(!it.id)it.id=ID();if(['reimbursement','deduction'].includes(it.kind)&&n(it.amount)<0)throw Error('Betrag darf nicht negativ sein.');}
-  try{const dbstore=store();const latest=Object.keys(dbstore.months).sort().slice(-1)[0];if(!latest||month>=latest)dbstore.profile=newP;dbstore.months[month]=newM;await save('Lohnmonat und Einstellungen gespeichert');dirty=false;draftP={...PROFILE,...clone(newP)};draftM=mergedMonth(month);draw();notify('Lohnmonat '+month+' verschlüsselt gespeichert.');}
-  catch(e){state.wmPayroll=before;throw e;}
+  const previousClock=state.wm20===undefined?undefined:clone(state.wm20);
+  try{
+   const dbstore=store(),latest=Object.keys(dbstore.months).filter(k=>/^\d{4}-\d{2}$/.test(k)).sort().slice(-1)[0];
+   const updateCurrentProfile=!latest||month>=latest;
+   if(updateCurrentProfile){
+    dbstore.profile=newP;
+    const rate=effectiveHourlyRate(newP);
+    state.wm20??={};state.wm20.hourlyGrossRate=rate;
+    state.wm20.rateOrigin='payroll';state.wm20.rateUpdatedAt=new Date().toISOString();
+    // Only correct an active session with an unset rate. Completed sessions keep their original rate.
+    if(state.wm20.active&&!(n(state.wm20.active.hourlyRate)>0)&&rate>0){state.wm20.active.hourlyRate=rate;state.wm20.active.rateRecovered=true;}
+   }
+   dbstore.months[month]=newM;
+   await save('Lohnmonat und Einstellungen gespeichert');dirty=false;draftP={...PROFILE,...clone(newP)};draftM=mergedMonth(month);draw();
+   notify('Lohnmonat '+month+' verschlüsselt gespeichert. '+(updateCurrentProfile?'Brutto-Stundenwert mit Stempeluhr abgeglichen.':'Älterer Monat gespeichert; aktueller Stundenlohn unverändert.'));
+   if(updateCurrentProfile)document.dispatchEvent(new CustomEvent('wm-payroll-rate-updated',{detail:{rate:effectiveHourlyRate(newP)}}));
+  }catch(e){state.wmPayroll=before;if(previousClock===undefined)delete state.wm20;else state.wm20=previousClock;throw e;}
  }
  function renderSaved(){const target=$('wmpaySavedList');if(!target)return;const saved=store().months;
   const keys=Object.keys(saved).filter(k=>/^\d{4}-\d{2}$/.test(k)).sort().reverse();
@@ -274,7 +299,8 @@
  }
  function init(){if($('wmpayRoot'))return;if(typeof save!=='function'||typeof state==='undefined')return;
   mount();
-  document.addEventListener('wm-clock-payroll-synced',ev=>{if(ev.detail?.month!==curMonth||!$('wmpayRoot'))return;if(dirty){notify('Stempeluhr wurde synchronisiert. Ungespeicherte Lohnänderungen erst speichern oder Monat erneut laden.');return;}load(curMonth);});
+   document.addEventListener('wm-clock-rate-changed',()=>{if(!$('wmpayRoot'))return;if(dirty){notify('Stundenlohn wurde in der Stempeluhr geändert. Bitte deine offenen Lohn-Eingaben prüfen und erst danach speichern.');return;}load(curMonth);});
+   document.addEventListener('wm-clock-payroll-synced',ev=>{if(ev.detail?.month!==curMonth||!$('wmpayRoot'))return;if(dirty){notify('Stempeluhr wurde synchronisiert. Ungespeicherte Lohnänderungen erst speichern oder Monat erneut laden.');return;}load(curMonth);});
   // Beim Entsperren ersetzt WorksManager den globalen State durch den entschlüsselten Inhalt.
   // Ohne Reload würden alte/leere Entwürfe beim ersten Speichern vorhandene Monatsdaten überschreiben.
   let stateRef=state;
@@ -292,5 +318,5 @@
  window.WM195PayrollCalc=month=>{const rec=state.wmPayroll?.months?.[month];if(!rec)return null;const profile={...PROFILE,...state.wmPayroll?.profile,...(rec.profileSnapshot||{})};const m={...MONTH,...rec};return calc(profile,m);};
  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();
  // Nur für automatisierte Regressionstests, keine UI-Funktion.
- if(typeof module!=='undefined'&&module.exports)module.exports={calc,taxTariff2026,social,getCarePercent,PROFILE,MONTH};
+ if(typeof module!=='undefined'&&module.exports)module.exports={calc,taxTariff2026,social,getCarePercent,PROFILE,MONTH,effectiveHourlyRate,saveMonth,__testDraft:(p,m,month)=>{draftP=p;draftM=m;curMonth=month;}};
 })();

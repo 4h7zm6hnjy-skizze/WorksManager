@@ -1,0 +1,30 @@
+WORKSMANAGER 1.9.6 – PRÜFBERICHT
+Datum: 13.10.2026
+Basis: ZIP „WorksManager_1.9.5_Komplettupdate.zip“ und GitHub-Codebestand (main, Version 1.9.5).
+
+FEHLERBEFUND
+- Die Lohnberechnung speicherte den Stundenlohn im allgemeinen Lohnprofil (wmPayroll.profile.hourlyRate), die Stempeluhr einen separaten Satz (wm20.hourlyGrossRate).
+- Beim Speichern im Lohnmodul wurde der Stempeluhr-Satz nicht aktualisiert.
+- Vorhandene laufende Stempelungen behielten einen Startwert von 0 € und wurden bei der Beendigung deshalb ebenfalls mit 0 € gespeichert.
+- Bei Festgehalt ohne expliziten Stundenlohn fehlte ein Stundenwert für die live laufende Stempelung.
+
+KORREKTUR
+- Synchronisierung beim Speichern des jüngsten/current Lohnprofils in die Stempeluhr, unabhängig von der optionalen Synchronisierung der Arbeitsstunden.
+- Synchronisierung in Gegenrichtung bei manuellem Speichern des Brutto-Stundenlohns in der Stempeluhr.
+- Ableitung eines informativen Stundenwerts aus Monatsfestgehalt × 12 / (Wochenstunden × 52), wenn kein expliziter Stundenlohn eingetragen ist.
+- Laufende 0-€-Stempelungen erhalten beim Speichern eines positiven Satzes diesen Wert; abgeschlossene Zeitdaten werden nicht ungefragt umgerechnet.
+- Option zur manuellen, ausdrücklich bestätigten Nachberechnung alter Stempelungen ohne positiven Stundenlohn.
+- Neuer Offline-Cache, erhöhte Version 1.9.6, konsistente Update-Metadaten.
+
+TECHNISCHE PRÜFUNGEN
+- JavaScript-Syntax: node --check für alle enthaltenen JS-Dateien erfolgreich.
+- JSON der Release-Metadaten geparst.
+- Isolierte JavaScript-Regressionsprüfung erfolgreich: Stundenlohn 14,95 €, 7:30 Std. → 112,13 € brutto; 2 Überstunden bei Festgehalt mit äquivalent 15 €/Std.; Lohnprofil und Uhr synchronisiert; laufender 0-€-Satz korrigiert; historische Zeiten nicht automatisch verändert; bestätigte Nachberechnung; automatische Stundenübernahme ohne doppelte Lohnpositionen; fester Monatslohn bei Übernahme von Normalstunden nicht doppelt angesetzt.
+- Test der neuberechneten Stundenwerte und der Monatsprofile sowie der Alteinträge durchgeführt.
+
+GRENZEN
+- Keine End-to-End-Prüfung im echten iPhone/Safari und kein echter Persistenztest der verschlüsselten IndexedDB durchgeführt.
+- GitHub-Integration hat Schreibzugriff mit 403 abgelehnt; das Update ist NICHT im GitHub-Repository veröffentlicht.
+- Lohnsteuer-/Sozialabgabenberechnungen sind Schätzmodelle; für die verbindliche Lohnabrechnung ist die Arbeitgeberabrechnung entscheidend.
+- Bei einer nachträglichen Neubewertung alter 0-€-Stempelungen muss der heute eingestellte Satz auch für den alten Zeitraum richtig sein.
+- Die ZIP enthält Update-Dateien, nicht die unveränderten Kern-Dateien app.js und styles.css; diese müssen wie in der bestehenden Installation vorhanden bleiben.

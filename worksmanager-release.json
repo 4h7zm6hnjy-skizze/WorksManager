@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "1.9.5",
-  "build": 2026100808,
-  "released": "2026-10-08",
+  "version": "1.9.6",
+  "build": 2026101318,
+  "released": "2026-10-13",
   "coreCompatibility": "1.8.4",
-  "notes": "Zeitkonto mit Ausgleich, automatische Schichtzuschläge, historische Brutto-Stundenlöhne, geschützte Lohnübernahme, Stempelprüfung, Kalender, Abrechnungsvergleich, Profil-Backupprüfung, automatische Versionsanzeige."
+  "notes": "Bruttolohn und Stempeluhr synchronisiert; Stundenwert aus Festgehalt berechenbar; laufende 0-Euro-Stempelungen korrigiert; historische 0-Euro-Einträge nur nach Bestätigung nachberechenbar. Stunden, Pausen, Profile und Daten bleiben erhalten."
 }
