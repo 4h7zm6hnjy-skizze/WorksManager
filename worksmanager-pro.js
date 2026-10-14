@@ -1,10 +1,10 @@
-/* WorksManager 2.0.1 - offline professional dashboard: a non-destructive presentation layer.
+/* WorksManager 2.0.2 - offline professional dashboard: a non-destructive presentation layer.
  * Private records are read from the currently unlocked encrypted profile. No telemetry or remote upload.
  * Manual backups, data migrations, and payroll transactions remain in their existing tested modules.
  */
 (()=>{'use strict';
 const $=id=>document.getElementById(id);
-const VERSION='2.0.1';
+const VERSION='2.0.2';
 const E=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const n=v=>{const x=Number(String(v??'').replace(',','.'));return Number.isFinite(x)?x:0;};
 const round=v=>Math.round((v+Number.EPSILON)*100)/100;

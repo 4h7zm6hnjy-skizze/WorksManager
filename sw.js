@@ -1,10 +1,10 @@
 'use strict';
-/* WorksManager 2.0.1: cache-first offline shell; encryptierte lokale DB wird nicht angefasst. */
+/* WorksManager 2.0.2: cache-first offline shell; encryptierte lokale DB wird nicht angefasst. */
 const CACHE_PREFIX='worksmanager-v';
-const CACHE_NAME='worksmanager-v2.0.1-v1-20261014-b';
-const REQUIRED=['./index.html','./worksmanager-profiles.js?v=2.0.1','./styles.css?v=1.8.4','./app.js?v=1.8.4',
-                './worksmanager-plus.js?v=2.0.1','./worksmanager-19.js?v=1.9.1','./worksmanager-insurance.js?v=2.0.1','./worksmanager-lohn.js?v=2.0.1','./worksmanager-uhr.js?v=2.0.1',
-                './worksmanager-195.js?v=2.0.1','./worksmanager-calendar.js?v=2.0.1','./worksmanager-quality.js?v=2.0.1','./worksmanager-organize.js?v=2.0.1','./worksmanager-pro.js?v=2.0.1','./worksmanager-netto.js?v=2.0.1','./worksmanager-integrity.json','./manifest.json?v=2.0.1','./worksmanager-release.json'];
+const CACHE_NAME='worksmanager-v2.0.2-v1-20261014-c';
+const REQUIRED=['./index.html','./worksmanager-profiles.js?v=2.0.2','./styles.css?v=1.8.4','./app.js?v=1.8.4',
+                './worksmanager-plus.js?v=2.0.2','./worksmanager-19.js?v=1.9.1','./worksmanager-insurance.js?v=2.0.2','./worksmanager-lohn.js?v=2.0.2','./worksmanager-uhr.js?v=2.0.2',
+                './worksmanager-195.js?v=2.0.2','./worksmanager-calendar.js?v=2.0.2','./worksmanager-quality.js?v=2.0.2','./worksmanager-organize.js?v=2.0.2','./worksmanager-pro.js?v=2.0.2','./worksmanager-netto.js?v=2.0.2','./worksmanager-integrity.json','./manifest.json?v=2.0.2','./worksmanager-release.json'];
 const OPTIONAL=['./','./worksmanager-logo.png','./favicon.png','./apple-touch-icon.png',
                 './icon-192.png','./icon-512.png','./icon-1024.png'];
 // Installing an incomplete release must not activate it. Verify every shipped application file.
@@ -12,13 +12,15 @@ async function verifyReleaseCache(cache){
   const manifest=await cache.match('./worksmanager-integrity.json');
   if(!manifest)throw Error('Integritätsmanifest fehlt');
   const info=await manifest.json();
-  if(info.version!=='2.0.1'||!info.files||typeof crypto?.subtle?.digest!=='function')throw Error('Integritätsprüfung nicht verfügbar');
+  if(info.version!=='2.0.2'||!info.files||typeof crypto?.subtle?.digest!=='function')throw Error('Integritätsprüfung nicht verfügbar');
+  const requiredFiles=REQUIRED.filter(p=>!p.endsWith('/worksmanager-integrity.json')).map(p=>p.replace(/^\.\//,''));
+  if(requiredFiles.some(p=>!Object.prototype.hasOwnProperty.call(info.files,p)) || Object.keys(info.files).length!==requiredFiles.length)throw Error('Prüfliste enthält nicht alle Programmdateien');
   for(const [path,expected] of Object.entries(info.files)){
     const response=await cache.match('./'+path);
     if(!response||!response.ok)throw Error('Datei fehlt: '+path);
     const data=await response.arrayBuffer();
     const hash=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',data)),v=>v.toString(16).padStart(2,'0')).join('');
-    if(hash!==expected)throw Error('Datei verändert oder unvollständig: '+path);
+    if(!/^[a-f0-9]{64}$/.test(expected)||hash!==expected)throw Error('Datei verändert oder unvollständig: '+path);
   }
 }
 self.addEventListener('install',event=>{
@@ -40,18 +42,18 @@ self.addEventListener('activate', event=>{
     await self.clients.claim();
   })());
 });
+// A checked version is immutable: never replace executable files with unverified HTTP responses.
+// The next release is loaded only by a new service worker and activated after complete hash verification.
 async function navigation(request){
-  const c=await caches.open(CACHE_NAME);
-  try{const response=await fetch(request);if(response.ok){
-    await c.put(request,response.clone()).catch(()=>{});return response;
-  }return await c.match(request)||await c.match('./index.html')||response;}
-  catch{return await c.match(request)||await c.match('./index.html')||new Response('Bitte WorksManager einmal online öffnen.',{status:503,headers:{'content-type':'text/plain;charset=utf-8'}});}
+ const c=await caches.open(CACHE_NAME);
+ return await c.match('./index.html')||new Response('WorksManager-Startdatei fehlt. Bitte online neu laden.',{status:503,headers:{'content-type':'text/plain;charset=utf-8'}});
 }
 async function asset(request){
-  const c=await caches.open(CACHE_NAME),cached=await c.match(request);
-  // Online bevorzugen bei JavaScript und HTML, offline aus dem Cache laden.
-  try{const response=await fetch(request);if(response.ok){await c.put(request,response.clone()).catch(()=>{});return response;}return cached||response;}
-  catch{return cached||Response.error();}
+ const c=await caches.open(CACHE_NAME),cached=await c.match(request);
+ // This includes scripts, style sheets and release metadata: only the verified installed copy is delivered.
+ if(cached)return cached;
+ // Unknown/new resources may be fetched but must not overwrite or be inserted into the verified cache.
+ try{return await fetch(request);}catch{return Response.error();}
 }
 async function other(request){
   const c=await caches.open(CACHE_NAME),cached=await c.match(request);

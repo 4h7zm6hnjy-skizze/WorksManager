@@ -1,4 +1,4 @@
-/* WorksManager 2.0.1 – geschätztes Netto auf der Startseite.
+/* WorksManager 2.0.2 – geschätztes Netto auf der Startseite.
  * Verwendet ausschließlich die verschlüsselten lokalen Lohnprofilangaben;
  * keine externen Abfragen, keine personenbezogenen Konstanten.
  */

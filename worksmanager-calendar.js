@@ -1,4 +1,4 @@
-/* WorksManager 2.0.1 – Privater Schicht-/Kurzarbeitskalender.
+/* WorksManager 2.0.2 – Privater Schicht-/Kurzarbeitskalender.
  * Manuelle Einträge liegen verschlüsselt in state.wmCalendar; gespeicherte AUs werden direkt aus state.aus angezeigt.
  * Keine Personen-/Gehaltsdaten im öffentlich bereitgestellten Quellcode.
  */
@@ -417,7 +417,7 @@ function init(){window.WMCalendar={refreshAbsenceForMonths,monthAbsence,monthKug
   }catch(e){if(previous===undefined)delete state.wmPayroll;else state.wmPayroll=previous;
    console.error('WorksManager Kalender-Lohnabgleich:',e);showMessage('Abwesenheitsabgleich: '+e.message,true);}});
  });
- document.addEventListener('wm-payroll-rate-updated',()=>{if(open()){render();updateKugPreview();document.dispatchEvent(new CustomEvent('wm-calendar-payroll-updated',{detail:{months:[viewMonth]}}));}});window.addEventListener('pageshow',()=>{if(open()){render();updateKugPreview();}});console.info('WorksManager Schichtkalender 2.0.1 geladen');
+ document.addEventListener('wm-payroll-rate-updated',()=>{if(open()){render();updateKugPreview();document.dispatchEvent(new CustomEvent('wm-calendar-payroll-updated',{detail:{months:[viewMonth]}}));}});window.addEventListener('pageshow',()=>{if(open()){render();updateKugPreview();}});console.info('WorksManager Schichtkalender 2.0.2 geladen');
 }
 if(typeof module!=='undefined'&&module.exports)module.exports={monthKug,monthAbsence,planMinutes,dateSelection,addDays,validDate,auRecords,auIndex,auMonths,auFingerprint,currentRate,weeklyHours,defaultDailyMinutes,kugPreview};
 else if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init,{once:true});else init();

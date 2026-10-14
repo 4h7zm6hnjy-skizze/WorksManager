@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "2.0.1",
-  "build": 2026101402,
+  "version": "2.0.2",
+  "build": 2026101403,
   "released": "2026-10-14",
   "coreCompatibility": "1.8.4",
-  "notes": "Live-Netto Stempeluhr mit getrennter SFN-Steuer-/SV-Vorschau nach § 3b EStG und NRW-Feiertagen (Kierspe). Nachtarbeit ab 20 Uhr steuerbegünstigt, 00–04 Uhr bis 40 % nur bei Arbeitsbeginn vor 00 Uhr; Sonntag bis 50 %, Feiertag 125/150 %. Spät/Überstunden außerhalb SFN steuerpflichtig. Steuerfreie Anteile 50 €/Std. Grundlohn; SV-freie Anteile 25 €/Std. Profile privat; Netto weiterhin unverbindliche Schätzung ohne vollständigen BMF-PAP."
+  "notes": "Intensivprüfung: unveränderlicher SHA-256-geprüfter Offline-Cache mit vollständiger Kern-Dateiliste, keine unkontrollierte Netzwerk-Überschreibung; § 3b EStG Sonderfälle 24./31.12. und 00–04 Uhr Folgetag auf ausdrückliche Auswahl; getrennte Steuer-/SV-Beträge in neuen Monatsabrechnungen, bisherige Monate nur mit Zustimmung; Versionsdiagnose korrigiert. Netto bleibt Schätzung."
 }

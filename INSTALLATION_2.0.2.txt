@@ -1,0 +1,12 @@
+WorksManager 2.0.2 — Sicherheits- und SFN-Korrekturen
+
+1. Vor Update: In der App verschlüsseltes Backup erstellen und offline sicher ablegen.
+2. Sämtliche ZIP-Dateien mit Ausnahme der beiden Dokumentations-TXT im Hauptverzeichnis von GitHub hochladen.
+3. Bestehende app.js, styles.css und worksmanager-19.js NICHT ändern. Die Integritätsprüfung enthält deren aktuellen SHA-256-Hash; sie liegen deshalb nicht in dieser ZIP.
+4. Kein einzelnes Modul außerhalb des vollständigen Updates hochladen; der neue Service-Worker aktiviert nur, wenn die vollständige Dateiliste passt.
+5. App auf dem iPhone online öffnen und auf Version 2.0.2 prüfen; dann Offline-Test durchführen.
+6. 24./31.12. und Folge-Stunden nur dann in der SFN-Einstellung aktivieren, wenn der Arbeitgeber diese Zuschläge tatsächlich bezahlt.
+7. Bereits synchronisierte Lohnmonate nur nach eigener Kontrolle und ausdrücklichem Klick auf „Lohnmonat abgleichen“ erneut übernehmen.
+8. Live-Netto und Lohnmonat sind Schätzungen, nicht amtlich verbindlich. Wenn genaue Pausenzeiten/Entgeltabrechnung fehlen, sind abweichende Ergebnisse möglich.
+
+Wichtig: Auf GitHub liegen keine individuellen Lohnprofildaten. Das Backup enthält personenbezogene Daten und gehört nicht ins öffentliche Repository.

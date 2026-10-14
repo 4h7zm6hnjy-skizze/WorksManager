@@ -1,0 +1,7 @@
+WorksManager 2.0.2 — Korrekturen laut Intensivprüfung vom 14.10.2026
+F01: Geprüfte Offline-Dateien werden cache-first unveränderlich ausgeliefert; keine unkontrollierte Cache-Überschreibung durch Netzwerkantworten.
+F02: Integritätsmanifest umfasst alle 17 erforderlichen Programmdateien einschließlich der drei bisherigen Kernmodule. Nur manifest itself ist nicht gehasht. Kein kryptographischer Signaturschutz gegen gezielte vollständige Serverkompromittierung.
+F03: Optionale steuerbegünstigte SFN-Sondertage 24./31.12. ab 14 Uhr und 00–04 Uhr am Folgetag. Nur berücksichtigen, wenn entsprechende Zuschläge bezahlt werden.
+F04: Automatisch zu übernehmende SFN-Zuschläge werden separat nach steuer- und SV-freien sowie steuer-/SV-pflichtigen Anteilen in die Monatsabrechnung übergeben. Bestehende synchronisierte Lohnmonate bleiben bis zur expliziten Bestätigung unverändert.
+F05: Diagnose-Anzeige der Stempeluhr aktualisiert.
+Nicht Bestandteil: amtlicher BMF-PAP 2026 und amtliche KUG-Beträge. Schätzung bleibt als solche gekennzeichnet. Kein echter iPhone-Safari-Test durchgeführt.
