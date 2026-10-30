@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "2.0.3",
-  "build": 2026103001,
+  "version": "2.0.4",
+  "build": 2026103002,
   "released": "2026-10-30",
   "coreCompatibility": "1.8.4",
-  "notes": "Krankenhaus im Kalender: eigene Markierung mit rotem Kreuz auf weißem Hintergrund für Tage oder Zeiträume; kombinierbar mit Krank/AU und Schicht, ohne automatische Lohnbuchung. Offline-Cache und SHA-256-Integritätsprüfung aktualisiert."
+  "notes": "Version und Update-Erkennung korrigiert: 2.0.4 statt alter 2.0.2 in Anzeige und Update-Modul. Keine Änderungen an Kalenderdaten, Krankenhaus-Funktion, Stempelzeiten oder Lohnabrechnung. Offline-Integritätsprüfung aktualisiert."
 }
