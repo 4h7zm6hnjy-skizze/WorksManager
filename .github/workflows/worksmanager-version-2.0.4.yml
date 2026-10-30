@@ -1,0 +1,138 @@
+name: WorksManager 2.0.4 Versionsanzeige korrigieren
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/worksmanager-version-2.0.4.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  versionskorrektur:
+    name: Versionsanzeige und Update-Erkennung korrigieren
+    runs-on: ubuntu-latest
+    steps:
+      - name: WorksManager herunterladen
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Korrektur durchführen und Offline-Cache aktualisieren
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import json
+          import re
+
+          ROOT = Path('.')
+          OLD_VERSION = '2.0.3'
+          NEW_VERSION = '2.0.4'
+          NEW_BUILD = 2026103002
+          TO_EDIT = ['worksmanager-plus.js', 'index.html', 'sw.js', 'manifest.json', 'worksmanager-release.json', 'worksmanager-integrity.json']
+          originals = {name: (ROOT / name).read_text(encoding='utf-8') for name in TO_EDIT}
+          old_release = json.loads(originals['worksmanager-release.json'])
+          old_integrity = json.loads(originals['worksmanager-integrity.json'])
+
+          # Wiederholtes Ausführen ist harmlos, bestehende neue Version wird nicht verändert.
+          if old_release.get('version') == NEW_VERSION and old_integrity.get('version') == NEW_VERSION:
+              print('WorksManager 2.0.4 ist bereits vorhanden, keine Änderung notwendig.')
+              raise SystemExit(0)
+          if (old_release.get('version') != OLD_VERSION or
+              old_release.get('build') != 2026103001 or
+              old_integrity.get('version') != OLD_VERSION):
+              raise SystemExit('Abbruch: Erwartete WorksManager-Version 2.0.3 ist nicht vorhanden.')
+          if len(old_integrity.get('files', {})) != 17:
+              raise SystemExit('Abbruch: Integritätsliste ist unerwartet; keine Dateien ändern.')
+
+          # Prüfen, dass die vollständige funktionierende 2.0.3-Installation unverändert ist.
+          for item, expected_hash in old_integrity['files'].items():
+              path = ROOT / item.split('?', 1)[0]
+              if not path.is_file():
+                  raise SystemExit(f'Abbruch: Fehlende Datei {path}')
+              current_hash = hashlib.sha256(path.read_bytes()).hexdigest()
+              if current_hash != expected_hash:
+                  raise SystemExit(f'Abbruch: Die Datei {path} weicht von der gesicherten Version ab.')
+
+          calendar = (ROOT / 'worksmanager-calendar.js').read_text(encoding='utf-8')
+          if not all(marker in calendar for marker in ['wmCalHospitalQuick', 'wmCalHospital', 'wmcal-hospital-cross']):
+              raise SystemExit('Abbruch: Krankenhaus-Funktion fehlt. Keine Dateien ändern.')
+
+          def replace_exact(content, before, after, count, area):
+              if content.count(before) != count:
+                  raise SystemExit(f'Abbruch: {area}: erwartete Textstelle nicht eindeutig ({content.count(before)}/{count}).')
+              return content.replace(before, after)
+
+          files = dict(originals)
+          plus = files['worksmanager-plus.js']
+          plus = replace_exact(plus, "const PLUS_VERSION = '2.0.2';", "const PLUS_VERSION = '2.0.4';", 1, 'Update-Modul Versionsnummer')
+          plus = replace_exact(plus, 'const RELEASE_BUILD = 2026101403;', f'const RELEASE_BUILD = {NEW_BUILD};', 1, 'Update-Modul Buildnummer')
+          plus = replace_exact(plus, 'WorksManager 2.0.2', 'WorksManager 2.0.4', 2, 'Versionsanzeige')
+          plus = replace_exact(plus, '?v=2.0.2', '?v=2.0.4', 9, 'Offline-Dateiliste')
+          if '2.0.2' in plus or '2026101403' in plus:
+              raise SystemExit('Abbruch: Veraltete Versionszeichenketten im Update-Modul.')
+          files['worksmanager-plus.js'] = plus
+
+          index = files['index.html']
+          index = replace_exact(index, '2.0.2', '2.0.4', 8, 'Start- und Anmeldeseite')
+          index = replace_exact(index, '?v=2.0.3', '?v=2.0.4', 12, 'Browser-Cache-Referenzen')
+          files['index.html'] = index
+
+          sw = files['sw.js']
+          sw = replace_exact(sw, 'worksmanager-v2.0.3-v1-20261030-a', 'worksmanager-v2.0.4-v1-20261030-b', 1, 'Neuer Offline-Cache')
+          sw = sw.replace('2.0.3', '2.0.4')
+          if '2.0.3' in sw:
+              raise SystemExit('Abbruch: Alte Service-Worker-Referenz gefunden.')
+          files['sw.js'] = sw
+
+          files['manifest.json'] = replace_exact(files['manifest.json'], './?build=2.0.3', './?build=2.0.4', 1, 'Installierte Web-App')
+          release = dict(old_release)
+          release.update(version=NEW_VERSION, build=NEW_BUILD, released='2026-10-30', notes='Version und Update-Erkennung korrigiert: 2.0.4 statt alter 2.0.2 in Anzeige und Update-Modul. Keine Änderungen an Kalenderdaten, Krankenhaus-Funktion, Stempelzeiten oder Lohnabrechnung. Offline-Integritätsprüfung aktualisiert.')
+          files['worksmanager-release.json'] = json.dumps(release, ensure_ascii=False, indent=2) + '\n'
+
+          integrity = dict(old_integrity)
+          integrity.update(version=NEW_VERSION, build=NEW_BUILD, description='SHA-256-geprüfter Offline-Cache; korrigierte Versionsanzeige, Krankenhaus-Funktion bleibt erhalten; keine persönlichen Profildaten')
+          new_manifest = {}
+          for old_name, old_hash in old_integrity['files'].items():
+              disk_name = old_name.split('?', 1)[0]
+              new_name = old_name.replace('?v=2.0.3', '?v=2.0.4')
+              payload = (files[disk_name].encode('utf-8') if disk_name in files else (ROOT / disk_name).read_bytes())
+              new_manifest[new_name] = hashlib.sha256(payload).hexdigest()
+          integrity['files'] = new_manifest
+          files['worksmanager-integrity.json'] = json.dumps(integrity, ensure_ascii=False, indent=2) + '\n'
+
+          match = re.search(r'const REQUIRED=\[([\s\S]*?)\];', files['sw.js'])
+          if match is None:
+              raise SystemExit('Abbruch: Die Offline-Dateiliste ist nicht vorhanden.')
+          required = [p for p in re.findall(r"'\./([^']+)'", match.group(1)) if p != 'worksmanager-integrity.json']
+          if sorted(required) != sorted(new_manifest):
+              raise SystemExit('Abbruch: Offline-Dateiliste und SHA-256-Prüfliste unterscheiden sich.')
+          if not all(x in files['worksmanager-plus.js'] for x in ['const PLUS_VERSION = \'2.0.4\';', f'const RELEASE_BUILD = {NEW_BUILD};']):
+              raise SystemExit('Abbruch: Versionsanzeige oder Update-Erkennung nicht korrigiert.')
+
+          # Originaldateien bleiben intakt, bis alle statischen Prüfungen erfolgreich waren.
+          for name, content in files.items():
+              (ROOT / name).write_text(content, encoding='utf-8')
+          print('WorksManager 2.0.4: Version und Update-Erkennung korrigiert. Krankenhausdaten unverändert; 17 Prüfsummen aktualisiert.')
+          PY
+      - name: JavaScript-Syntax prüfen
+        shell: bash
+        run: |
+          node --check worksmanager-plus.js
+          node --check sw.js
+          node --check worksmanager-calendar.js
+      - name: Änderungen ins GitHub-Projekt übernehmen
+        shell: bash
+        run: |
+          git config user.name "WorksManager Update"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add worksmanager-plus.js index.html sw.js manifest.json worksmanager-release.json worksmanager-integrity.json
+          if git diff --cached --quiet; then
+            echo "Version 2.0.4 war bereits installiert."
+          else
+            git commit -m "WorksManager 2.0.4: Versionsanzeige und Offline-Update korrigieren"
+            git push
+          fi
