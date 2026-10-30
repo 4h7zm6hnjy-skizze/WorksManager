@@ -1,8 +1,8 @@
 {
   "app": "WorksManager",
-  "version": "2.0.2",
-  "build": 2026101403,
-  "released": "2026-10-14",
+  "version": "2.0.3",
+  "build": 2026103001,
+  "released": "2026-10-30",
   "coreCompatibility": "1.8.4",
-  "notes": "Intensivprüfung: unveränderlicher SHA-256-geprüfter Offline-Cache mit vollständiger Kern-Dateiliste, keine unkontrollierte Netzwerk-Überschreibung; § 3b EStG Sonderfälle 24./31.12. und 00–04 Uhr Folgetag auf ausdrückliche Auswahl; getrennte Steuer-/SV-Beträge in neuen Monatsabrechnungen, bisherige Monate nur mit Zustimmung; Versionsdiagnose korrigiert. Netto bleibt Schätzung."
+  "notes": "Krankenhaus im Kalender: eigene Markierung mit rotem Kreuz auf weißem Hintergrund für Tage oder Zeiträume; kombinierbar mit Krank/AU und Schicht, ohne automatische Lohnbuchung. Offline-Cache und SHA-256-Integritätsprüfung aktualisiert."
 }

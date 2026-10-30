@@ -1,10 +1,10 @@
 'use strict';
-/* WorksManager 2.0.2: cache-first offline shell; encryptierte lokale DB wird nicht angefasst. */
+/* WorksManager 2.0.3: cache-first offline shell; encryptierte lokale DB wird nicht angefasst. */
 const CACHE_PREFIX='worksmanager-v';
-const CACHE_NAME='worksmanager-v2.0.2-v1-20261014-c';
-const REQUIRED=['./index.html','./worksmanager-profiles.js?v=2.0.2','./styles.css?v=1.8.4','./app.js?v=1.8.4',
-                './worksmanager-plus.js?v=2.0.2','./worksmanager-19.js?v=1.9.1','./worksmanager-insurance.js?v=2.0.2','./worksmanager-lohn.js?v=2.0.2','./worksmanager-uhr.js?v=2.0.2',
-                './worksmanager-195.js?v=2.0.2','./worksmanager-calendar.js?v=2.0.2','./worksmanager-quality.js?v=2.0.2','./worksmanager-organize.js?v=2.0.2','./worksmanager-pro.js?v=2.0.2','./worksmanager-netto.js?v=2.0.2','./worksmanager-integrity.json','./manifest.json?v=2.0.2','./worksmanager-release.json'];
+const CACHE_NAME='worksmanager-v2.0.3-v1-20261030-a';
+const REQUIRED=['./index.html','./worksmanager-profiles.js?v=2.0.3','./styles.css?v=1.8.4','./app.js?v=1.8.4',
+                './worksmanager-plus.js?v=2.0.3','./worksmanager-19.js?v=1.9.1','./worksmanager-insurance.js?v=2.0.3','./worksmanager-lohn.js?v=2.0.3','./worksmanager-uhr.js?v=2.0.3',
+                './worksmanager-195.js?v=2.0.3','./worksmanager-calendar.js?v=2.0.3','./worksmanager-quality.js?v=2.0.3','./worksmanager-organize.js?v=2.0.3','./worksmanager-pro.js?v=2.0.3','./worksmanager-netto.js?v=2.0.3','./worksmanager-integrity.json','./manifest.json?v=2.0.3','./worksmanager-release.json'];
 const OPTIONAL=['./','./worksmanager-logo.png','./favicon.png','./apple-touch-icon.png',
                 './icon-192.png','./icon-512.png','./icon-1024.png'];
 // Installing an incomplete release must not activate it. Verify every shipped application file.
@@ -12,7 +12,7 @@ async function verifyReleaseCache(cache){
   const manifest=await cache.match('./worksmanager-integrity.json');
   if(!manifest)throw Error('Integritätsmanifest fehlt');
   const info=await manifest.json();
-  if(info.version!=='2.0.2'||!info.files||typeof crypto?.subtle?.digest!=='function')throw Error('Integritätsprüfung nicht verfügbar');
+  if(info.version!=='2.0.3'||!info.files||typeof crypto?.subtle?.digest!=='function')throw Error('Integritätsprüfung nicht verfügbar');
   const requiredFiles=REQUIRED.filter(p=>!p.endsWith('/worksmanager-integrity.json')).map(p=>p.replace(/^\.\//,''));
   if(requiredFiles.some(p=>!Object.prototype.hasOwnProperty.call(info.files,p)) || Object.keys(info.files).length!==requiredFiles.length)throw Error('Prüfliste enthält nicht alle Programmdateien');
   for(const [path,expected] of Object.entries(info.files)){
