@@ -1,0 +1,8 @@
+WorksManager Krankenhaus-Kalender 2.0.3
+
+Die ZIP-Datei in der iPhone-Dateien-App einmal antippen, um sie zu entpacken.
+Die enthaltene YAML-Datei anschließend in deinem WorksManager-GitHub-Repository nach .github/workflows hochladen.
+GitHub Actions muss Schreibrechte (Read and write permissions) haben.
+
+Vor der Installation in WorksManager ein Backup exportieren.
+Die Änderungen sind noch nicht auf GitHub installiert.

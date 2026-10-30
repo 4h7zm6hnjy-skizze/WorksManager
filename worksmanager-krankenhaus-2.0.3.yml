@@ -1,0 +1,132 @@
+name: WorksManager Krankenhaus-Kalender 2.0.3
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/worksmanager-krankenhaus-2.0.3.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  krankenhaus-update:
+    name: Krankenhaus im Kalender installieren
+    runs-on: ubuntu-latest
+    steps:
+      - name: WorksManager laden
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Krankenhausfunktion und Offlineversion aktualisieren
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import hashlib
+          import json
+          import re
+
+          VERSION = '2.0.3'
+          BUILD = 2026103001
+          ROOT = Path('.')
+          NAMES = ['worksmanager-calendar.js', 'index.html', 'sw.js', 'manifest.json', 'worksmanager-release.json', 'worksmanager-integrity.json']
+          source = {name: (ROOT / name).read_text(encoding='utf-8') for name in NAMES}
+          old_integrity = json.loads(source['worksmanager-integrity.json'])
+          old_release = json.loads(source['worksmanager-release.json'])
+          if old_release['version'] == VERSION:
+              print('Version 2.0.3 ist bereits vorhanden. Keine Änderungen notwendig.')
+              raise SystemExit(0)
+          if old_release['version'] != '2.0.2' or old_integrity['version'] != '2.0.2':
+              raise SystemExit('Abbruch: Diese Datei ist für WorksManager 2.0.2 bestimmt; vorhandene Version ist anders.')
+
+          # Vor dem Update jede Programmdatei mit den bereits gespeicherten SHA-256-Werten vergleichen.
+          for key, expected in old_integrity['files'].items():
+              f = ROOT / key.split('?', 1)[0]
+              if not f.is_file():
+                  raise SystemExit(f'Fehlende Bestandsdatei: {f}')
+              actual = hashlib.sha256(f.read_bytes()).hexdigest()
+              if actual != expected:
+                  raise SystemExit(f'Abbruch: Bestandsdatei ist nicht unverändert/verifiziert: {f}')
+
+          c = source['worksmanager-calendar.js']
+          def swap(before, after, label):
+              global c
+              count = c.count(before)
+              if count != 1:
+                  raise SystemExit(f'Abbruch: Kalender-Baustein {label}: erwartet 1, gefunden {count}.')
+              c = c.replace(before, after, 1)
+
+          swap('absence,shortEnabled,shortLoss:', "absence,hospital:!!$('wmCalHospital').checked,shortEnabled,shortLoss:", 'Wert speichern')
+          swap('row.shortEnabled||row.absence||(row.begin', 'row.shortEnabled||row.absence||row.hospital||(row.begin', 'leeren Eintrag vermeiden')
+          swap("$('wmCalAbsence').value=item.absence||'';$('wmCalNote').value", "$('wmCalAbsence').value=item.absence||'';$('wmCalHospital').checked=!!item.hospital;$('wmCalNote').value", 'Wert beim Öffnen laden')
+          swap("const info=$('wmCalSelectedInfo');if(info){", "$('wmCalHospitalQuick')?.setAttribute('aria-pressed',String(!!$('wmCalHospital')?.checked));\n const info=$('wmCalSelectedInfo');if(info){", 'Schnellauswahl aktualisieren')
+          swap('const cls=absence?`wmcal-${absence}`:', 'const hospital=!!r?.hospital;\n  const cls=absence?`wmcal-${absence}`:', 'Krankenhausfeld lesen')
+          swap("absenceLabels[absence]||'',fromAU?", "absenceLabels[absence]||'',hospital?'Krankenhaus':'',fromAU?", 'Barrierefreiheit')
+          swap('class="wmcal-day ${cls} ${fromAU?', 'class="wmcal-day ${cls} ${hospital?\'wmcal-hospital\':\'\'} ${fromAU?', 'Hintergrund weiß')
+          swap('<strong>${n}</strong>${shift?', '<strong>${n}</strong>${hospital?\'<span class="wmcal-hospital-cross" aria-hidden="true">✚</span>\':\'\'}${shift?', 'Kreuz im Kalender')
+          swap('const k=monthKug(month,days(),false),a=monthAbsence(month)', 'const hospitalDays=all.filter(([,r])=>!!r.hospital).length;\n  const k=monthKug(month,days(),false),a=monthAbsence(month)', 'Tage zählen')
+          swap('· Früh ${counts.early} · Spät ${counts.late} · Nacht ${counts.night} · ${absentInfo}', '· Früh ${counts.early} · Spät ${counts.late} · Nacht ${counts.night} · Krankenhaus ${hospitalDays} Tag(e) · ${absentInfo}', 'Monatsübersicht')
+          swap('<span><i class="wmcal-mark kug"></i>Orange · Kurzarbeit</span>', '<span><i class="wmcal-mark hospital">✚</i>Weiß · Krankenhaus</span><span><i class="wmcal-mark kug"></i>Orange · Kurzarbeit</span>', 'Legende')
+          swap('<button type="button" data-cal-absence="" class="noAbsence">Nur Schicht / Notiz</button>', '<button type="button" id="wmCalHospitalQuick" class="hospital" aria-pressed="false"><span class="wmcal-hospital-cross" aria-hidden="true">✚</span> Krankenhaus</button><button type="button" data-cal-absence="" class="noAbsence">Nur Schicht / Notiz</button>', 'Schnellauswahl Krankenhaus')
+          swap('</select></label><label class="full">Notiz<textarea id="wmCalNote"', '</select></label><label class="full wmcal-check"><input type="checkbox" id="wmCalHospital">Krankenhaus markieren (auch zusätzlich zu Krank / AU möglich)</label><label class="full">Notiz<textarea id="wmCalNote"', 'Krankenhaus Kontrollkästchen')
+          swap("document.querySelectorAll('#wmCalKugQuick [data-cal-count]').forEach(btn=>btn.onclick=", "$('wmCalHospitalQuick').onclick=()=>{$('wmCalHospital').checked=!$('wmCalHospital').checked;toggleForm();};\n  $('wmCalHospital').onchange=toggleForm;\n  document.querySelectorAll('#wmCalKugQuick [data-cal-count]').forEach(btn=>btn.onclick=", 'Knopf verknüpfen')
+          swap('.wmcal-mark.vacationFull{background:#b99ae9}', '''.wmcal-day.wmcal-hospital.wmcal-hospital{background:#fff;border:2px solid #d43e4e}
+          .wmcal-day.wmcal-hospital strong{color:#8c1f2d}
+          .wmcal-hospital-cross{display:inline-block;flex:none;color:#c9162b;font-size:22px;font-weight:900;line-height:1}
+          .wmcal-mark.hospital{width:17px;height:17px;background:#fff;color:#c9162b;border:1px solid #d88c93;font-size:14px;line-height:15px;font-style:normal;text-align:center;font-weight:900}
+          .wmcal-quickgrid button.hospital{display:flex;align-items:center;justify-content:center;gap:7px;background:#fff;border:2px solid #d43e4e}
+          .wmcal-quickgrid button.hospital .wmcal-hospital-cross{font-size:20px}
+          @media(max-width:470px){.wmcal-day.wmcal-hospital .wmcal-hospital-cross{font-size:18px}}
+          .wmcal-mark.vacationFull{background:#b99ae9}''', 'Gestaltung')
+          swap('Manuelle und automatisch berechnete Abwesenheitsstunden werden je Art nicht addiert, sondern der höhere Wert wird verwendet.', 'Ein Krankenhauszeichen dokumentiert den Aufenthalt unabhängig von der Lohnart und löst selbst keine Zahlung aus. Manuelle und automatisch berechnete Abwesenheitsstunden werden je Art nicht addiert, sondern der höhere Wert wird verwendet.', 'Info zu Lohn')
+          source['worksmanager-calendar.js'] = c
+          index = source['index.html'].replace('?v=2.0.2', '?v=2.0.3')
+          if index == source['index.html']:
+              raise SystemExit('Abbruch: In index.html wurden die alten Versionsverweise nicht gefunden.')
+          source['index.html'] = index
+          source['sw.js'] = source['sw.js'].replace('2.0.2', '2.0.3').replace('worksmanager-v2.0.3-v1-20261014-c', 'worksmanager-v2.0.3-v1-20261030-a')
+          source['manifest.json'] = source['manifest.json'].replace('./?build=2.0.2', './?build=2.0.3')
+          release = old_release.copy()
+          release.update(version=VERSION, build=BUILD, released='2026-10-30', notes='Krankenhaus im Kalender: eigene Markierung mit rotem Kreuz auf weißem Hintergrund für Tage oder Zeiträume; kombinierbar mit Krank/AU und Schicht, ohne automatische Lohnbuchung. Offline-Cache und SHA-256-Integritätsprüfung aktualisiert.')
+          source['worksmanager-release.json'] = json.dumps(release, ensure_ascii=False, indent=2) + '\n'
+          integrity = old_integrity.copy()
+          integrity.update(version=VERSION, build=BUILD, description='SHA-256-geprüfter Offline-Cache; Krankenhausmarkierung im Kalender; keine persönlichen Profildaten')
+          new_files = {}
+          for key, expected in old_integrity['files'].items():
+              new_key = key.replace('?v=2.0.2', '?v=2.0.3')
+              diskfile = key.split('?', 1)[0]
+              content_bytes = source[diskfile].encode('utf-8') if diskfile in source else (ROOT / diskfile).read_bytes()
+              new_files[new_key] = hashlib.sha256(content_bytes).hexdigest()
+          integrity['files'] = new_files
+          source['worksmanager-integrity.json'] = json.dumps(integrity, ensure_ascii=False, indent=2) + '\n'
+          req_match = re.search(r'const REQUIRED=\[([\s\S]*?)\];', source['sw.js'])
+          if req_match is None:
+              raise SystemExit('Abbruch: Offline-Dateiliste nicht gefunden.')
+          required = [p for p in re.findall(r"'\./([^']+)'", req_match.group(1)) if p != 'worksmanager-integrity.json']
+          if sorted(required) != sorted(new_files):
+              raise SystemExit('Abbruch: Offline-Dateiliste und Integritätsliste stimmen nicht überein.')
+          if 'wmCalHospitalQuick' not in c or 'wmcal-hospital-cross' not in c:
+              raise SystemExit('Abbruch: Krankenhaus-Markierung unvollständig.')
+          for key, value in source.items():
+              (ROOT / key).write_text(value, encoding='utf-8')
+          print('WorksManager 2.0.3: Krankenhaus-Funktion, Offline-Cache und 17 SHA-256-Dateiprüfungen aktualisiert.')
+          PY
+      - name: JavaScript-Syntax kontrollieren
+        shell: bash
+        run: |
+          node --check worksmanager-calendar.js
+          node --check sw.js
+      - name: Update auf GitHub speichern
+        shell: bash
+        run: |
+          git config user.name "WorksManager Update"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add worksmanager-calendar.js index.html sw.js manifest.json worksmanager-release.json worksmanager-integrity.json
+          if git diff --cached --quiet; then
+            echo "Bereits installiert oder keine Änderungen"
+          else
+            git commit -m "WorksManager 2.0.3: Krankenhaus im Kalender"
+            git push
+          fi
